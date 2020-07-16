@@ -24,5 +24,16 @@ echo Done. & echo.
 :END
 endlocal
 
+setlocal
+:PROMPT
+SET /P PROMPT=Do you want to launch the auto-messaging script (y/n)? 
+IF /I "%PROMPT%" NEQ "y" GOTO END
+
+echo Waiting for social.py to work from any account for this to be implemented.
+echo.
+
+:END
+endlocal
+
 echo. & echo Virtual environment activated.
 cmd /k venv\Scripts\activate

@@ -21,6 +21,9 @@ if __name__ == "__main__":
     #opts.add_argument("--headless")
     #assert opts.headless
     browser = Chrome(options=opts)
+
+    # Just want to put here that I had problems with this at the beginning but they got resolved just by trying a couple
+    # of times.
     browser.get('https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin')
 
     if "Login" in browser.title or "Sign in" in browser.title:
@@ -38,7 +41,8 @@ if __name__ == "__main__":
 
     time.sleep(1)
 
-    recipient = "Philippe Cutillas"
+    # recipient = "Philippe Cutillas"
+    recipient = "Samuel Badger"
 
     searchbox = browser.find_element_by_id("msg-overlay-list-bubble-search__search-typeahead-input")
     searchbox.send_keys(recipient)
@@ -51,7 +55,7 @@ if __name__ == "__main__":
 
     time.sleep(1)
     msg_box = browser.find_element_by_class_name("msg-form__contenteditable")
-    msg_box.send_keys("Yo, this is an automated message!")
+    msg_box.send_keys("Yo I got the auto-downloading working, this is an automated message!")
     time.sleep(1)
     msg_send = browser.find_element_by_class_name("msg-form__send-button")
     msg_send.click()
