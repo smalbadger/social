@@ -82,6 +82,15 @@ if __name__ == "__main__":
     for driver in driverNames:
         driverPath = os.path.join(saveDir, driver)
         if os.path.exists(driverPath):
-            os.remove(driverPath)
+
+            try:
+                os.remove(driverPath)
+                
+            except PermissionError:
+                print("\n\nThe " + driver + " driver was not removed successfully. "
+                      "Restarting your computer should fix this, it's caused by an unsuccessful "
+                      "run of social.py and the process not detaching itself from the file.\n")
+
+                exit()  # raising an exception makes it hard to read, exit is easier
 
     getChromeDriver()
