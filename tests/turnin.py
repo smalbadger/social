@@ -80,6 +80,8 @@ class LoginForm(unittest.TestCase):
                 "a[data-control-name=overlay.maximize_connection_list_bar]").click()
         except InvalidSelectorException as e:
             print("Could not find the message-maximize button. We're assuming it's already expanded.")
+        print(browser.current_url)
+        print(browser.page_source)
 
         time.sleep(1)
 
