@@ -84,9 +84,9 @@ def get_pin():
                     mail_content = message.get_payload()
 
                 # and then let's show its result
-                print(f'From: {mail_from}')
-                print(f'Subject: {mail_subject}')
-                print(f'Content: {mail_content}')
+                # print(f'From: {mail_from}')
+                # print(f'Subject: {mail_subject}')
+                # print(f'Content: {mail_content}')
 
                 msg = "Please use this verification code to complete your sign in: "
                 if msg in mail_content:
