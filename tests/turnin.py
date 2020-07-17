@@ -48,10 +48,10 @@ class LoginForm(unittest.TestCase):
         from selenium.webdriver.common.keys import Keys
         from selenium.common.exceptions import InvalidSelectorException
 
-        username = "linkedin.test2@facade-technologies.com"
-        password = "linkedintest2"
+        username = "linkedin.test11@facade-technologies.com"
+        password = "linkedin.test11"
 
-        recipient = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
+        recipient = "George d'tousla canil-bater"
         message = f"Hello {recipient}"
 
         # add the driver to the PATH variable
@@ -89,7 +89,9 @@ class LoginForm(unittest.TestCase):
 
         time.sleep(1)
         results = browser.find_element_by_class_name("msg-overlay-list-bubble-search__search-result-container")
-        target_account = browser.find_element_by_xpath(f"//h4[text()='{recipient}']")
+
+        concat = "concat(\"" + "\", \"".join(list(recipient)) + "\")"
+        target_account = browser.find_element_by_xpath(f"//h4[text()={concat}]")
         target_account.click()
 
         time.sleep(1)

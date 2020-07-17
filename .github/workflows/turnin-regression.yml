@@ -26,11 +26,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          echo "Upgrading pip"
           python -m pip install --upgrade pip
-          echo "Installing requirements"
           pip install -r requirements.txt
-          echo "Done"
 
-      - name: Running nightly regression suite
+      - name: Running turnin regression suite
         run: python ./tests/turnin.py
