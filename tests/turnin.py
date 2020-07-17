@@ -90,7 +90,7 @@ def get_pin():
 
                 msg = "Please use this verification code to complete your sign in: "
                 if msg in mail_content:
-                    return mail_content.split(msg)[1][:5]
+                    return mail_content.split(msg)[1][:6]
     return ""
 
 
