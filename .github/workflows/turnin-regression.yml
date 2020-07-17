@@ -9,12 +9,13 @@ defaults:
   run:
     shell: bash
     working-directory: ./
-  runs-on: windows-latest
+
 
 
 jobs:
 
   build:
+    runs-on: windows-latest
     steps:
       - name: Install dependencies
         run: |
@@ -22,6 +23,7 @@ jobs:
           pip install -r requirements.txt
 
   turnin-regression:
+    runs-on: windows-latest
     needs: [build]
     steps:
       - name: Running nightly regression suite
