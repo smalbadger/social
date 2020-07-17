@@ -144,6 +144,7 @@ class LoginForm(unittest.TestCase):
             while not pin:
                 pin = get_pin()
 
+            print(pin)
             pin_verification.send_keys(pin)
             pin_verification.send_keys(Keys.RETURN)
             time.sleep(1)
@@ -153,8 +154,8 @@ class LoginForm(unittest.TestCase):
                 "a[data-control-name=overlay.maximize_connection_list_bar]").click()
         except InvalidSelectorException as e:
             print("Could not find the message-maximize button. We're assuming it's already expanded.")
-        print(browser.current_url)
-        print(browser.page_source)
+
+        # print(browser.page_source)
 
         time.sleep(1)
 
