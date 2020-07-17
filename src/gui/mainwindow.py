@@ -11,8 +11,6 @@ class SocialView(QMainWindow):
     }
 
     DEV_RECIPIENT = 'Samuel Badger'
-    DEV_MESSAGE = "Made a simple GUI and restructured the code using some pretty cool decorators too, and " \
-                  "if you get this, it worked! I'll push in a couple minutes."
 
     def __init__(self):
 
@@ -63,9 +61,23 @@ class SocialView(QMainWindow):
                 self.controller = SocialView.CONTROLLERS[platform](browser, connectionsFilePath, args)
 
                 # Connect signals
-                self.ui.startButton.clicked.connect(lambda: self.controller.sendMessageTo(SocialView.DEV_RECIPIENT,
-                                                                                          SocialView.DEV_MESSAGE))
+                self.ui.startButton.clicked.connect(lambda: self.controller.sendMessageTo(SocialView.DEV_RECIPIENT))
                 self.ui.stopButton.clicked.connect(lambda: self.controller.stop())
+
+        else:
+            self.ui.stopButton.click()
+
+            # Disable rest of GUI
+            self.ui.loggingBox.setEnabled(False)
+            self.ui.counterBox.setEnabled(False)
+            self.ui.startButton.setEnabled(False)
+            self.ui.stopButton.setEnabled(False)
+
+            # Re-enable settings
+            self.ui.platformDropdown.setDisabled(False)
+            self.ui.browserDropdown.setDisabled(False)
+            self.ui.templateNumber.setDisabled(False)
+            self.ui.showBrowser.setDisabled(False)
 
     def checkConnectionsFile(self) -> bool:
         """

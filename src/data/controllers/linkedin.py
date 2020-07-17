@@ -5,6 +5,7 @@ import time
 from data.controllers.controller import Controller
 from resources.credentials.linkedin import username, password
 from resources.decorators import ensureUserLoggedIn, ensureBrowserIsRunning
+from resources.templates.templates import TEMPLATE, LEVELS
 
 
 class LinkedInController(Controller):
@@ -28,7 +29,6 @@ class LinkedInController(Controller):
 
         self.initURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
         self.connections = connections
-        self.recipient = 'Samuel Badger'
 
     def login(self):
         """
@@ -66,16 +66,16 @@ class LinkedInController(Controller):
 
     @ensureBrowserIsRunning
     @ensureUserLoggedIn
-    def sendMessageTo(self, person: str, message: str):
+    def sendMessageTo(self, person: str):
         """
-        Sends a message to the person.
+        Sends a message to the person, using templates.
         """
 
         self.searchMessagesFor(person)
 
         time.sleep(.1)
         msg_box = self.browser.find_element_by_class_name("msg-form__contenteditable")
-        msg_box.send_keys(message)
+        msg_box.send_keys(TEMPLATE[3].format(recipient=person))
         time.sleep(.5)
         msg_send = self.browser.find_element_by_class_name("msg-form__send-button")
         msg_send.click()

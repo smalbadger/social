@@ -15,6 +15,7 @@ def ensureBrowserIsRunning(func):
 
     return check
 
+
 def ensureUserLoggedIn(func):
     """
     A decorator for most functions in the controllers. Ensures a user is logged in before executing any functions.
