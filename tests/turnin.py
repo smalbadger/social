@@ -5,6 +5,7 @@ import os
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from screen_recorder_sdk import screen_recorder
 
 import imaplib
 from datetime import datetime, timedelta
@@ -135,7 +136,8 @@ class LoginForm(unittest.TestCase):
         from selenium.webdriver.chrome.options import Options
         from selenium.webdriver.common.keys import Keys
         from selenium.common.exceptions import InvalidSelectorException
-
+        screen_recorder.enable_dev_log()
+        screen_recorder.start_video_recording("test.mp4", 30, 8000000, True)
         username = "linkedin.test11@facade-technologies.com"
         password = "linkedin.test11"
 
@@ -209,6 +211,7 @@ class LoginForm(unittest.TestCase):
         msg_send.click()
 
         browser.close()
+        screen_recorder.stop_video_recording()
 
     def test_email(self):
         timeout = timedelta(minutes=15)
