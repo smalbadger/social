@@ -1,6 +1,3 @@
-.idea/
-drivers/windows/*
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -132,4 +129,13 @@ dmypy.json
 .pyre/
 
 # Credentials
-src/credentials/
+src/resources/credentials/
+
+# PyCharm stuff
+.idea/
+
+# Web Drivers
+drivers/windows/*
+
+# all auto-generated python files from pyside2-uic
+src/gui/ui/ui_*.py
