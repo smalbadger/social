@@ -10,11 +10,16 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import InvalidSelectorException
 
 from credentials.linkedin import username, password
+from templates.templates import TEMPLATE
 
 recipient = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
-message = f"Hello {recipient}"
+
+message = TEMPLATE[1].format(recipient=recipient)
+
 
 if __name__ == "__main__":
+    # print(message)
+    # exit()
 
     # add the driver to the PATH variable
 
