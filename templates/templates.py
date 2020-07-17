@@ -6,6 +6,7 @@ path = pathlib.Path(__file__).parent.absolute()
 files = [f for f in listdir(path) if isfile(join(path, f)) and f.endswith('.txt')]
 
 TEMPLATE = {}
+LEVELS = len(files)
 
 for file in files:
     with open(join(path, file), 'r') as f:

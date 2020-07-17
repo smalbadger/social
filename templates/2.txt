@@ -1,1 +1,4 @@
 Hey {recipient}, how've you been?
+
+Here's a link:
+{link}

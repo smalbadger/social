@@ -10,16 +10,18 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import InvalidSelectorException
 
 from credentials.linkedin import username, password
-from templates.templates import TEMPLATE
+from templates.templates import TEMPLATE, LEVELS
 
 recipient = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
+link = "https://www.linkedin.com/"
 
-message = TEMPLATE[1].format(recipient=recipient)
+message = TEMPLATE[1].format(recipient=recipient, link=link)
 
 
 if __name__ == "__main__":
-    # print(message)
-    # exit()
+    print(message)
+    print(LEVELS)
+    exit()
 
     # add the driver to the PATH variable
 
