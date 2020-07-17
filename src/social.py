@@ -11,6 +11,9 @@ from selenium.common.exceptions import InvalidSelectorException
 
 from credentials.linkedin import username, password
 
+recipient = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
+message = f"Hello {recipient}"
+
 if __name__ == "__main__":
 
     # add the driver to the PATH variable
@@ -41,9 +44,6 @@ if __name__ == "__main__":
 
     time.sleep(1)
 
-    # recipient = "Philippe Cutillas"
-    recipient = "Samuel Badger"
-
     searchbox = browser.find_element_by_id("msg-overlay-list-bubble-search__search-typeahead-input")
     searchbox.send_keys(recipient)
     searchbox.send_keys(Keys.RETURN)
@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     time.sleep(1)
     msg_box = browser.find_element_by_class_name("msg-form__contenteditable")
-    msg_box.send_keys("Yo I got the auto-downloading working, this is an automated message!")
+    msg_box.send_keys(message)
     time.sleep(1)
     msg_send = browser.find_element_by_class_name("msg-form__send-button")
     msg_send.click()
