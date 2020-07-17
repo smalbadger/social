@@ -1,0 +1,1 @@
+Hey {recipient}, also got templates to work after merging them in.

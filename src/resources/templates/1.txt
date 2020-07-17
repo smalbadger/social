@@ -1,0 +1,6 @@
+Hello {recipient},
+
+How are you?
+
+Here's a link:
+{link}
