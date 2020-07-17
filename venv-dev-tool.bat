@@ -14,10 +14,10 @@ endlocal
 
 setlocal
 :PROMPT
-SET /P PROMPT=Do you want to generate credentials (y/n)? 
+SET /P PROMPT=Do you want to enter new account credentials (y/n)? 
 IF /I "%PROMPT%" NEQ "y" GOTO END
 
-echo Generating credentials...
+echo.
 cmd /k "cd /d venv\Scripts & activate & cd /d ..\..\scripts & python credential_generator.py & exit"
 echo Done. & echo.
 
@@ -29,7 +29,7 @@ setlocal
 SET /P PROMPT=Do you want to launch the auto-messaging script (y/n)? 
 IF /I "%PROMPT%" NEQ "y" GOTO END
 
-echo Waiting for social.py to work from any account for this to be implemented.
+echo. & echo Waiting for social.py to work from any account for this to be implemented.
 echo.
 
 :END
