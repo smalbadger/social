@@ -31,3 +31,9 @@ jobs:
 
       - name: Running turnin regression suite
         run: python ./tests/turnin.py
+
+      - name: upload logs
+        uses: actions/upload-artifact@v1
+          with:
+            name: logs
+            path: logs
