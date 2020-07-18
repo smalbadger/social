@@ -1,5 +1,6 @@
 import os
 import psutil
+import time
 from typing import List, Iterable
 from abc import ABC as AbstractBaseClass
 from abc import abstractmethod
@@ -25,6 +26,7 @@ class Controller(AbstractBaseClass):
     }
 
     IMPLICIT_WAIT = 5
+    ENABLE_HIGHLIGHT = True
 
     def __init__(self, username: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
         """
@@ -36,7 +38,7 @@ class Controller(AbstractBaseClass):
         :type email: str
         :param password: The password of the account to log into.
         :type password: str
-        :param browser: Either an existing browser instance or a string the the name of the browser to create an instance
+        :param browser: Either an existing browser instance or the name of the browser to create an instance
         :type browser: selenium.webdriver OR str
         :param options: Arguments to use when launching the browser
         :type options: Iterable[str]
@@ -55,10 +57,7 @@ class Controller(AbstractBaseClass):
         :return: True if the browser is running and False otherwise.
         :rtype: bool
         """
-        try:
-            if not self._browser:
-                return False
-        except AttributeError:
+        if not self.browser:
             return False
 
         driver_process = psutil.Process(self._browser.service.process.pid)
@@ -76,14 +75,13 @@ class Controller(AbstractBaseClass):
     def browser(self) -> Remote:
         """
         :return: Gets the browser from the controller
-        :rtype: Remote
+        :rtype: Remote or NoneType
         """
         try:
             if self._browser:
                 return self._browser
         except AttributeError:
-            pass
-        raise ControllerException("The browser is not set")
+            return None
 
     @browser.setter
     def browser(self, browser):
@@ -96,10 +94,7 @@ class Controller(AbstractBaseClass):
         if isinstance(browser, str):
             if browser not in Controller.BROWSERS.keys():
                 raise ControllerException(f"{browser} is not a supported Browser")
-            browserConstructor, driverpath = Controller.BROWSERS[browser]
-            os.environ["PATH"] += ";" + driverpath
-            self._browser = browserConstructor(options=self.options)
-            self._browser.implicitly_wait(Controller.IMPLICIT_WAIT)
+            self._browserName = browser
 
         elif isinstance(browser, Remote):
             self._browser = browser
@@ -122,6 +117,14 @@ class Controller(AbstractBaseClass):
 
     def start(self):
         """Starts the controller"""
+
+        if not self.browser:
+            browserConstructor, driverpath = Controller.BROWSERS[self._browserName]
+            if driverpath not in os.environ['PATH']:
+                os.environ["PATH"] += ";" + driverpath
+            self.browser = browserConstructor(options=self.options)
+            self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
+
         self.browser.get(self._initialURL)
         self.login()
 
@@ -129,6 +132,24 @@ class Controller(AbstractBaseClass):
         """Stops the controller by closing the browser"""
         self.browser.close()
         self.browser = None
+
+    def highlightElement(self, element, effect_time=1, border_color="red", background_color="yellow", text_color="blue", border=2):
+        """Highlights (blinks) a Selenium Webdriver element"""
+
+        if not Controller.ENABLE_HIGHLIGHT:
+            return
+
+        def apply_style(s):
+            self.browser.execute_script("arguments[0].setAttribute('style', arguments[1]);", element, s)
+
+        original_style = element.get_attribute('style')
+
+        flash_count = 10
+        for i in range(effect_time * flash_count):
+            time.sleep(effect_time / flash_count / 2)
+            apply_style("border: {0}px dashed {1}; background-color: {2}; color: {3};".format(border, border_color, background_color, text_color))
+            time.sleep(effect_time / flash_count / 2)
+            apply_style(original_style)
 
     @abstractmethod
     def login(self):
