@@ -43,13 +43,16 @@ class Controller(AbstractBaseClass):
         :param options: Arguments to use when launching the browser
         :type options: Iterable[str]
         """
-
-        self.options = list(options)
-        self.browser = browser
+        # store private variables first
         self._initialURL = None
         self._username = username
         self._email = email
         self._password = password
+
+        self.initLogger()
+        self.options = list(options)
+        self.browser = browser
+
 
     @property
     def isRunning(self) -> bool:
@@ -153,7 +156,10 @@ class Controller(AbstractBaseClass):
 
     @abstractmethod
     def login(self):
-        """
-        Must be overridden in subclasses. Raises error here.
-        """
+        """Must be overridden in subclasses. Raises error here."""
+        raise ControllerException('Override the login function in the Controller subclass you are using.')
+
+    @abstractmethod
+    def initLogger(self):
+        """Must be overridden in subclasses. Raises error here."""
         raise ControllerException('Override the login function in the Controller subclass you are using.')

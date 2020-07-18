@@ -1,11 +1,14 @@
-from selenium.webdriver.common.keys import Keys
+import os
 import time
+import logging
 from datetime import timedelta
+from selenium.webdriver.common.keys import Keys
 
 from site_controllers.controller import Controller
 from site_controllers.decorators import authentication_required, ensureBrowserIsRunning, print_page_on_exception
 from emails import PinValidation
-from common import logging
+
+from common.logging import initial_timestamp, LOG_FILES_DIR
 from common.stringmanipulations import onlyAplhaNumeric
 
 
@@ -19,7 +22,19 @@ class LinkedInController(Controller):
 
         Controller.__init__(self, *args, **kwargs)
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
-        self._logger = logging.getLogger(f"controller.linkedin.{onlyAplhaNumeric(self._username, '_')}")
+        self._logger.info(f"Creating Linkedin controller for {self._username}")
+
+    def initLogger(self):
+        """Creates a logger for this user's linkedin controller only"""
+        alphaNumericName = onlyAplhaNumeric(self._username, '_')
+        filename = os.path.abspath(os.path.join(LOG_FILES_DIR, f"{initial_timestamp}--{alphaNumericName}.log"))
+        format_str = '%(asctime)s - %(levelname)s - %(message)s'
+        handler = logging.FileHandler(filename, encoding='unicode_escape', delay=True)
+        handler.setFormatter(logging.Formatter(format_str))
+        self._loggerName = f"controller.linkedin.{alphaNumericName}"
+        self._logger = logging.getLogger(self._loggerName)
+        self._logger.addHandler(handler)
+        self._logger.setLevel(logging.DEBUG)
 
     @ensureBrowserIsRunning
     def login(self):

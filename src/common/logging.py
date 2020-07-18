@@ -24,7 +24,7 @@ def archive_logs():
 
         full_file = os.path.join(LOG_FILES_DIR, file)
         if os.path.isfile(full_file):
-            prefix = file.split("_")[0]
+            prefix = file.split("--")[0]
             curFile = os.path.join(LOG_FILES_DIR, file)
             newLogDir = os.path.join(LOG_FILES_DIR, f"{prefix}_logs")
             newFile = os.path.join(newLogDir, file)
@@ -64,44 +64,24 @@ handlers:
     level: DEBUG
     formatter: short
     stream: ext://sys.stdout
-  main_file:
-    class: logging.FileHandler
-    level: DEBUG
-    formatter: precise
-    filename: {os.path.join(LOG_FILES_DIR, f"{initial_timestamp}_main.log")}
-  turnin_file:
-    class: logging.FileHandler
-    level: DEBUG
-    formatter: precise
-    filename: {os.path.join(LOG_FILES_DIR, f"{initial_timestamp}_turnin.log")}
-  controller_file:
-    class: logging.FileHandler
-    level: DEBUG
-    formatter: precise
-    filename: {os.path.join(LOG_FILES_DIR, f"{initial_timestamp}_controller.log")}
-  email_file:
-    class: logging.FileHandler
-    level: DEBUG
-    formatter: precise
-    filename: {os.path.join(LOG_FILES_DIR, f"{initial_timestamp}_email.log")}
 
 loggers:
   turnin:
     level: DEBUG
-    handlers: [turnin_file]
+    handlers: [null_handler]
     propagate: yes
   controller:
     level: DEBUG
-    handlers: [controller_file]
+    handlers: [null_handler]
     propagate: yes
   email:
     level: DEBUG
-    handlers: [email_file]
+    handlers: [null_handler]
     propagate: yes
 
 root:
   level: DEBUG
-  handlers: [main_file]
+  handlers: [null_handler]
 """
 
 logging.config.dictConfig(benedict.load_yaml_str(logging_config_YAML))
@@ -131,8 +111,6 @@ logging.config.dictConfig(benedict.load_yaml_str(logging_config_YAML))
 ########################################################################################################################
 
 root_logger     = logging.getLogger("root")
-main_logger     = logging.getLogger("turnin")
-explorer_logger = logging.getLogger("controller")
-compiler_logger = logging.getLogger("email")
-
-getLogger = logging.getLogger
+test_logger     = logging.getLogger("turnin")
+controller_logger = logging.getLogger("controller")
+email_logger = logging.getLogger("email")
