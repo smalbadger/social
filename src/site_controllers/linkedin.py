@@ -55,7 +55,7 @@ class LinkedInController(Controller):
             # Determine if it's asking for a pin
             pin_inputs = self.browser.find_elements_by_id("input__email_verification_pin")
             if pin_inputs:
-                timeout = timedelta(minutes=15)
+                timeout = timedelta(minutes=1)
                 self.info("Detected pin validation method. Retrieving PIN from email.")
                 pin = PinValidator().get_pin(self._username, self._email, timeout)
                 self.info(f"Retrieved PIN: {pin}")
