@@ -97,7 +97,9 @@ class Controller(AbstractBaseClass):
         if isinstance(browser, str):
             if browser not in Controller.BROWSERS.keys():
                 raise ControllerException(f"{browser} is not a supported Browser")
-            self._browserName = browser
+            self._browserConstructor, driverpath = Controller.BROWSERS[browser]
+            if driverpath not in os.environ['PATH']:
+                os.environ["PATH"] += ";" + driverpath
 
         elif isinstance(browser, Remote):
             self._browser = browser
@@ -122,10 +124,7 @@ class Controller(AbstractBaseClass):
         """Starts the controller"""
 
         if not self.browser:
-            browserConstructor, driverpath = Controller.BROWSERS[self._browserName]
-            if driverpath not in os.environ['PATH']:
-                os.environ["PATH"] += ";" + driverpath
-            self.browser = browserConstructor(options=self.options)
+            self.browser = self._browserConstructor(options=self.options)
             self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
 
         self.browser.get(self._initialURL)
