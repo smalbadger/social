@@ -1,9 +1,10 @@
 from selenium.webdriver.common.keys import Keys
 import time
+from datetime import timedelta
 
 from site_controllers.controller import Controller
 from site_controllers.decorators import authentication_required, ensureBrowserIsRunning
-
+from emails import PinValidation
 
 class LinkedInController(Controller):
     """
@@ -24,6 +25,18 @@ class LinkedInController(Controller):
             self.browser.find_element_by_id("username").send_keys(self._email)
             self.browser.find_element_by_id("password").send_keys(self._password)
             self.browser.find_element_by_css_selector('button[type=submit]').click()
+
+        if "Security Verification" in self.browser.title:
+
+            # Determine if it's asking for a pin
+            pin_inputs = self.browser.find_elements_by_id("input__email_verification_pin")
+            if pin_inputs:
+                timeout = timedelta(minutes=15)
+                pin = PinValidation().get_pin(self._username, self._email, timeout)
+                pin_inputs[0].send_keys(pin + Keys.RETURN)
+
+            # Determine if it's asking for a recaptcha
+            # TODO: Implement
 
     @authentication_required
     def searchMessagesFor(self, person: str):

@@ -28,8 +28,6 @@ def authentication_required(func):
         if "Login" in controller.browser.title or "Sign in" in controller.browser.title:
             controller.login()
 
-        # TODO: Integration email PinValidator in here
-
         func(*args, **kwargs)
 
     return check

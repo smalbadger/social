@@ -17,7 +17,8 @@ class LoginForm(unittest.TestCase):
     #     assert pin == "859721"
 
     def test_LinkedIn(self):
-        linkedin = LinkedInController("linkedin.test11@facade-technologies.com", "linkedin.test11")
+        ou_name = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
+        linkedin = LinkedInController(ou_name, "linkedin.test11@facade-technologies.com", "linkedin.test11")
         linkedin.start()
 
         linkedin.sendMessageTo("Mary-Ann Johnson", "What's up Mary-Ann?")
@@ -29,8 +30,8 @@ class LoginForm(unittest.TestCase):
         mary_name = "Mary-Ann Johnson"
         ou_name = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
 
-        ou = LinkedInController("linkedin.test11@facade-technologies.com", "linkedin.test11")
-        mary = LinkedInController("linkedin.test2@facade-technologies.com", "linkedintest2")
+        ou = LinkedInController(ou_name, "linkedin.test11@facade-technologies.com", "linkedin.test11")
+        mary = LinkedInController(mary_name, "linkedin.test2@facade-technologies.com", "linkedintest2")
         ou.start()
         mary.start()
 

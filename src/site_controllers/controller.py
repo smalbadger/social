@@ -26,11 +26,13 @@ class Controller(AbstractBaseClass):
 
     IMPLICIT_WAIT = 5
 
-    def __init__(self, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
+    def __init__(self, username: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
         """
         Initializes controller
 
-        :param email: The emails OR username of the account to log into.
+        :param username: The username of the account to log into.
+        :type username: str
+        :param email: The emails of the account to log into.
         :type email: str
         :param password: The password of the account to log into.
         :type password: str
@@ -43,6 +45,7 @@ class Controller(AbstractBaseClass):
         self.options = list(options)
         self.browser = browser
         self._initialURL = None
+        self._username = username
         self._email = email
         self._password = password
 
