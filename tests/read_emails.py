@@ -1,5 +1,5 @@
 import imaplib
-import email
+import emails
 
 imaplib._MAXLINE = 1000000
 
@@ -31,10 +31,10 @@ if __name__ == "__main__":
         # b'1 2 3'.split() => [b'1', b'2', b'3']
         mail_ids += block.split()
 
-    # now for every id we'll fetch the email
+    # now for every id we'll fetch the emails
     # to extract its content
     for i in mail_ids:
-        # the fetch function fetch the email given its id
+        # the fetch function fetch the emails given its id
         # and format that you want the message to be
         status, data = mail.fetch(i, '(RFC822)')
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
                 # we go for the content at its second element
                 # skipping the header at the first and the closing
                 # at the third
-                message = email.message_from_bytes(response_part[1])
+                message = emails.message_from_bytes(response_part[1])
 
                 # with the content we can extract the info about
                 # who sent the message and its subject
@@ -64,7 +64,7 @@ if __name__ == "__main__":
                     # on multipart we have the text message and
                     # another things like annex, and html version
                     # of the message, in that case we loop through
-                    # the email payload
+                    # the emails payload
                     for part in message.get_payload():
                         # if the content type is text/plain
                         # we extract it

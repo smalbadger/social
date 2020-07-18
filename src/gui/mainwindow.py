@@ -1,7 +1,7 @@
 from PySide2.QtWidgets import QMainWindow
 from PySide2.QtCore import Slot
 from gui.ui.ui_mainwindow import Ui_MainWindow
-from data.controllers.linkedin import LinkedInController
+from site_controllers.linkedin import LinkedInController
 
 
 class SocialView(QMainWindow):
