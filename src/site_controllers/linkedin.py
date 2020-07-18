@@ -5,6 +5,9 @@ from datetime import timedelta
 from site_controllers.controller import Controller
 from site_controllers.decorators import authentication_required, ensureBrowserIsRunning, print_page_on_exception
 from emails import PinValidation
+from common import logging
+from common.stringmanipulations import onlyAplhaNumeric
+
 
 class LinkedInController(Controller):
     """
@@ -16,6 +19,7 @@ class LinkedInController(Controller):
 
         Controller.__init__(self, *args, **kwargs)
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
+        self._logger = logging.getLogger(f"controller.linkedin.{onlyAplhaNumeric(self._username, '_')}")
 
     @ensureBrowserIsRunning
     def login(self):
@@ -44,9 +48,11 @@ class LinkedInController(Controller):
 
         connection_bar = self.browser.find_element_by_css_selector("header[data-control-name$=_connection_list_bar]")
         if "maximize" in connection_bar.get_attribute("data-control-name"):
+            self.highlightElement(connection_bar)
             connection_bar.click()
 
         searchbox = self.browser.find_element_by_id("msg-overlay-list-bubble-search__search-typeahead-input")
+        self.highlightElement(searchbox)
         searchbox.send_keys(Keys.CONTROL + "a")
         searchbox.send_keys(Keys.DELETE)
         searchbox.send_keys(person)
@@ -55,22 +61,30 @@ class LinkedInController(Controller):
         time.sleep(1) # CAUTION!
 
         concat = "concat(\"" + "\", \"".join(list(person)) + "\")"
-        target_account = self.browser.find_element_by_xpath(f"//h4[text()={concat}]/../../../../../..")
+        target_account = self.browser.find_element_by_xpath(f"//h4[text()={concat}]/../../..")
+        self.highlightElement(target_account)
         target_account.click()
+
+    @authentication_required
+    def closeAllChatWindows(self):
+        """Closes all open chat windows"""
+        # I was having trouble iterating over all chat windows and closing them because when one closes, the others
+        # become detached or something. Refreshing is a more robust way of closing the windows.
+        self.browser.refresh()
+        time.sleep(1)
 
     @authentication_required
     @print_page_on_exception
     def sendMessageTo(self, person: str, message: str):
         """Sends a message to the person."""
 
+        self.closeAllChatWindows()
         self.searchMessagesFor(person)
 
         msg_box = self.browser.find_element_by_class_name("msg-form__contenteditable")
+        self.highlightElement(msg_box)
         msg_box.send_keys(message)
         time.sleep(1) # CAUTION!
         msg_send = self.browser.find_element_by_class_name("msg-form__send-button")
+        self.highlightElement(msg_send)
         msg_send.click()
-
-        time.sleep(1) # CAUTION!
-        close_button = self.browser.find_element_by_css_selector("aside#msg-overlay button:nth-child(3)")
-        close_button.click()

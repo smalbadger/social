@@ -5,22 +5,13 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from pprint import pprint
-pprint(sys.path)
 from site_controllers import LinkedInController
 
 def wait_random():
-    wait = random.random()*10+2
-    print(f"Waiting for {wait:20} seconds to make this seem like a real conversation")
-    time.sleep(wait)
+    wait = random.random()
+    #time.sleep(wait)
 
 class LoginForm(unittest.TestCase):
-
-    # def test_email(self):
-    #     timeout = timedelta(minutes=15)
-    #     pin = PinValidation().get_pin("ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ",
-    #                                   "linkedin.test11@facade-technologies.com", timeout)
-    #     assert pin == "859721"
 
     def test_LinkedIn(self):
         ou_name = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
