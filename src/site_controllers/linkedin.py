@@ -3,7 +3,7 @@ import time
 from datetime import timedelta
 
 from site_controllers.controller import Controller
-from site_controllers.decorators import authentication_required, ensureBrowserIsRunning
+from site_controllers.decorators import authentication_required, ensureBrowserIsRunning, print_page_on_exception
 from emails import PinValidation
 
 class LinkedInController(Controller):
@@ -59,6 +59,7 @@ class LinkedInController(Controller):
         target_account.click()
 
     @authentication_required
+    @print_page_on_exception
     def sendMessageTo(self, person: str, message: str):
         """Sends a message to the person."""
 

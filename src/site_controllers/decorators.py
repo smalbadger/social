@@ -2,9 +2,7 @@ from functools import wraps
 
 
 def ensureBrowserIsRunning(func):
-    """
-    Makes the browser is started before a function is called
-    """
+    """Makes the browser is started before a function is called"""
     @wraps(func)
     def check(*args, **kwargs):
         controller = args[0]
@@ -17,9 +15,7 @@ def ensureBrowserIsRunning(func):
 
 
 def authentication_required(func):
-    """
-    A decorator for most functions in the site_controllers. Ensures a user is logged in before executing any functions.
-    """
+    """Ensures a user is logged in before executing any functions."""
 
     @wraps(func)
     def check(*args, **kwargs):
@@ -29,5 +25,21 @@ def authentication_required(func):
             controller.login()
 
         func(*args, **kwargs)
+
+    return check
+
+
+def print_page_on_exception(func):
+    """If an exception occurs, print the page HTML"""
+
+    @wraps(func)
+    def check(*args, **kwargs):
+        controller = args[0]
+
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            print(controller.browser.page_source)
+            raise e
 
     return check

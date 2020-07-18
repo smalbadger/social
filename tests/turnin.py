@@ -1,7 +1,7 @@
 import unittest
 import random
 import time
-from site_controllers.linkedin import LinkedInController
+from site_controllers import LinkedInController
 
 def wait_random():
     wait = random.random()*10+2
