@@ -4,7 +4,12 @@ import emails
 
 imaplib._MAXLINE = 1000000
 
-class PinValidation:
+
+class PinValidationException(Exception):
+    def __init__(self, msg):
+        Exception.__init__(msg)
+
+class PinValidator:
 
     EMAIL = 'social.hackers.468@gmail.com'
     PASSWORD = 'linkedin.tester468'
@@ -12,8 +17,8 @@ class PinValidation:
 
     def __init__(self):
         # connect to the server and go to its inbox
-        self.mailbox = imaplib.IMAP4_SSL(PinValidation.SERVER)
-        self.mailbox.login(PinValidation.EMAIL, PinValidation.PASSWORD)
+        self.mailbox = imaplib.IMAP4_SSL(PinValidator.SERVER)
+        self.mailbox.login(PinValidator.EMAIL, PinValidator.PASSWORD)
         # we choose the inbox but you can select others
         self.mailbox.select('inbox')
 

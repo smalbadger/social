@@ -6,7 +6,7 @@ from selenium.webdriver.common.keys import Keys
 
 from site_controllers.controller import Controller
 from site_controllers.decorators import authentication_required, ensureBrowserIsRunning, print_page_on_exception
-from emails import PinValidation
+from emails import PinValidator, PinValidationException
 
 from common.logging import initial_timestamp, LOG_FILES_DIR
 from common.stringmanipulations import onlyAplhaNumeric
@@ -40,20 +40,31 @@ class LinkedInController(Controller):
     def login(self):
         """Logs in to LinkedIn"""
 
+        self._logger.info("Logging in")
         if "Login" in self.browser.title or "Sign in" in self.browser.title:
+            self._logger.debug("Entering username")
             self.browser.find_element_by_id("username").send_keys(self._email)
+            self._logger.debug("Entering password")
             self.browser.find_element_by_id("password").send_keys(self._password)
+            self._logger.debug("Submitting login request")
             self.browser.find_element_by_css_selector('button[type=submit]').click()
 
         if "Security Verification" in self.browser.title:
-
+            self._logger.warning("Detected Security verification page")
             # Determine if it's asking for a pin
             pin_inputs = self.browser.find_elements_by_id("input__email_verification_pin")
             if pin_inputs:
                 timeout = timedelta(minutes=15)
-                pin = PinValidation().get_pin(self._username, self._email, timeout)
-                pin_inputs[0].send_keys(pin + Keys.RETURN)
+                self._logger.info("Detected pin validation method. Retrieving PIN from email.")
+                pin = PinValidator().get_pin(self._username, self._email, timeout)
+                if pin:
+                    self._logger.info(f"Retrieved PIN: {pin}")
+                    pin_inputs[0].send_keys(pin + Keys.RETURN)
+                else:
+                    raise VerificationException("Fatal: Unable to detect PIN")
 
+            else:
+                self._logger.critical("An unknown security verification technique was detected.")
             # Determine if it's asking for a recaptcha
             # TODO: Implement
 
