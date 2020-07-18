@@ -44,6 +44,7 @@ class Controller(AbstractBaseClass):
         :type options: Iterable[str]
         """
         # store private variables first
+        self._logger = None
         self._initialURL = None
         self._username = username
         self._email = email
@@ -162,3 +163,25 @@ class Controller(AbstractBaseClass):
     def initLogger(self):
         """Must be overridden in subclasses. Raises error here."""
         raise ControllerException('Override the login function in the Controller subclass you are using.')
+
+    #############################################################
+    #  Logging Shortcuts
+    #############################################################
+    def debug(self, *args, **kwargs):
+        self._logger.debug(*args, **kwargs)
+
+    def info(self, *args, **kwargs):
+        self._logger.info(*args, **kwargs)
+
+    def warning(self, *args, **kwargs):
+        self._logger.warning(*args, **kwargs)
+
+    def error(self, *args, **kwargs):
+        self._logger.error(*args, **kwargs)
+
+    def critical(self, *args, **kwargs):
+        self._logger.critical(*args, **kwargs)
+
+    def exception(self, *args, **kwargs):
+        self._logger.exception(*args, **kwargs)
+

@@ -117,4 +117,4 @@ class PinValidator:
 
                         if needed_msg in mail_content:
                             return mail_content.split(needed_msg)[1][:6]
-        return ""
+        raise PinValidationException("No PIN Found.")
