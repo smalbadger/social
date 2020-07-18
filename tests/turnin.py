@@ -1,6 +1,12 @@
 import unittest
 import random
 import time
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+from pprint import pprint
+pprint(sys.path)
 from site_controllers import LinkedInController
 
 def wait_random():
