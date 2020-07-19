@@ -21,7 +21,7 @@ def authentication_required(func):
     def check(*args, **kwargs):
         controller = args[0]
 
-        if "Login" in controller.browser.title or "Sign in" in controller.browser.title:
+        if not controller.auth_check():
             controller.login()
 
         func(*args, **kwargs)

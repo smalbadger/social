@@ -64,6 +64,12 @@ handlers:
     level: DEBUG
     formatter: short
     stream: ext://sys.stdout
+  linkedin_controller_file:
+    class: logging.FileHandler
+    level: DEBUG
+    encoding: UTF-8
+    formatter: precise
+    filename: {os.path.join(LOG_FILES_DIR, f"{initial_timestamp}--Linkedin_Controllers.log")}
 
 loggers:
   turnin:
@@ -73,6 +79,10 @@ loggers:
   controller:
     level: DEBUG
     handlers: [null_handler]
+    propagate: yes
+  controller.linkedin:
+    level: DEBUG
+    handlers: [linkedin_controller_file]
     propagate: yes
   email:
     level: DEBUG

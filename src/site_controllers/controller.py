@@ -14,6 +14,13 @@ class ControllerException(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg)
 
+class AuthenticationException(ControllerException):
+    def __init__(self, msg):
+        Exception.__init__(self, msg)
+
+class CaptchaTimeoutException(AuthenticationException):
+    def __init__(self, msg):
+        Exception.__init__(self, msg)
 
 class Controller(AbstractBaseClass):
     """
@@ -129,7 +136,7 @@ class Controller(AbstractBaseClass):
             self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
 
         self.browser.get(self._initialURL)
-        self.login()
+        self.login(manual=False)
 
     def stop(self):
         """Stops the controller by closing the browser"""
@@ -156,13 +163,18 @@ class Controller(AbstractBaseClass):
 
     @abstractmethod
     def login(self):
-        """Must be overridden in subclasses. Raises error here."""
-        raise ControllerException('Override the login function in the Controller subclass you are using.')
+        """Process taken to login"""
+        pass
 
     @abstractmethod
     def initLogger(self):
-        """Must be overridden in subclasses. Raises error here."""
-        raise ControllerException('Override the login function in the Controller subclass you are using.')
+        """Initialize the logger appropriately"""
+        pass
+
+    @abstractmethod
+    def auth_check(self):
+        """Quickly check if user is authenticated"""
+        pass
 
     #############################################################
     #  Logging Shortcuts

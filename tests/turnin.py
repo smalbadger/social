@@ -3,6 +3,7 @@ import random
 import time
 import sys
 import os
+from fake_useragent import UserAgent
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from site_controllers import LinkedInController
@@ -27,8 +28,8 @@ class LoginForm(unittest.TestCase):
         mary_name = "Mary-Ann Johnson"
         ou_name = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
 
-        ou = LinkedInController(ou_name, "linkedin.test11@facade-technologies.com", "linkedin.test11")
-        mary = LinkedInController(mary_name, "linkedin.test2@facade-technologies.com", "linkedintest2")
+        ou = LinkedInController(ou_name, "linkedin.test11@facade-technologies.com", "linkedin.test11", options=[f'{UserAgent().random}'])
+        mary = LinkedInController(mary_name, "linkedin.test2@facade-technologies.com", "linkedintest2", options=[f'{UserAgent().random}'])
         ou.start()
         mary.start()
 
