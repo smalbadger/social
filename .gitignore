@@ -139,3 +139,6 @@ drivers/windows/*
 
 # all auto-generated python files from pyside2-uic
 src/gui/ui/ui_*.py
+
+# notes folder
+notes/
