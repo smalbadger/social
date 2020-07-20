@@ -1,7 +1,7 @@
 from functools import wraps
 
 
-def ensureBrowserIsRunning(func):
+def ensure_browser_is_running(func):
     """Makes the browser is started before a function is called"""
     @wraps(func)
     def check(*args, **kwargs):
@@ -58,7 +58,7 @@ def log_all_exceptions(Cls):
                 return func(*args, **kwargs)
             except Exception as e:
                 controller.exception(e)
-                # raise e
+                raise e
 
         return wrapper
 

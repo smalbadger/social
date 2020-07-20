@@ -9,18 +9,7 @@ from selenium.webdriver import Remote
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
-
-class ControllerException(Exception):
-    def __init__(self, msg):
-        Exception.__init__(self, msg)
-
-class AuthenticationException(ControllerException):
-    def __init__(self, msg):
-        Exception.__init__(self, msg)
-
-class CaptchaTimeoutException(AuthenticationException):
-    def __init__(self, msg):
-        Exception.__init__(self, msg)
+from site_controllers.exceptions import *
 
 class Controller(AbstractBaseClass):
     """
@@ -33,7 +22,7 @@ class Controller(AbstractBaseClass):
     }
 
     IMPLICIT_WAIT = 5
-    ENABLE_HIGHLIGHT = True
+    HIGHLIGHT_ENABLED = False
 
     def __init__(self, username: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
         """
@@ -68,10 +57,10 @@ class Controller(AbstractBaseClass):
         :return: True if the browser is running and False otherwise.
         :rtype: bool
         """
-        if not self.browser:
+        if not self.browser or not self.browser.service or not self.browser.service.process:
             return False
 
-        driver_process = psutil.Process(self._browser.service.process.pid)
+        driver_process = psutil.Process(self.browser.service.process.pid)
         if driver_process.is_running():
             children_processes = driver_process.children()
             if children_processes:
@@ -140,13 +129,15 @@ class Controller(AbstractBaseClass):
 
     def stop(self):
         """Stops the controller by closing the browser"""
-        self.browser.close()
+        self.browser.quit()
+        while self.isRunning:
+            pass
         self.browser = None
 
     def highlightElement(self, element, effect_time=1, border_color="red", background_color="yellow", text_color="blue", border=2):
         """Highlights (blinks) a Selenium Webdriver element"""
 
-        if not Controller.ENABLE_HIGHLIGHT:
+        if not Controller.HIGHLIGHT_ENABLED:
             return
 
         def apply_style(s):
