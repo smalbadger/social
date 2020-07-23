@@ -128,8 +128,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Credentials
+# Credentials and customer info
 src/resources/credentials/
+src/resources/Connections.csv
+src/resources/messages.csv
 
 # PyCharm stuff
 .idea/
