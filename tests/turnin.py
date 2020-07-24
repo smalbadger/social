@@ -60,5 +60,13 @@ class LoginForm(unittest.TestCase):
         ou.stop()
         mary.stop()
 
+    def test_acceptConnections(self):
+        mary = LinkedInController("Mary-Ann Johnson", "linkedin.test2@facade-technologies.com", "linkedintest2",
+                                  options=[f'{UserAgent().random}'])
+
+        mary.start()
+        mary.acceptAllConnections()
+        time.sleep(5)
+
 if __name__ == '__main__':
     unittest.main()

@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import NoSuchElementException
 
 from site_controllers.controller import Controller
 from site_controllers.exceptions import *
@@ -238,3 +239,37 @@ class LinkedInController(Controller):
         self.highlightElement(msg_send)
         self.info("Sending the message")
         msg_send.click()
+
+    @authentication_required
+    def acceptAllConnections(self) -> list:
+        """Accepts all connections and returns them as a list"""
+
+        accepted = []
+
+        self.info("Switching to network page")
+        self.browser.get('https://www.linkedin.com/mynetwork/')
+
+        self.info('Getting connection requests')
+        try:
+            acceptButtons = self.browser.find_elements_by_xpath(
+                "//button[@class='invitation-card__action-btn artdeco-button artdeco-button--2 "
+                "artdeco-button--secondary ember-view']"
+            )
+
+            if not acceptButtons:
+                raise NoSuchElementException
+
+        except NoSuchElementException:
+            self.info("No connections to accept, exiting with empty list.")
+            return accepted
+
+        for button in acceptButtons:
+            # Split at " invitation" to cut off tail. Then cut off the weird apostrophe, then cut off "Accept "
+            # from beginning, leaving the full name
+            connectionName = button.get_attribute('aria-label').split(" invitation")[-2][:-1][len('Accept '):]
+            firstName = connectionName.split(' ')[0]
+            self.info(f"Accepting {firstName} and adding to returned list")
+            button.click()
+            accepted.append(connectionName)
+
+        return accepted
