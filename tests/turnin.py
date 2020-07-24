@@ -65,8 +65,10 @@ class LoginForm(unittest.TestCase):
                                   options=[f'{UserAgent().random}'])
 
         mary.start()
-        mary.acceptAllConnections()
-        time.sleep(5)
+        newConnections = mary.acceptAllConnections()
+
+        print(newConnections)
+        mary.stop()
 
 if __name__ == '__main__':
     unittest.main()

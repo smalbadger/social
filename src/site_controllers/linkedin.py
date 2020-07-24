@@ -1,5 +1,6 @@
 import os
 import sys
+import html
 import logging
 from datetime import timedelta, datetime
 
@@ -242,7 +243,7 @@ class LinkedInController(Controller):
 
     @authentication_required
     def acceptAllConnections(self) -> list:
-        """Accepts all connections and returns them as a list"""
+        """Accepts all connections and returns them as a list of (name, profileLink) tuples"""
 
         accepted = []
 
@@ -264,12 +265,20 @@ class LinkedInController(Controller):
             return accepted
 
         for button in acceptButtons:
-            # Split at " invitation" to cut off tail. Then cut off the weird apostrophe, then cut off "Accept "
-            # from beginning, leaving the full name
-            connectionName = button.get_attribute('aria-label').split(" invitation")[-2][:-1][len('Accept '):]
+            # Split at ’ to cut off tail. Then recombine with it if it's a list, which means there was a ’ in the name.
+            # Then cut off "Accept " from beginning, and convert from HTML for special character handling
+            tmp = button.get_attribute('aria-label').split("’")[-2]
+            if isinstance(tmp, list):
+                "’".join(tmp)
+
+            connectionName = html.unescape(tmp[len('Accept '):])
             firstName = connectionName.split(' ')[0]
-            self.info(f"Accepting {firstName} and adding to returned list")
+
+            self.info(f"Accepting {firstName} and adding to new connections list")
+            profLinkElement = self.browser.find_element_by_xpath(f'//span[text()="{connectionName}"]').find_element_by_xpath("./..")
+            profLink = profLinkElement.get_attribute('href')
             button.click()
-            accepted.append(connectionName)
+
+            accepted.append((connectionName, profLink))
 
         return accepted

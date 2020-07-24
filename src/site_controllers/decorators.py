@@ -24,7 +24,7 @@ def authentication_required(func):
         if not controller.auth_check():
             controller.login()
 
-        func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return check
 
