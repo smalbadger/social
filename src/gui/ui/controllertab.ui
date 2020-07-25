@@ -21,7 +21,7 @@
   </property>
   <layout class="QHBoxLayout" name="horizontalLayout">
    <item>
-    <widget class="QLabel" name="label_3">
+    <widget class="QLabel" name="logoLabel">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -44,14 +44,23 @@
       </size>
      </property>
      <property name="text">
-      <string>Logo</string>
+      <string/>
+     </property>
+     <property name="pixmap">
+      <pixmap resource="../../../icons.qrc">:/icon/resources/logos/linkedin.png</pixmap>
      </property>
     </widget>
    </item>
    <item>
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QLabel" name="label">
+      <widget class="QLabel" name="nameLabel">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>35</height>
+        </size>
+       </property>
        <property name="styleSheet">
         <string notr="true">font: 87 10pt &quot;Segoe UI Black&quot;;
 color: rgb(1, 1, 134);</string>
@@ -62,7 +71,7 @@ color: rgb(1, 1, 134);</string>
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="label_2">
+      <widget class="QLabel" name="platformLabel">
        <property name="styleSheet">
         <string notr="true">font: 25 italic 8pt &quot;Segoe UI Light&quot;;</string>
        </property>
@@ -75,6 +84,8 @@ color: rgb(1, 1, 134);</string>
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../../../icons.qrc"/>
+ </resources>
  <connections/>
 </ui>
