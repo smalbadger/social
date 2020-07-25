@@ -8,6 +8,7 @@ from pprint import pprint
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from site_controllers import LinkedInController
+from common.strings import fromHTML, toHTML
 
 
 class LoginForm(unittest.TestCase):
@@ -84,6 +85,10 @@ class LoginForm(unittest.TestCase):
         print(comb2)
         print(comb3)
         print(comb4)
+
+    def test_tmp(self):
+        print(fromHTML('testing &#039;'))
+        print(toHTML("yeet ' '  \" & "))
 
 if __name__ == '__main__':
     unittest.main()
