@@ -4,6 +4,9 @@ Scrape the LinkedIn conversations
 import os
 import sys
 from PySide2.QtWidgets import QApplication
+
+sys.path.append(os.path.abspath("./gui/rc/"))
+
 from gui.mainwindow import SocialView
 
 if __name__ == "__main__":
