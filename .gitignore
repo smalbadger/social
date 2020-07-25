@@ -144,10 +144,11 @@ drivers/windows/*
 ###########################################
 
 # user file
-facile.pyproject.user*
+social.pyproject.user*
 
 # all auto-generated python files from pyside2-uic
 src/gui/ui/ui_*.py
+src/gui/ui/*.ui.autosave
 
 # all auto-generated python files from pyside2-rcc
 src/gui/rc/*_rc.py
