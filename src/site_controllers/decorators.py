@@ -9,7 +9,7 @@ def ensure_browser_is_running(func):
         if not controller.isRunning:
             controller.start()
 
-        func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return check
 
@@ -37,7 +37,7 @@ def print_page_on_exception(func):
         controller = args[0]
 
         try:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
         except Exception as e:
             print(controller.browser.page_source)
             raise e
