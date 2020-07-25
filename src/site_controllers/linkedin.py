@@ -1,5 +1,6 @@
 import os
 import sys
+import html
 import logging
 from datetime import timedelta, datetime, date
 
@@ -8,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import NoSuchElementException
 
 from site_controllers.controller import Controller
 from site_controllers.exceptions import *
@@ -19,9 +21,11 @@ from common.strings import onlyAplhaNumeric, equalTo
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
 
+
 class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
+
 
 @log_all_exceptions
 class LinkedInController(Controller):
@@ -312,3 +316,47 @@ class LinkedInController(Controller):
 
         self.info(f"{len(history)} messages with {person} found - returning {min(len(history), numMessages)}")
         return history[-numMessages:]
+
+    @authentication_required
+    def acceptAllConnections(self) -> list:
+        """Accepts all connections and returns them as a list of (name, profileLink) tuples"""
+
+        accepted = []
+
+        self.info("Switching to network page")
+        self.browser.get('https://www.linkedin.com/mynetwork/')
+
+        self.info('Getting connection requests')
+        try:
+            acceptButtons = self.browser.find_elements_by_xpath(
+                "//button[@class='invitation-card__action-btn artdeco-button artdeco-button--2 "
+                "artdeco-button--secondary ember-view']"
+            )
+
+            if not acceptButtons:
+                raise NoSuchElementException
+
+        except NoSuchElementException:
+            self.info("No connections to accept, exiting with empty list.")
+            return accepted
+
+        for button in acceptButtons:
+            # Split at ’ to cut off tail. Then recombine with it if it's a list, which means there was a ’ in the name.
+            # Then cut off "Accept " from beginning, and convert from HTML for special character handling
+            tmp = button.get_attribute('aria-label').split("’")[:-2]
+            if len(tmp) > 1:
+                tmp = "’".join(tmp)
+            else:
+                tmp = tmp[0]
+
+            connectionName = html.unescape(tmp[len('Accept '):])
+            firstName = connectionName.split(' ')[0]
+
+            self.info(f"Accepting {firstName} and adding to new connections list")
+            profLinkElement = self.browser.find_element_by_xpath(f'//span[text()="{connectionName}"]').find_element_by_xpath("./..")
+            profLink = profLinkElement.get_attribute('href')
+            button.click()
+
+            accepted.append((connectionName, profLink))
+
+        return accepted
