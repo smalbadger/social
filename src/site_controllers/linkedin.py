@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -238,3 +238,39 @@ class LinkedInController(Controller):
         self.highlightElement(msg_send)
         self.info("Sending the message")
         msg_send.click()
+
+    def getConversationHistory(self, person: str):
+        """Fetches the conversation history with one person"""
+
+        self.info(f"Fetching conversation history with {person}")
+        self.closeAllChatWindows()
+        self.openConversationWith(person)
+
+        TODO_get_rid_of_this_wait(1)
+        messageList = self.browser.find_elements_by_class_name("msg-s-message-list__event")
+
+        search_criteria = {
+            "date": "msg-s-message-list__time-heading",
+            "time": "msg-s-message-group__timestamp",
+            "name": "msg-s-message-group__name",
+            "body": "msg-s-event-listitem__body"
+        }
+
+        current = {}
+        history = []
+        self.browser.implicitly_wait(0)
+        for msg in messageList:
+
+            for elem_type, cls in search_criteria.items():
+                elements = msg.find_elements_by_class_name(cls)
+                for element in elements:
+                    current[elem_type] = self.getInnerHTML(element)
+
+                if elem_type == "body":
+                    new_msg_body = current.copy()
+                    print(new_msg_body)
+                    history.append(new_msg_body)
+
+        self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
+
+        return history

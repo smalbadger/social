@@ -4,6 +4,7 @@ import time
 import sys
 import os
 from fake_useragent import UserAgent
+from pprint import pprint
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from site_controllers import LinkedInController
@@ -59,6 +60,34 @@ class LoginForm(unittest.TestCase):
 
         ou.stop()
         mary.stop()
+
+    def test_getConversationHistory(self):
+        mary_name = "Mary-Ann Johnson"
+        ou_name = "ÔỐỒỔỖỘÔỐỒỔỖỘôốồổỗộôố ƯỨỪỬỮỰƯỨỪỬỮỰưứừửữựưứ"
+
+        ou = LinkedInController(ou_name, "linkedin.test11@facade-technologies.com", "linkedin.test11", options=[f'{UserAgent().random}'])
+        ou.start()
+        print(f"Found {len(ou.getConversationHistory(mary_name))} conversations.")
+        ou.stop()
+
+    def test_dateConversions(self):
+        from common.dates import convertToDate
+
+        print(convertToDate("Monday"))
+        print(convertToDate("Tuesday"))
+        print(convertToDate("Wednesday"))
+        print(convertToDate("Thursday"))
+        print(convertToDate("Friday"))
+        print(convertToDate("Saturday"))
+        print(convertToDate("Sunday"))
+
+        print(convertToDate("Today"))
+        print(convertToDate("Yesterday"))
+
+        print(convertToDate("JUN 22"))
+        print(convertToDate("JUN 22, 2019"))
+
+
 
 if __name__ == '__main__':
     unittest.main()
