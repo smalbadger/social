@@ -10,8 +10,6 @@ class SocialView(QMainWindow):
         'LinkedIn': LinkedInController
     }
 
-    DEV_RECIPIENT = 'Samuel Badger'
-
     def __init__(self):
 
         QMainWindow.__init__(self)
@@ -19,9 +17,7 @@ class SocialView(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
-        # Variables
-        self.controller = None
-        self.browser = None  # This will only be a string. Gets converted to object in controller.py
+        self.instances = []
 
         # Connect signals
         self.ui.confirmButton.toggled.connect(self.confirmClicked)
@@ -78,11 +74,3 @@ class SocialView(QMainWindow):
             self.ui.browserDropdown.setDisabled(False)
             self.ui.templateNumber.setDisabled(False)
             self.ui.showBrowser.setDisabled(False)
-
-    def checkConnectionsFile(self) -> bool:
-        """
-        Checks if the entered connections file is valid. If not
-        """
-
-        # TODO
-        return True
