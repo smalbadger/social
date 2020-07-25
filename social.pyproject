@@ -1,0 +1,3 @@
+{
+    "files": ["src/gui/ui/controllertab.ui","src/gui/ui/mainwindow.ui","icons.qrc"]
+}
