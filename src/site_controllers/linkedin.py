@@ -20,9 +20,11 @@ from common.logging import initial_timestamp, LOG_FILES_DIR
 from common.stringmanipulations import onlyAplhaNumeric
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
 
+
 class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
+
 
 @log_all_exceptions
 class LinkedInController(Controller):
@@ -267,9 +269,11 @@ class LinkedInController(Controller):
         for button in acceptButtons:
             # Split at ’ to cut off tail. Then recombine with it if it's a list, which means there was a ’ in the name.
             # Then cut off "Accept " from beginning, and convert from HTML for special character handling
-            tmp = button.get_attribute('aria-label').split("’")[-2]
-            if isinstance(tmp, list):
-                "’".join(tmp)
+            tmp = button.get_attribute('aria-label').split("’")[:-2]
+            if len(tmp) > 1:
+                tmp = "’".join(tmp)
+            else:
+                tmp = tmp[0]
 
             connectionName = html.unescape(tmp[len('Accept '):])
             firstName = connectionName.split(' ')[0]
