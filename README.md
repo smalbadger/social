@@ -1,4 +1,4 @@
 # social
-A tool for automating social media conversations - some other change
 
-asdfadf
+A tool for automating social media conversations (currently only LinkedIn).
+
