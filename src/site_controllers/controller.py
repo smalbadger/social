@@ -5,16 +5,23 @@ from typing import List, Iterable
 from abc import ABC as AbstractBaseClass
 from abc import abstractmethod
 
+from PySide2.QtCore import QObject, Signal, Slot
+
 from selenium.webdriver import Remote
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
 from site_controllers.exceptions import *
 
-class Controller(AbstractBaseClass):
+class Controller(QObject):
     """
     The base for any social media platform automation controller
     """
+
+    started = Signal()
+    finished = Signal()
+    terminated = Signal()
+
 
     # maps string names to tuples that contain the webdriver class and path to the appropriate web driver.
     BROWSERS = {
@@ -39,6 +46,9 @@ class Controller(AbstractBaseClass):
         :param options: Arguments to use when launching the browser
         :type options: Iterable[str]
         """
+
+        super().__init__()
+
         # store private variables first
         self._logger = None
         self._initialURL = None
@@ -126,6 +136,7 @@ class Controller(AbstractBaseClass):
 
         self.browser.get(self._initialURL)
         self.login(manual=False)
+        self.started.emit()
 
     def stop(self):
         """Stops the controller by closing the browser"""
