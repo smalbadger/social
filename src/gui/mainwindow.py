@@ -1,3 +1,5 @@
+import logging
+
 from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog, QApplication
 from PySide2.QtCore import Qt
 
@@ -5,6 +7,7 @@ from gui.ui.ui_mainwindow import Ui_MainWindow
 from gui.instancetabwidget import InstanceTabWidget
 from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
+from gui.logwidget import LogWidget
 
 if hasattr(Qt, 'AA_EnableHighDpiScaling'):
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -28,6 +31,12 @@ class SocialView(QMainWindow):
         self.instanceTabLayout = QVBoxLayout()
         self.instanceTabWidget.setLayout(self.instanceTabLayout)
         self.instanceTabLayout.addStretch()
+
+        # Setup general log
+        lw = LogWidget(self.ui.generalLogTextEdit)
+        lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        lw.setLevel(logging.DEBUG)
+        logging.getLogger("controller").addHandler(lw)
 
         # Variables
         self.controller = None

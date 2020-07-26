@@ -79,7 +79,7 @@
         <number>2</number>
        </property>
        <item row="0" column="0">
-        <widget class="QTextEdit" name="textEdit">
+        <widget class="QTextEdit" name="generalLogTextEdit">
          <property name="maximumSize">
           <size>
            <width>16777215</width>
@@ -103,7 +103,7 @@
      <x>0</x>
      <y>0</y>
      <width>1020</width>
-     <height>26</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
@@ -137,7 +137,7 @@
           <x>0</x>
           <y>0</y>
           <width>130</width>
-          <height>548</height>
+          <height>567</height>
          </rect>
         </property>
        </widget>

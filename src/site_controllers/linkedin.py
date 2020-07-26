@@ -11,8 +11,6 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 
-from PySide2.QtCore import Signal, QRunnable, QObject
-
 from site_controllers.controller import Controller, Task
 from site_controllers.exceptions import *
 from site_controllers.decorators import *
@@ -61,6 +59,10 @@ class LinkedInController(Controller):
         self._logger.addHandler(filehandler)
         self._logger.addHandler(stdout)
         self._logger.setLevel(logging.DEBUG)
+
+    def getLoggerName(self):
+        """Gets the name of the logger that this controller is using"""
+        return self._loggerName
 
     def auth_check(self):
         # TODO: Improve this check
@@ -269,7 +271,7 @@ class LinkedInController(Controller):
         date = None
         datetime = None
 
-        necessary_wait(.2)
+        necessary_wait(.5)
 
         messages = self.browser.find_elements_by_class_name("msg-s-event-listitem__body")
         if messages:
@@ -298,7 +300,7 @@ class LinkedInController(Controller):
         :param numMessages: The maximum number of messages desired.
         :param closeWindows: Closes all chat windows if True
         :returns: Up to numMessages from the conversation
-        :rtype: list of tuples where earch element is (datetime, name, msg)
+        :rtype: list of tuples where each element is (datetime, name, msg)
         """
 
         self.info(f"Fetching conversation history with {person}")
