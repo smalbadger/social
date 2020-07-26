@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>475</width>
-    <height>139</height>
+    <width>472</width>
+    <height>166</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,6 +17,16 @@
    <bool>false</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="2" column="0">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="0">
     <layout class="QFormLayout" name="formLayout">
      <item row="0" column="0">
@@ -46,7 +56,7 @@
       <widget class="QComboBox" name="browserBox">
        <item>
         <property name="text">
-         <string>Google Chrome</string>
+         <string>Chrome</string>
         </property>
        </item>
       </widget>
@@ -70,12 +80,9 @@
     </layout>
    </item>
    <item row="1" column="0">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+    <widget class="QLabel" name="errorLabel">
+     <property name="text">
+      <string>Errors</string>
      </property>
     </widget>
    </item>

@@ -25,7 +25,7 @@
          </property>
          <layout class="QGridLayout" name="gridLayout_4">
           <item row="0" column="0">
-           <widget class="QListWidget" name="listWidget">
+           <widget class="QListWidget" name="allConnectionsList">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
               <horstretch>0</horstretch>
@@ -50,7 +50,7 @@
          </property>
          <layout class="QGridLayout" name="gridLayout_5">
           <item row="0" column="0">
-           <widget class="QListWidget" name="listWidget_2">
+           <widget class="QListWidget" name="selectedConnectionsList">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
               <horstretch>0</horstretch>
@@ -130,7 +130,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButton_3">
+          <widget class="QPushButton" name="saveTemplateButton">
            <property name="enabled">
             <bool>false</bool>
            </property>
@@ -171,7 +171,7 @@
    <item row="0" column="0">
     <layout class="QGridLayout" name="gridLayout_3">
      <item row="0" column="0">
-      <widget class="QPushButton" name="pushButton">
+      <widget class="QPushButton" name="startButton">
        <property name="text">
         <string>Start</string>
        </property>
@@ -188,7 +188,7 @@
       </widget>
      </item>
      <item row="0" column="3">
-      <widget class="QPushButton" name="pushButton_2">
+      <widget class="QPushButton" name="stopButton">
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -198,7 +198,7 @@
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QPushButton" name="pushButton_4">
+      <widget class="QPushButton" name="syncButton">
        <property name="text">
         <string>Sync Database (Headless)</string>
        </property>
@@ -213,7 +213,7 @@
      </property>
      <layout class="QGridLayout" name="gridLayout">
       <item row="0" column="0">
-       <widget class="QTextEdit" name="instanceLogWidget">
+       <widget class="QTextEdit" name="instanceLogTextEdit">
         <property name="enabled">
          <bool>false</bool>
         </property>
