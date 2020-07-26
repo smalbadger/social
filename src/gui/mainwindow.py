@@ -1,9 +1,13 @@
-from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout
+import logging
+
+from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog, QApplication
+from PySide2.QtCore import Qt
 
 from gui.ui.ui_mainwindow import Ui_MainWindow
 from gui.instancetabwidget import InstanceTabWidget
 from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
+from gui.logwidget import LogWidget
 
 
 class SocialView(QMainWindow):
@@ -21,6 +25,12 @@ class SocialView(QMainWindow):
         self.instanceTabLayout = QVBoxLayout()
         self.instanceTabWidget.setLayout(self.instanceTabLayout)
         self.instanceTabLayout.addStretch()
+
+        # Setup general log
+        lw = LogWidget(self.ui.generalLogTextEdit)
+        lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        lw.setLevel(logging.DEBUG)
+        logging.getLogger("controller").addHandler(lw)
 
         # Variables
         self.controller = None
@@ -59,7 +69,8 @@ class SocialView(QMainWindow):
     def selectInstance(self, instanceTab):
         """Opens an instance by selecting an existing tab."""
 
-        instanceWidget = self.instances.get(instanceTab, None)
+        instanceWidget = self.instances.get(instanceTab)
+        # This should never be None now that instancewidgets and instancetabs are made in pairs
 
         layout = self.ui.instanceBox.layout()
         for i in reversed(range(layout.count())):

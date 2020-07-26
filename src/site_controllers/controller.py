@@ -5,6 +5,8 @@ from typing import List, Iterable
 from abc import ABC as AbstractBaseClass
 from abc import abstractmethod
 
+from PySide2.QtCore import QObject, Signal, Slot, QRunnable
+
 from selenium.webdriver import Remote
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
@@ -21,8 +23,8 @@ class Controller(AbstractBaseClass):
         'Chrome': (Chrome, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "drivers", "windows")))
     }
 
-    IMPLICIT_WAIT = 5
-    HIGHLIGHT_ENABLED = False
+    IMPLICIT_WAIT = 1
+    HIGHLIGHT_ENABLED = True
 
     def __init__(self, username: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
         """
@@ -39,6 +41,9 @@ class Controller(AbstractBaseClass):
         :param options: Arguments to use when launching the browser
         :type options: Iterable[str]
         """
+
+        super().__init__()
+
         # store private variables first
         self._logger = None
         self._initialURL = None
@@ -49,6 +54,49 @@ class Controller(AbstractBaseClass):
         self.initLogger()
         self.options = list(options)
         self.browser = browser
+
+    def start(self):
+        """Starts the controller"""
+
+        if self.isRunning:
+            return
+
+        if not self.browser:
+            self.browser = self._browserConstructor(options=self.options)
+            self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
+
+        self.browser.get(self._initialURL)
+        self.login(manual=False)
+
+    def stop(self):
+        """Stops the controller by closing the browser"""
+        self.browser.quit()
+        while self.isRunning:
+            pass
+        self.browser = None
+
+    #############################################################
+    #  Abstract Methods
+    #############################################################
+
+    @abstractmethod
+    def login(self):
+        """Process taken to login"""
+        pass
+
+    @abstractmethod
+    def initLogger(self):
+        """Initialize the logger appropriately"""
+        pass
+
+    @abstractmethod
+    def auth_check(self):
+        """Quickly check if user is authenticated"""
+        pass
+
+    #############################################################
+    #  Properties
+    #############################################################
 
     @property
     def isRunning(self) -> bool:
@@ -116,23 +164,9 @@ class Controller(AbstractBaseClass):
         for argument in args:
             self._options.add_argument(argument)
 
-    def start(self):
-        """Starts the controller"""
-
-        if not self.browser:
-            self.browser = self._browserConstructor(options=self.options)
-            self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
-
-        self.browser.get(self._initialURL)
-        self.login(manual=False)
-
-    def stop(self):
-        """Stops the controller by closing the browser"""
-        self.browser.quit()
-        while self.isRunning:
-            pass
-        self.browser = None
-
+    #############################################################
+    #  Element Operations
+    #############################################################
     def highlightElement(self, element, effect_time=1, border_color="red", background_color="yellow", text_color="blue", border=2):
         """Highlights (blinks) a Selenium Webdriver element"""
 
@@ -151,20 +185,12 @@ class Controller(AbstractBaseClass):
             time.sleep(effect_time / flash_count / 2)
             apply_style(original_style)
 
-    @abstractmethod
-    def login(self):
-        """Process taken to login"""
-        pass
-
-    @abstractmethod
-    def initLogger(self):
-        """Initialize the logger appropriately"""
-        pass
-
-    @abstractmethod
-    def auth_check(self):
-        """Quickly check if user is authenticated"""
-        pass
+    def getInnerHTML(self, element):
+        """
+        Gets the inner HTML of a selenium element. If the element has no children, the text inside the element will be
+        returned.
+        """
+        return element.get_attribute('innerHTML').replace('<!---->', '').strip()
 
     #############################################################
     #  Logging Shortcuts
@@ -187,3 +213,21 @@ class Controller(AbstractBaseClass):
     def exception(self, *args, **kwargs):
         self._logger.exception(*args, **kwargs)
 
+
+class Task(QRunnable):
+    """Subclass this to create a task that can be run from the GUI."""
+
+    def __init__(self, controller: Controller, setup=None, teardown=None):
+        super().__init__()
+        self.controller = controller
+
+        self._setup = setup
+        self._teardown = teardown
+
+    def setup(self):
+        if self._setup:
+            self._setup()
+
+    def teardown(self):
+        if self._teardown:
+            self._teardown()
