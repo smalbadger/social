@@ -20,7 +20,6 @@ class Controller(QObject):
 
     started = Signal()
     finished = Signal()
-    terminated = Signal()
 
 
     # maps string names to tuples that contain the webdriver class and path to the appropriate web driver.
@@ -28,8 +27,8 @@ class Controller(QObject):
         'Chrome': (Chrome, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "drivers", "windows")))
     }
 
-    IMPLICIT_WAIT = 5
-    HIGHLIGHT_ENABLED = False
+    IMPLICIT_WAIT = 1
+    HIGHLIGHT_ENABLED = True
 
     def __init__(self, username: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
         """
@@ -60,6 +59,44 @@ class Controller(QObject):
         self.options = list(options)
         self.browser = browser
 
+    def start(self):
+        """Starts the controller"""
+
+        if not self.browser:
+            self.browser = self._browserConstructor(options=self.options)
+            self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
+
+        self.browser.get(self._initialURL)
+        self.login(manual=False)
+        self.started.emit()
+
+    def stop(self):
+        """Stops the controller by closing the browser"""
+        self.browser.quit()
+        while self.isRunning:
+            pass
+        self.browser = None
+        self.stopped.emit()
+
+    #############################################################
+    #  Abstract Methods
+    #############################################################
+
+    def login(self):
+        """Process taken to login"""
+        pass
+
+    def initLogger(self):
+        """Initialize the logger appropriately"""
+        pass
+
+    def auth_check(self):
+        """Quickly check if user is authenticated"""
+        pass
+
+    #############################################################
+    #  Properties
+    #############################################################
 
     @property
     def isRunning(self) -> bool:
@@ -127,24 +164,9 @@ class Controller(QObject):
         for argument in args:
             self._options.add_argument(argument)
 
-    def start(self):
-        """Starts the controller"""
-
-        if not self.browser:
-            self.browser = self._browserConstructor(options=self.options)
-            self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
-
-        self.browser.get(self._initialURL)
-        self.login(manual=False)
-        self.started.emit()
-
-    def stop(self):
-        """Stops the controller by closing the browser"""
-        self.browser.quit()
-        while self.isRunning:
-            pass
-        self.browser = None
-
+    #############################################################
+    #  Element Operations
+    #############################################################
     def highlightElement(self, element, effect_time=1, border_color="red", background_color="yellow", text_color="blue", border=2):
         """Highlights (blinks) a Selenium Webdriver element"""
 
@@ -163,20 +185,12 @@ class Controller(QObject):
             time.sleep(effect_time / flash_count / 2)
             apply_style(original_style)
 
-    @abstractmethod
-    def login(self):
-        """Process taken to login"""
-        pass
-
-    @abstractmethod
-    def initLogger(self):
-        """Initialize the logger appropriately"""
-        pass
-
-    @abstractmethod
-    def auth_check(self):
-        """Quickly check if user is authenticated"""
-        pass
+    def getInnerHTML(self, element):
+        """
+        Gets the inner HTML of a selenium element. If the element has no children, the text inside the element will be
+        returned.
+        """
+        return element.get_attribute('innerHTML').replace('<!---->', '').strip()
 
     #############################################################
     #  Logging Shortcuts
