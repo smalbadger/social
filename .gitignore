@@ -128,8 +128,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Credentials
+# Credentials and customer info
 src/resources/credentials/
+src/resources/Connections.csv
+src/resources/messages.csv
 
 # PyCharm stuff
 .idea/
@@ -137,8 +139,20 @@ src/resources/credentials/
 # Web Drivers
 drivers/windows/*
 
+###########################################
+# Qt Creator files
+###########################################
+
+# user file
+social.pyproject.user*
+
 # all auto-generated python files from pyside2-uic
 src/gui/ui/ui_*.py
+src/gui/ui/*.ui.autosave
+
+# all auto-generated python files from pyside2-rcc
+src/gui/rc/*_rc.py
 
 # notes folder
 notes/
+

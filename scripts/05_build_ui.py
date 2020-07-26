@@ -1,11 +1,11 @@
 # No need to update this script unless there is a bug.
 import os
 import subprocess
+import sys
 
 ui_folder = os.path.abspath("../src/gui/ui/")
 
 if __name__ == "__main__":
-
     if os.path.exists(os.path.abspath("../venv/")):
         python = os.path.abspath("../venv/Scripts/python.exe")
         uic = os.path.abspath("../venv/Scripts/pyside2-uic.exe")

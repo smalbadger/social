@@ -1,26 +1,63 @@
 import os
 import sys
+import html
 import logging
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import NoSuchElementException
 
-from site_controllers.controller import Controller
+from site_controllers.controller import Controller, Task
 from site_controllers.exceptions import *
 from site_controllers.decorators import *
 from emails import PinValidator
 
 from common.logging import initial_timestamp, LOG_FILES_DIR
-from common.stringmanipulations import onlyAplhaNumeric
+from common.strings import onlyAplhaNumeric, equalTo
+from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
+
+
+#########################################################
+# Element Identification Strings
+#########################################################
+class EIS:
+    login_username_input                     = "username"
+    login_password_input                     = "password"
+    login_submit_button                      = "button[type=submit]"
+
+    captcha_challenge                        = "captcha-challenge"
+    pin_verification_input                   = "input__email_verification_pin"
+
+    connection_bar                           = "msg-overlay-bubble-header"
+    connection_bar_maximize                  = "overlay.maximize_connection_list_bar"
+    connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"
+    connection_message_select                = "//h4[text()={concat}]/../.."
+
+    message_scroll_box                       = "msg-s-message-list"
+    message_editor                           = "msg-form__contenteditable"
+    message_send                             = "msg-form__send-button"
+    message_item                             = "msg-s-message-list__event"
+    message_date                             = "msg-s-message-list__time-heading"
+    message_time                             = "msg-s-message-group__timestamp"
+    message_author                           = "msg-s-message-group__name"
+    message_body                             = "msg-s-event-listitem__body"
+
+    profile_link                             = '//span[text()="{connectionName}"]./..'
+    connection_request_accept_button         = "//button[@class='invitation-card__action-btn artdeco-button" \
+                                               "artdeco-button--2 artdeco-button--secondary ember-view']"
+
+
+
 
 class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
+
 
 @log_all_exceptions
 class LinkedInController(Controller):
@@ -55,6 +92,10 @@ class LinkedInController(Controller):
         self._logger.addHandler(stdout)
         self._logger.setLevel(logging.DEBUG)
 
+    def getLoggerName(self):
+        """Gets the name of the logger that this controller is using"""
+        return self._loggerName
+
     def auth_check(self):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
@@ -65,14 +106,14 @@ class LinkedInController(Controller):
         Logs in to LinkedIn
 
         TODO: check if we're connected. raise NotConnectedException
-        TODO: Check to see if the credentials were valid. Raise AuthenticationException if not
-        TODO: Make sure we successfully arrived at the correct webpage after submitting credentials. Raise LinkedInException if no other
+        TODO: Make sure we successfully arrived at the correct webpage after submitting credentials. Raise AuthenticationException
         TODO: Detect if the reCAPTCHA called us out for being a bot. raise CaptchaBotDetectedException
 
         :raises InvalidCredentialsException: If the email/password didn't match
         :raises PinValidationException: If there was a problem retrieving the validation pin.
         :raises SecurityVerificationException: If an unknown security verification method is used or
         :raises CaptchaTimeoutException: If a captcha appears and was not solved in time
+        :rauses AuthenticationException: If we were unable to leave the login page for an unknown reason
         :raises LinkedInException: If we arrived at an unknown location or there was another issue.
 
         :param manual: If True, wait for the user to click the submit button. Credentials are entered automatically.
@@ -99,9 +140,9 @@ class LinkedInController(Controller):
         if "Login" in self.browser.title or "Sign in" in self.browser.title:
 
             self.info(f"Entering email: {self._email}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id("username"), self._email, 1, 3, 0, .25)
+            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
             self.info(f"Entering password: {'*'*len(self._password)}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id("password"), self._password, 1, 3, 0, .25)
+            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
 
             # If manual is True, we require the user to press the login button.
             if manual:
@@ -110,7 +151,10 @@ class LinkedInController(Controller):
             else:
                 self.info("Submitting login request")
                 random_uniform_wait(1, 3)
-                self.browser.find_element_by_css_selector('button[type=submit]').click()
+                self.browser.find_element_by_css_selector(EIS.login_submit_button).click()
+
+            if not self.auth_check():
+                raise InvalidCredentialsException("Authentication Failed")
 
         # NOTE: At this point, we've signed in, but we might not be done. If LinkedIn has detected your activity as
         #       suspicious, they'll do some types of security verification:
@@ -123,7 +167,7 @@ class LinkedInController(Controller):
             method = ""
 
             # Determine if it's asking for a pin
-            pin_inputs = self.browser.find_elements_by_id("input__email_verification_pin")
+            pin_inputs = self.browser.find_elements_by_id(EIS.pin_verification_input)
             if pin_inputs:
                 method = "pin"
                 timeout = timedelta(minutes=1)
@@ -137,7 +181,7 @@ class LinkedInController(Controller):
             timeout = timedelta(minutes=5)
             found = False
             while True:
-                captcha = self.browser.find_elements_by_id('captcha-challenge')
+                captcha = self.browser.find_elements_by_id(EIS.captcha_challenge)
                 if captcha:
                     if not found:
                         self.critical(f"Detected Captcha. You have {timeout.total_seconds()/60} minutes to solve it.")
@@ -157,14 +201,16 @@ class LinkedInController(Controller):
             if not method:
                 raise SecurityVerificationException("An unknown security verification technique was detected.")
 
+        if not self.auth_check():
+            raise AuthenticationException("For some reason, we couldn't leave the login page.")
+
     @authentication_required
     def maximizeConnectionPopup(self):
         """opens the connection popup"""
         self.info("Finding connection list bar")
-        cbt = "header[data-control-name={}imize_connection_list_bar]"  # connection bar template
-        possible_connection_bars = self.browser.find_elements_by_class_name("msg-overlay-bubble-header")
+        possible_connection_bars = self.browser.find_elements_by_class_name(EIS.connection_bar)
         for possibility in possible_connection_bars:
-            if possibility.get_attribute("data-control-name") == "overlay.maximize_connection_list_bar":
+            if possibility.get_attribute("data-control-name") == EIS.connection_bar_maximize:
                 self.info("maximizing the connection list")
                 possibility.click()
 
@@ -175,7 +221,7 @@ class LinkedInController(Controller):
 
         # make sure conversation list is visible
         searchbox = WebDriverWait(self.browser, 3).until(
-            EC.visibility_of_element_located((By.ID, "msg-overlay-list-bubble-search__search-typeahead-input")))
+            EC.visibility_of_element_located((By.ID, EIS.connection_search)))
         self.info("The search field has been found")
         self.highlightElement(searchbox)
         self.info("Clearing the search field")
@@ -192,7 +238,7 @@ class LinkedInController(Controller):
         concat = "concat(\"" + "\", \"".join(list(person)) + "\")"
         necessary_wait(1)
         target_account = WebDriverWait(self.browser, 10) \
-            .until(EC.element_to_be_clickable((By.XPATH, f"//h4[text()={concat}]/../..")))
+            .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_message_select.format(concat=concat))))
         self.info(f"scrolling through results to {person}")
         ActionChains(self.browser).move_to_element(target_account).perform()
         self.highlightElement(target_account)
@@ -229,12 +275,176 @@ class LinkedInController(Controller):
         self.openConversationWith(person)
 
         self.info("Finding the message box")
-        msg_box = self.browser.find_element_by_class_name("msg-form__contenteditable")
+        msg_box = self.browser.find_element_by_class_name(EIS.message_editor)
         self.highlightElement(msg_box)
         self.info(f"Typing the message: {message}")
         msg_box.send_keys(message)
         self.info("Finding the submit button")
-        msg_send = self.browser.find_element_by_class_name("msg-form__send-button")
+        msg_send = self.browser.find_element_by_class_name(EIS.message_send)
         self.highlightElement(msg_send)
         self.info("Sending the message")
         msg_send.click()
+
+        self.info("Verifying the message was sent")
+        now = datetime.now()
+        msg, timestamp = self.getLastMessageWithConnection(person, assumeConversationIsOpened=True)
+        if not msg or not equalTo(msg, message, normalize_whitespace=True) or timestamp - now > timedelta(minutes=1):
+            self.critical(f"The last message was '{msg}' and it was sent at {timestamp}")
+            raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
+        self.info("The message was sent successfully")
+
+    @authentication_required
+    def getLastMessageWithConnection(self, person, assumeConversationIsOpened=False):
+        """Gets the last message sent to a specific person"""
+
+        msg = None
+        time = None
+        date = None
+        datetime = None
+
+        necessary_wait(.5)
+
+        messages = self.browser.find_elements_by_class_name(EIS.message_body)
+        if messages:
+            msg = self.getInnerHTML(messages[-1])
+
+        dates = self.browser.find_elements_by_class_name(EIS.message_date)
+        if dates:
+            date = convertToDate(self.getInnerHTML(dates[-1]))
+
+        times = self.browser.find_elements_by_class_name(EIS.message_time)
+        if times:
+            time = convertToTime(self.getInnerHTML(times[-1]))
+
+        if date and time:
+            datetime = combineDateAndTime(date, time)
+
+        return msg, datetime
+
+
+    @authentication_required
+    def getConversationHistory(self, person: str, numMessages = 1_000_000, assumeConversationIsOpened=False):
+        """
+        Fetches the conversation history with one person
+
+        :param person: The person to get message history with.
+        :param numMessages: The maximum number of messages desired.
+        :param closeWindows: Closes all chat windows if True
+        :returns: Up to numMessages from the conversation
+        :rtype: list of tuples where each element is (datetime, name, msg)
+        """
+
+        self.info(f"Fetching conversation history with {person}")
+        if not assumeConversationIsOpened:
+            self.closeAllChatWindows()
+            self.openConversationWith(person)
+
+        prevHTML = ""
+        necessary_wait(1)
+        for i in range(round(numMessages / 20)):
+            scroll_areas = self.browser.find_elements_by_class_name(EIS.message_scroll_box)
+            if scroll_areas:
+                scroll_area = scroll_areas[0]
+                self.info(f"Loading previous messages with {person}...")
+                self.browser.execute_script("arguments[0].scrollTop = 0;", scroll_area)
+                necessary_wait(1)
+                currentHTML = scroll_area.get_attribute("innerHTML")
+                if currentHTML == prevHTML:
+                    break
+                else:
+                    prevHTML = currentHTML
+
+        messageList = self.browser.find_elements_by_class_name(EIS.message_item)
+
+        search_criteria = {
+            "date": EIS.message_date,
+            "time": EIS.message_time,
+            "name": EIS.message_author,
+            "body": EIS.message_body
+        }
+
+        self.info(f"Scraping messages with {person}...")
+        current = {}
+        history = []
+        self.browser.implicitly_wait(0)
+        for msg in messageList:
+
+            for elem_type, cls in search_criteria.items():
+                elements = msg.find_elements_by_class_name(cls)
+                for element in elements:
+                    current[elem_type] = self.getInnerHTML(element)
+
+                    if elem_type == "date":
+                        current[elem_type] = convertToDate(current[elem_type])
+
+                    elif elem_type == "time":
+                        current[elem_type] = convertToTime(current[elem_type])
+
+                    elif elem_type == "body":
+                        t = combineDateAndTime(current['date'], current.get("time", None))
+                        new_msg_body = (t, current["name"], current["body"])
+                        history.append(new_msg_body)
+
+        self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
+
+        self.info(f"{len(history)} messages with {person} found - returning {min(len(history), numMessages)}")
+        wanted_history = history[-numMessages:]
+        return wanted_history
+
+    @authentication_required
+    def acceptAllConnections(self) -> list:
+        """Accepts all connections and returns them as a list of (name, profileLink) tuples"""
+
+        accepted = []
+
+        self.info("Switching to network page")
+        self.browser.get('https://www.linkedin.com/mynetwork/')
+
+        self.info('Getting connection requests')
+        try:
+            acceptButtons = self.browser.find_elements_by_xpath(EIS.connection_request_accept_button)
+
+            if not acceptButtons:
+                raise NoSuchElementException
+
+        except NoSuchElementException:
+            self.info("No connections to accept, exiting with empty list.")
+            return accepted
+
+        for button in acceptButtons:
+            # Split at ’ to cut off tail. Then recombine with it if it's a list, which means there was a ’ in the name.
+            # Then cut off "Accept " from beginning, and convert from HTML for special character handling
+            tmp = button.get_attribute('aria-label').split("’")[:-2]
+            if len(tmp) > 1:
+                tmp = "’".join(tmp)
+            else:
+                tmp = tmp[0]
+
+            connectionName = html.unescape(tmp[len('Accept '):])
+            firstName = connectionName.split(' ')[0]
+
+            self.info(f"Accepting {firstName} and adding to new connections list")
+            profLinkElement = self.browser.find_element_by_xpath(EIS.profile_link.format(connectionName = connectionName))
+            profLink = profLinkElement.get_attribute('href')
+            button.click()
+            accepted.append((connectionName, profLink))
+
+        return accepted
+
+
+class LinkedInMessenger(Task):
+
+    def __init__(self, controller, message, connections, setup_func=None, teardown_func=None):
+        super().__init__(controller, setup = setup_func, teardown = teardown_func)
+        self.message = message
+        self.connections = connections
+
+    def run(self):
+        self.setup()
+
+        self.controller.start()
+        for contact in self.connections:
+            self.controller.sendMessageTo(contact, self.message)
+        self.controller.stop()
+
+        self.teardown()
