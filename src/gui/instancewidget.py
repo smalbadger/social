@@ -1,5 +1,9 @@
+import logging
+
 from PySide2.QtWidgets import QWidget
 from PySide2.QtCore import QThreadPool
+
+from gui.logwidget import LogWidget
 from gui.ui.ui_instancewidget import Ui_mainWidget
 
 from site_controllers.linkedin import LinkedInController, LinkedInMessenger
@@ -22,10 +26,15 @@ class InstanceWidget(QWidget):
         self.email = ""
         self.password = ""
 
+        lw = LogWidget(self.ui.instanceLogTextEdit)
+        lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        lw.setLevel(logging.DEBUG)
+
         if platformName == "LinkedIn":
             # TODO: These credentials need to be obtained elsewhere instead of hard-coding. This is just for testing
             #  purposes.
             self.messagingController = LinkedInController(self.clientName, "linkedin.test11@facade-technologies.com", "linkedin.test11")
+            logging.getLogger(self.messagingController.getLoggerName()).addHandler(lw)
             self.messenger = None
 
         self.connectSignalsToFunctions()
