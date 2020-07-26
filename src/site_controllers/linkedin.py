@@ -55,6 +55,7 @@ class LinkedInController(Controller):
         self._logger.addHandler(stdout)
         self._logger.setLevel(logging.DEBUG)
 
+    @ensure_browser_is_running
     def auth_check(self):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
@@ -238,3 +239,15 @@ class LinkedInController(Controller):
         self.highlightElement(msg_send)
         self.info("Sending the message")
         msg_send.click()
+
+    @authentication_required
+    def messageAll(self, connections: list, usingTemplate: str):
+        """Messages all connections with the template usingTemplate"""
+        # TODO: Check for past messages sent by this bot
+
+        for connection in connections:
+            firstName = connection.split(' ')[0]
+            # Tested: doesn't matter if either of the params below isn't put in the template
+            msg = usingTemplate.format(firstName=firstName, fullName=connection)
+            print(msg)
+            # self.sendMessageTo(connection, msg)

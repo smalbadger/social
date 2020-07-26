@@ -1,16 +1,9 @@
-from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog, QApplication
-from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 
 from gui.ui.ui_mainwindow import Ui_MainWindow
 from gui.instancetabwidget import InstanceTabWidget
 from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
-
-if hasattr(Qt, 'AA_EnableHighDpiScaling'):
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-
-if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
 
 class SocialView(QMainWindow):

@@ -50,7 +50,6 @@ class Controller(AbstractBaseClass):
         self.options = list(options)
         self.browser = browser
 
-
     @property
     def isRunning(self) -> bool:
         """
