@@ -1,25 +1,36 @@
 from PySide2.QtWidgets import QWidget
 from PySide2.QtCore import QThreadPool
 from gui.ui.ui_instancewidget import Ui_mainWidget
+
 from site_controllers.linkedin import LinkedInController, LinkedInMessenger
+
 
 class InstanceWidget(QWidget):
 
-    def __init__(self, username, email, password):
-        super().__init__()
+    CONTROLLERS = {
+        'LinkedIn': LinkedInController
+    }
+
+    def __init__(self, clientName, platformName):
+        QWidget.__init__(self)
 
         self.ui = Ui_mainWidget()
         self.ui.setupUi(self)
 
-        self.username = username
-        self.email = email
-        self.password = password
-        self.messagingController = LinkedInController(username, email, password)
-        self.messenger = None
+        self.platformName = platformName
+        self.username = clientName
+        self.email = ""
+        self.password = ""
 
-        self.ui.startStopButton.clicked.connect(self.startStopMessaging)
+        if platformName == "LinkedIn":
+            self.messagingController = LinkedInController(self.username, self.email, self.password)
+            self.messenger = None
 
-    def startStopMessaging(self, start=True):
+        self.connectSignalsToFunctions()
+
+
+
+    def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
 
         # TODO: When I start, then stop the messenger manually, I get a bunch of HTTP errors. This probably needs to be
@@ -43,3 +54,9 @@ class InstanceWidget(QWidget):
             if self.messenger:
                 QThreadPool.globalInstance().cancel(self.messenger)
             onComplete()
+
+    def connectSignalsToFunctions(self):
+        """
+        Connects all UI signals to functions
+        """
+        self.ui.autoMessageButton.clicked.connect(self.autoMessage)

@@ -1,18 +1,19 @@
-from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog
-from PySide2.QtCore import Slot
+from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog, QApplication
+from PySide2.QtCore import Qt
 
 from gui.ui.ui_mainwindow import Ui_MainWindow
 from gui.instancetabwidget import InstanceTabWidget
 from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
-from site_controllers.linkedin import LinkedInController
+
+if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+
+if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
 
 class SocialView(QMainWindow):
-
-    CONTROLLERS = {
-        'LinkedIn': LinkedInController
-    }
 
     def __init__(self):
 
@@ -34,20 +35,33 @@ class SocialView(QMainWindow):
         self.instances = {}
 
         # Connect signals
-        self.ui.newInstanceButton.clicked.connect(self.makeNewInstance)
+        self.ui.newInstanceButton.clicked.connect(self.openNID)
 
-    def makeNewInstance(self):
+    def openNID(self):
         """
-        Opens a new instance dialog, and creates the instance if a copy isn't running
+        Opens a new instance dialog
         """
-        nid = NewInstanceDialog()
+
+        nid = NewInstanceDialog(parent=self)
+        nid.setModal(True)
+        nid.newInstanceCreated.connect(self.addInstance)
         nid.exec_()
 
-        if nid.result() == QDialog.Accepted:
-            newTab = InstanceTabWidget(nid.getClient(), nid.getPlatform())
-            newTab.clicked.connect(lambda: self.selectInstance(newTab))
-            self.instanceTabLayout.insertWidget(0, newTab)
-            self.selectInstance(newTab)
+    def addInstance(self, instance: InstanceWidget):
+        """
+        Handles adding a new instance
+
+        :param instance: the new instance to add
+        :type instance: InstanceWidget
+        """
+
+        newTab = InstanceTabWidget(instance.clientName, instance.platformName)
+        self.instances[newTab] = instance
+
+        newTab.clicked.connect(lambda: self.selectInstance(newTab))
+        self.instanceTabLayout.insertWidget(0, newTab)
+
+        self.selectInstance(newTab)
 
     def selectInstance(self, instanceTab):
         """Opens an instance by selecting an existing tab."""
