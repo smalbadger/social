@@ -23,7 +23,9 @@ class InstanceWidget(QWidget):
         self.password = ""
 
         if platformName == "LinkedIn":
-            self.messagingController = LinkedInController(self.clientName, self.email, self.password)
+            # TODO: These credentials need to be obtained elsewhere instead of hard-coding. This is just for testing
+            #  purposes.
+            self.messagingController = LinkedInController(self.clientName, "linkedin.test11@facade-technologies.com", "linkedin.test11")
             self.messenger = None
 
         self.connectSignalsToFunctions()
@@ -43,6 +45,8 @@ class InstanceWidget(QWidget):
             startStopButton.setChecked(False)
 
         if start:
+            # TODO: Read the message and recipients from the GUI instead of hard-coding them. This is just hear for
+            #  testing purposes.
             msg = "Hello"
             recipients = ["Mary-Ann Johnson", "Bobby Tables", "George d'tousla canil-bater"]
             self.messenger = LinkedInMessenger(self.messagingController, msg, recipients, teardown_func=onComplete)
