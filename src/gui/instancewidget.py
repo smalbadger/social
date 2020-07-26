@@ -9,7 +9,7 @@ class InstanceWidget(QWidget):
         'LinkedIn': LinkedInController
     }
 
-    def __init__(self, clientName, platformName, browserName):
+    def __init__(self, clientName, platformName):
         QWidget.__init__(self)
 
         self.ui = Ui_mainWidget()
@@ -17,7 +17,6 @@ class InstanceWidget(QWidget):
 
         self.clientName = clientName
         self.platformName = platformName
-        self.browserName = browserName
 
         # TODO: Get credentials for client from database using their name
         # self.controller = InstanceWidget.CONTROLLERS[platformName]()
@@ -28,3 +27,5 @@ class InstanceWidget(QWidget):
         """
         Connects all UI signals to functions
         """
+
+        # TODO: Connect signals

@@ -15,6 +15,7 @@ class NewInstanceDialog(QDialog):
         self.ui.setupUi(self)
 
         self.mainWindow = parent
+        self.ui.errorLabel.hide()
 
     def accept(self):
         """
@@ -22,14 +23,15 @@ class NewInstanceDialog(QDialog):
         """
 
         client = self.ui.clientBox.currentText()
-        platform, browser = self.ui.platformBox.currentText(), self.ui.browserBox.currentText()
+        platform = self.ui.platformBox.currentText()
 
         for inst in self.mainWindow.instances.values():
             if inst.clientName == client and inst.platformName == platform:
                 self.ui.errorLabel.setText(f"Error: A {platform} Controller is already running for {client}")
+                self.ui.errorLabel.show()
                 return
 
-        newInst = InstanceWidget(client, platform, browser)
+        newInst = InstanceWidget(client, platform)
         self.newInstanceCreated.emit(newInst)
 
         QDialog.accept(self)

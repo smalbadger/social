@@ -1,9 +1,16 @@
-from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog
+from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog, QApplication
+from PySide2.QtCore import Qt
 
 from gui.ui.ui_mainwindow import Ui_MainWindow
 from gui.instancetabwidget import InstanceTabWidget
 from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
+
+if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+
+if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
 
 class SocialView(QMainWindow):
@@ -35,10 +42,10 @@ class SocialView(QMainWindow):
         Opens a new instance dialog
         """
 
-        diag = NewInstanceDialog(parent=self)
-        diag.setModal(True)
-        diag.newInstanceCreated.connect(self.addInstance)
-        diag.exec_()
+        nid = NewInstanceDialog(parent=self)
+        nid.setModal(True)
+        nid.newInstanceCreated.connect(self.addInstance)
+        nid.exec_()
 
     def addInstance(self, instance: InstanceWidget):
         """
@@ -58,7 +65,6 @@ class SocialView(QMainWindow):
 
     def selectInstance(self, instanceTab):
         """Opens an instance by selecting an existing tab."""
-        print("Selected")
 
         instanceWidget = self.instances.get(instanceTab, None)
 
