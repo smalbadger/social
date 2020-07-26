@@ -67,6 +67,9 @@ class SocialView(QMainWindow):
         """Opens an instance by selecting an existing tab."""
 
         instanceWidget = self.instances.get(instanceTab, None)
+        if not instanceWidget:
+            instanceWidget = InstanceWidget(instanceTab.getName(), "linkedin.test11@facade-technologies.com", "linkedin.test11")
+            self.instances[instanceTab] = instanceWidget
 
         layout = self.ui.instanceBox.layout()
         for i in reversed(range(layout.count())):
