@@ -1,10 +1,10 @@
 from PySide2.QtWidgets import QWidget, QApplication
 from PySide2.QtGui import QPixmap
 from PySide2.QtCore import Signal, QObject
-from gui.ui.ui_controllertab import Ui_Form
+from gui.ui.ui_instancetabwidget import Ui_Form
 
 
-class ControllerTab(QWidget):
+class InstanceTabWidget(QWidget):
 
     clicked = Signal()
 
@@ -21,6 +21,9 @@ class ControllerTab(QWidget):
             logoFile = u":/icon/resources/logos/linkedin.png"
 
         self.ui.logoLabel.setPixmap(QPixmap(logoFile))
+
+    def getName(self):
+        return self.ui.nameLabel.text()
 
     def mousePressEvent(self, ev):
         self.clicked.emit()
