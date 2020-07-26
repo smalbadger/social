@@ -11,7 +11,9 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 
-from site_controllers.controller import Controller
+from PySide2.QtCore import Signal, QRunnable, QObject
+
+from site_controllers.controller import Controller, Task
 from site_controllers.exceptions import *
 from site_controllers.decorators import *
 from emails import PinValidator
@@ -246,13 +248,43 @@ class LinkedInController(Controller):
 
         self.info("Verifying the message was sent")
         now = datetime.now()
-        last_message = self.getConversationHistory(person, 1, closeWindows=False)[0]
-        time, name, body = last_message
-        if not equalTo(body, message, normalize_whitespace=True) or time - now > timedelta(minutes=1):
+        msg, timestamp = self.getLastMessageWithConnection(person, assumeConversationIsOpened=True)
+        if not msg or not equalTo(msg, message, normalize_whitespace=True) or timestamp - now > timedelta(minutes=1):
+            self.critical(f"The last message was '{msg}' and it was sent at {timestamp}")
             raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
+        self.info("The message was sent successfully")
 
     @authentication_required
-    def getConversationHistory(self, person: str, numMessages = 1_000_000, closeWindows = True):
+    def getLastMessageWithConnection(self, person, assumeConversationIsOpened=False):
+        """Gets the last message sent to a specific person"""
+
+        msg = None
+        time = None
+        date = None
+        datetime = None
+
+        necessary_wait(.2)
+
+        messages = self.browser.find_elements_by_class_name("msg-s-event-listitem__body")
+        if messages:
+            msg = messages[-1].get_attribute("innerHTML").replace("<!---->", "").strip()
+
+        dates = self.browser.find_elements_by_class_name("msg-s-message-list__time-heading")
+        if dates:
+            date = convertToDate(dates[-1].get_attribute("innerHTML").replace("<!---->", "").strip())
+
+        times = self.browser.find_elements_by_class_name("msg-s-message-group__timestamp")
+        if times:
+            time = convertToTime(times[-1].get_attribute("innerHTML").replace("<!---->", "").strip())
+
+        if date and time:
+            datetime = combineDateAndTime(date, time)
+
+        return msg, datetime
+
+
+    @authentication_required
+    def getConversationHistory(self, person: str, numMessages = 1_000_000, assumeConversationIsOpened=False):
         """
         Fetches the conversation history with one person
 
@@ -264,9 +296,9 @@ class LinkedInController(Controller):
         """
 
         self.info(f"Fetching conversation history with {person}")
-        if closeWindows:
+        if not assumeConversationIsOpened:
             self.closeAllChatWindows()
-        self.openConversationWith(person)
+            self.openConversationWith(person)
 
         prevHTML = ""
         necessary_wait(1)
@@ -303,20 +335,21 @@ class LinkedInController(Controller):
                 for element in elements:
                     current[elem_type] = self.getInnerHTML(element)
 
-                if elem_type == "date":
-                    current[elem_type] = convertToDate(current[elem_type])
+                    if elem_type == "date":
+                        current[elem_type] = convertToDate(current[elem_type])
 
-                elif elem_type == "time":
-                    current[elem_type] = convertToTime(current[elem_type])
+                    elif elem_type == "time":
+                        current[elem_type] = convertToTime(current[elem_type])
 
-                elif elem_type == "body":
-                    new_msg_body = (combineDateAndTime(current['date'], current["time"]), current["name"], current["body"])
-                    history.append(new_msg_body)
+                    elif elem_type == "body":
+                        new_msg_body = (combineDateAndTime(current['date'], current.get("time", None)), current["name"], current["body"])
+                        history.append(new_msg_body)
 
         self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
 
         self.info(f"{len(history)} messages with {person} found - returning {min(len(history), numMessages)}")
-        return history[-numMessages:]
+        wanted_history = history[-numMessages:]
+        return wanted_history
 
     @authentication_required
     def acceptAllConnections(self) -> list:
@@ -357,7 +390,24 @@ class LinkedInController(Controller):
             profLinkElement = self.browser.find_element_by_xpath(f'//span[text()="{connectionName}"]').find_element_by_xpath("./..")
             profLink = profLinkElement.get_attribute('href')
             button.click()
-
             accepted.append((connectionName, profLink))
 
         return accepted
+
+
+class LinkedInMessenger(Task):
+
+    def __init__(self, controller, message, connections, setup_func=None, teardown_func=None):
+        super().__init__(controller, setup = setup_func, teardown = teardown_func)
+        self.message = message
+        self.connections = connections
+
+    def run(self):
+        self.setup()
+
+        self.controller.start()
+        for contact in self.connections:
+            self.controller.sendMessageTo(contact, self.message)
+        self.controller.stop()
+
+        self.teardown()

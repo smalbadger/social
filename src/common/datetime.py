@@ -7,7 +7,7 @@ months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", 
 
 class InvalidFormat(Exception):
     def __init__(self, msg):
-        Exception.__init__(msg)
+        super().__init__(msg)
 
 
 def convertToDate(dateString):
@@ -69,4 +69,7 @@ def convertToTime(timeString):
 
 def combineDateAndTime(dateObj, timeObj):
     """Combines a date object and a time object into a datetime object"""
+    if not timeObj:
+        timeObj = datetime.min.time()
+
     return datetime.combine(dateObj, timeObj)
