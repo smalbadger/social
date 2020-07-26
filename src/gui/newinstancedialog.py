@@ -33,3 +33,12 @@ class NewInstanceDialog(QDialog):
         self.newInstanceCreated.emit(newInst)
 
         QDialog.accept(self)
+
+    def getClient(self):
+        return self.ui.clientBox.currentText()
+
+    def getBrowser(self):
+        return self.ui.browserBox.currentText()
+
+    def getPlatform(self):
+        return self.ui.platformBox.currentText()

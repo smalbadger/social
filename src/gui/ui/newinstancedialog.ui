@@ -38,6 +38,9 @@
      </item>
      <item row="0" column="1">
       <widget class="QComboBox" name="clientBox">
+       <property name="editable">
+        <bool>true</bool>
+       </property>
        <item>
         <property name="text">
          <string>Placeholder</string>

@@ -19,8 +19,8 @@ class InstanceWidget(QWidget):
         self.platformName = platformName
         self.browserName = browserName
 
-        # TODO: Get credentials for client from their name
-        self.controller = InstanceWidget.CONTROLLERS[platformName]()
+        # TODO: Get credentials for client from database using their name
+        # self.controller = InstanceWidget.CONTROLLERS[platformName]()
 
         self.connectSignalsToFunctions()
 
@@ -28,5 +28,3 @@ class InstanceWidget(QWidget):
         """
         Connects all UI signals to functions
         """
-
-
