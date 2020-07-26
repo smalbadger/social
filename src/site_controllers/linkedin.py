@@ -2,7 +2,7 @@ import os
 import sys
 import html
 import logging
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -17,7 +17,8 @@ from site_controllers.decorators import *
 from emails import PinValidator
 
 from common.logging import initial_timestamp, LOG_FILES_DIR
-from common.stringmanipulations import onlyAplhaNumeric
+from common.strings import onlyAplhaNumeric, equalTo
+from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
 
 
@@ -242,6 +243,80 @@ class LinkedInController(Controller):
         self.highlightElement(msg_send)
         self.info("Sending the message")
         msg_send.click()
+
+        self.info("Verifying the message was sent")
+        now = datetime.now()
+        last_message = self.getConversationHistory(person, 1, closeWindows=False)[0]
+        time, name, body = last_message
+        if not equalTo(body, message, normalize_whitespace=True) or time - now > timedelta(minutes=1):
+            raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
+
+    @authentication_required
+    def getConversationHistory(self, person: str, numMessages = 1_000_000, closeWindows = True):
+        """
+        Fetches the conversation history with one person
+
+        :param person: The person to get message history with.
+        :param numMessages: The maximum number of messages desired.
+        :param closeWindows: Closes all chat windows if True
+        :returns: Up to numMessages from the conversation
+        :rtype: list of tuples where earch element is (datetime, name, msg)
+        """
+
+        self.info(f"Fetching conversation history with {person}")
+        if closeWindows:
+            self.closeAllChatWindows()
+        self.openConversationWith(person)
+
+        prevHTML = ""
+        necessary_wait(1)
+        for i in range(round(numMessages / 20)):
+            scroll_areas = self.browser.find_elements_by_class_name("msg-s-message-list")
+            if scroll_areas:
+                scroll_area = scroll_areas[0]
+                self.info(f"Loading previous messages with {person}...")
+                self.browser.execute_script("arguments[0].scrollTop = 0;", scroll_area)
+                necessary_wait(1)
+                currentHTML = scroll_area.get_attribute("innerHTML")
+                if currentHTML == prevHTML:
+                    break
+                else:
+                    prevHTML = currentHTML
+
+        messageList = self.browser.find_elements_by_class_name("msg-s-message-list__event")
+
+        search_criteria = {
+            "date": "msg-s-message-list__time-heading",
+            "time": "msg-s-message-group__timestamp",
+            "name": "msg-s-message-group__name",
+            "body": "msg-s-event-listitem__body"
+        }
+
+        self.info(f"Scraping messages with {person}...")
+        current = {}
+        history = []
+        self.browser.implicitly_wait(0)
+        for msg in messageList:
+
+            for elem_type, cls in search_criteria.items():
+                elements = msg.find_elements_by_class_name(cls)
+                for element in elements:
+                    current[elem_type] = self.getInnerHTML(element)
+
+                if elem_type == "date":
+                    current[elem_type] = convertToDate(current[elem_type])
+
+                elif elem_type == "time":
+                    current[elem_type] = convertToTime(current[elem_type])
+
+                elif elem_type == "body":
+                    new_msg_body = (combineDateAndTime(current['date'], current["time"]), current["name"], current["body"])
+                    history.append(new_msg_body)
+
+        self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
+
+        self.info(f"{len(history)} messages with {person} found - returning {min(len(history), numMessages)}")
+        return history[-numMessages:]
 
     @authentication_required
     def acceptAllConnections(self) -> list:
