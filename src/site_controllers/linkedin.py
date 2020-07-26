@@ -72,14 +72,14 @@ class LinkedInController(Controller):
         Logs in to LinkedIn
 
         TODO: check if we're connected. raise NotConnectedException
-        TODO: Check to see if the credentials were valid. Raise AuthenticationException if not
-        TODO: Make sure we successfully arrived at the correct webpage after submitting credentials. Raise LinkedInException if no other
+        TODO: Make sure we successfully arrived at the correct webpage after submitting credentials. Raise AuthenticationException
         TODO: Detect if the reCAPTCHA called us out for being a bot. raise CaptchaBotDetectedException
 
         :raises InvalidCredentialsException: If the email/password didn't match
         :raises PinValidationException: If there was a problem retrieving the validation pin.
         :raises SecurityVerificationException: If an unknown security verification method is used or
         :raises CaptchaTimeoutException: If a captcha appears and was not solved in time
+        :rauses AuthenticationException: If we were unable to leave the login page for an unknown reason
         :raises LinkedInException: If we arrived at an unknown location or there was another issue.
 
         :param manual: If True, wait for the user to click the submit button. Credentials are entered automatically.
@@ -118,6 +118,9 @@ class LinkedInController(Controller):
                 self.info("Submitting login request")
                 random_uniform_wait(1, 3)
                 self.browser.find_element_by_css_selector('button[type=submit]').click()
+
+            if not self.auth_check():
+                raise InvalidCredentialsException("Authentication Failed")
 
         # NOTE: At this point, we've signed in, but we might not be done. If LinkedIn has detected your activity as
         #       suspicious, they'll do some types of security verification:
@@ -163,6 +166,9 @@ class LinkedInController(Controller):
 
             if not method:
                 raise SecurityVerificationException("An unknown security verification technique was detected.")
+
+        if not self.auth_check():
+            raise AuthenticationException("For some reason, we couldn't leave the login page.")
 
     @authentication_required
     def maximizeConnectionPopup(self):

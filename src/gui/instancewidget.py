@@ -18,17 +18,15 @@ class InstanceWidget(QWidget):
         self.ui.setupUi(self)
 
         self.platformName = platformName
-        self.username = clientName
+        self.clientName = clientName
         self.email = ""
         self.password = ""
 
         if platformName == "LinkedIn":
-            self.messagingController = LinkedInController(self.username, self.email, self.password)
+            self.messagingController = LinkedInController(self.clientName, self.email, self.password)
             self.messenger = None
 
         self.connectSignalsToFunctions()
-
-
 
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
@@ -36,12 +34,12 @@ class InstanceWidget(QWidget):
         # TODO: When I start, then stop the messenger manually, I get a bunch of HTTP errors. This probably needs to be
         #  fixed in the Controller class somehow so that we can safely stop at any point.
 
-        startStopButton = self.ui.startStopButton
+        startStopButton = self.ui.autoMessageButton
 
         def onComplete():
             self.messenger = None
             self.messagingController.stop()
-            startStopButton.setText("Start")
+            startStopButton.setText("Send Message to Selected Connections")
             startStopButton.setChecked(False)
 
         if start:
