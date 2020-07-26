@@ -251,6 +251,7 @@ class LinkedInController(Controller):
         if not equalTo(body, message, normalize_whitespace=True) or time - now > timedelta(minutes=1):
             raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
 
+    @authentication_required
     def getConversationHistory(self, person: str, numMessages = 1_000_000, closeWindows = True):
         """
         Fetches the conversation history with one person
@@ -268,14 +269,14 @@ class LinkedInController(Controller):
         self.openConversationWith(person)
 
         prevHTML = ""
-        TODO_get_rid_of_this_wait(1)
+        necessary_wait(1)
         for i in range(round(numMessages / 20)):
             scroll_areas = self.browser.find_elements_by_class_name("msg-s-message-list")
             if scroll_areas:
                 scroll_area = scroll_areas[0]
                 self.info(f"Loading previous messages with {person}...")
                 self.browser.execute_script("arguments[0].scrollTop = 0;", scroll_area)
-                TODO_get_rid_of_this_wait(1)
+                necessary_wait(1)
                 currentHTML = scroll_area.get_attribute("innerHTML")
                 if currentHTML == prevHTML:
                     break
