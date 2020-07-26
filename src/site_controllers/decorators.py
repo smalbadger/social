@@ -58,7 +58,6 @@ def log_all_exceptions(Cls):
                 return func(*args, **kwargs)
             except Exception as e:
                 controller.exception(e)
-                raise e
 
         return wrapper
 
