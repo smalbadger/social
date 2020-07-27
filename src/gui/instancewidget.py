@@ -2,6 +2,7 @@ import logging
 
 from PySide2.QtWidgets import QWidget, QListWidgetItem
 from PySide2.QtCore import QThreadPool
+from selenium.common.exceptions import InvalidSessionIdException
 
 from gui.logwidget import LogWidget
 from gui.ui.ui_instancewidget import Ui_mainWidget
@@ -25,30 +26,26 @@ class InstanceWidget(QWidget):
 
         self.platformName = platformName
         self.clientName = clientName
-        self.email = ""
-        self.password = ""
         self.ui.errorLabel.hide()
 
-        lw = LogWidget(self.ui.instanceLogTextEdit)
-        lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        lw.setLevel(logging.DEBUG)
+        self.lw = LogWidget(self.ui.instanceLogTextEdit)
+        self.lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.lw.setLevel(logging.DEBUG)
 
         self.selectedConnections = []
 
         # TODO: These credentials need to be obtained elsewhere instead of hard-coding. This is just for testing
         #  purposes.
-        controller = CONTROLLERS.get(platformName)
-        email = "linkedin.test11@facade-technologies.com"
-        pwd = "linkedin.test11"
-        opts = [f'{UserAgent().random}']
-        browser = self.ui.browserBox.currentText()
+        self.controller = CONTROLLERS.get(platformName)
+        self.email = "linkedin.test11@facade-technologies.com"
+        self.pwd = "linkedin.test11"
+        self.opts = [f'{UserAgent().random}']
+        self.browser = self.ui.browserBox.currentText()
 
-        self.messagingController = controller(clientName, email, pwd, browser=browser, options=opts)
-        logging.getLogger(self.messagingController.getLoggerName()).addHandler(lw)
+        self.messagingController = None
         self.messenger = None
 
-        self.syncController = controller(clientName, email, pwd, browser=browser, options=opts)
-        logging.getLogger(self.syncController.getLoggerName()).addHandler(lw)
+        self.syncController = None
         self.synchronizer = None
 
         self.initializeValues()
@@ -59,7 +56,7 @@ class InstanceWidget(QWidget):
         Initializes values to what is collected from the database
         """
 
-        # TODO: Load connections and message templates. Below is an auto-generation thing
+        # TODO: Load connections and message templates from database
         self.ui.messageTemplateEdit.setPlainText("yo yo {firstName}, your whole name is {fullName}\n\n YEEEET")
         self.ui.templatesBox.clear()
         self.ui.templatesBox.setCurrentText("Template 1")
@@ -74,14 +71,19 @@ class InstanceWidget(QWidget):
         startStopButton = self.ui.autoMessageButton
 
         def onComplete():
-            self.messenger = None
             startStopButton.setText("Closing, please wait...")
-            if self.ui.closeBrowserBox.isChecked():
-                self.messagingController.stop()
-            startStopButton.setText("Send Message to Selected Connections")
+            startStopButton.setEnabled(False)
 
-            self.ui.startButton.setEnabled(True)
-            self.ui.stopButton.setEnabled(False)
+            self.messagingController.stop()
+
+            del self.messagingController
+            del self.messenger
+
+            self.messagingController = None
+            self.messenger = None
+
+            startStopButton.setText("Send Message to Selected Connections")
+            startStopButton.setEnabled(True)
 
         def teardown():  # This will naturally call onComplete, otherwise it is called twice
             startStopButton.setChecked(False)
@@ -95,18 +97,25 @@ class InstanceWidget(QWidget):
                 startStopButton.setChecked(False)
                 return
 
-            self.ui.startButton.setEnabled(False)
-            self.ui.stopButton.setEnabled(True)
+            # GUI Stuff
+            self.ui.errorLabel.hide()
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
-            self.ui.errorLabel.hide()
+            # Controller stuff
+            self.messagingController = self.controller(self.clientName, self.email, self.pwd,
+                                                       browser=self.browser, options=self.opts)
+            logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                self.selectedConnections, teardown_func=teardown)
             QThreadPool.globalInstance().start(self.messenger)
+
             startStopButton.setText("Stop")
         else:
             if self.messenger:
-                QThreadPool.globalInstance().cancel(self.messenger)
+                try:
+                    QThreadPool.globalInstance().cancel(self.messenger)
+                except RuntimeError as e:
+                    self.messagingController.warning(str(e))
             onComplete()
 
     def connectSignalsToFunctions(self):
@@ -118,12 +127,6 @@ class InstanceWidget(QWidget):
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
         self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
-        self.ui.startButton.clicked.connect(self.messagingController.start)
-        self.ui.startButton.clicked.connect(lambda: self.ui.stopButton.setEnabled(True))
-        self.ui.startButton.clicked.connect(lambda: self.ui.startButton.setEnabled(False))
-        self.ui.stopButton.clicked.connect(self.messagingController.stop)
-        self.ui.stopButton.clicked.connect(lambda: self.ui.stopButton.setEnabled(False))
-        self.ui.stopButton.clicked.connect(lambda: self.ui.startButton.setEnabled(True))
         self.ui.syncButton.setCheckable(True)
         self.ui.syncButton.toggled.connect(self.synchronizeAccount)
         self.ui.selectAllBox.toggled.connect(self.selectAll)
@@ -153,10 +156,19 @@ class InstanceWidget(QWidget):
         """Synchronizes account using options given in GUI"""
 
         def onComplete():
-            self.connector = None
             self.ui.syncButton.setText('Closing...')
+            self.ui.syncButton.setEnabled(False)
+
             self.syncController.stop()
+
+            del self.syncController
+            del self.synchronizer
+
+            self.synchronizer = None
+            self.syncController = None
+
             self.ui.syncButton.setText('Synchronize Database')
+            self.ui.syncButton.setEnabled(True)
 
         def teardown():  # This will naturally call onComplete, otherwise it is called twice
             self.ui.syncButton.setChecked(False)
@@ -169,21 +181,27 @@ class InstanceWidget(QWidget):
                 'accept new': self.ui.newConnectionsBox.isChecked()
             }
 
-            self.ui.syncButton.setText('Stop')
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
+            self.syncController = self.controller(self.clientName, self.email, self.pwd,
+                                                  browser=self.browser, options=self.opts)
+            logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
             self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
             QThreadPool.globalInstance().start(self.synchronizer)
+
+            self.ui.syncButton.setText('Stop')
         else:
             if self.synchronizer:
-                QThreadPool.globalInstance().cancel(self.synchronizer)
+                try:
+                    QThreadPool.globalInstance().cancel(self.synchronizer)
+                except RuntimeError as e:
+                    self.syncController.warning(str(e))
             onComplete()
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""
         if connection.text() not in self.selectedConnections:
             self.ui.selectedConnectionsList.addItem(QListWidgetItem(connection.text()))
-            # self.ui.selectedConnectionsList.update()
             self.selectedConnections.append(connection.text())
 
     def removeContactFromSelected(self, connection: QListWidgetItem):
