@@ -6,8 +6,9 @@ from PySide2.QtCore import QThreadPool
 from gui.logwidget import LogWidget
 from gui.ui.ui_instancewidget import Ui_mainWidget
 
-from site_controllers.linkedin import LinkedInController, LinkedInMessenger
+from site_controllers.linkedin import LinkedInController, LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
+from common.strings import fromHTML
 
 CONTROLLERS = {
     'LinkedIn': LinkedInController
@@ -26,6 +27,7 @@ class InstanceWidget(QWidget):
         self.clientName = clientName
         self.email = ""
         self.password = ""
+        self.ui.errorLabel.hide()
 
         lw = LogWidget(self.ui.instanceLogTextEdit)
         lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
@@ -45,6 +47,10 @@ class InstanceWidget(QWidget):
         logging.getLogger(self.messagingController.getLoggerName()).addHandler(lw)
         self.messenger = None
 
+        self.syncController = controller(clientName, email, pwd, browser=browser, options=opts)
+        logging.getLogger(self.syncController.getLoggerName()).addHandler(lw)
+        self.synchronizer = None
+
         self.initializeValues()
         self.connectSignalsToFunctions()
 
@@ -54,19 +60,10 @@ class InstanceWidget(QWidget):
         """
 
         # TODO: Load connections and message templates. Below is an auto-generation thing
-        self.ui.messageTemplateEdit.setText("yo yo {firstName}, your whole name is {fullName}, and ur a bitch")
+        self.ui.messageTemplateEdit.setPlainText("yo yo {firstName}, your whole name is {fullName}\n\n YEEEET")
         self.ui.templatesBox.clear()
         self.ui.templatesBox.setCurrentText("Template 1")
-        self.ui.allConnectionsList.addItem("testing")
-        self.ui.allConnectionsList.addItem("these")
-        self.ui.allConnectionsList.addItem("cool")
-        self.ui.allConnectionsList.addItem("lists")
-        # Below was to test scrolling
-        # self.ui.allConnectionsList.addItem("listss")
-        # self.ui.allConnectionsList.addItem("listsssss")
-        # self.ui.allConnectionsList.addItem("listsssssssss")
-        # self.ui.allConnectionsList.addItem("listsss")
-        # self.ui.allConnectionsList.addItem("lissstss")
+        self.ui.allConnectionsList.addItems(["Mary-Ann Johnson", "Bobby Tables", "George d'tousla canil-bater"])
 
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
@@ -78,16 +75,33 @@ class InstanceWidget(QWidget):
 
         def onComplete():
             self.messenger = None
-            self.messagingController.stop()
+            startStopButton.setText("Closing, please wait...")
+            if self.ui.closeBrowserBox.isChecked():
+                self.messagingController.stop()
             startStopButton.setText("Send Message to Selected Connections")
+
+            self.ui.startButton.setEnabled(True)
+            self.ui.stopButton.setEnabled(False)
+
+        def teardown():  # This will naturally call onComplete, otherwise it is called twice
             startStopButton.setChecked(False)
 
         if start:
-            # TODO: Read the message and recipients from the GUI instead of hard-coding them. This is just hear for
-            #  testing purposes.
-            msg = "Hello"
-            recipients = ["Mary-Ann Johnson", "Bobby Tables", "George d'tousla canil-bater"]
-            self.messenger = LinkedInMessenger(self.messagingController, msg, recipients, teardown_func=onComplete)
+            template = self.ui.messageTemplateEdit.toPlainText()
+
+            if fromHTML(template) != template:
+                self.ui.errorLabel.setText("Error: Template cannot use HTML reserved expressions.")
+                self.ui.errorLabel.show()
+                startStopButton.setChecked(False)
+                return
+
+            self.ui.startButton.setEnabled(False)
+            self.ui.stopButton.setEnabled(True)
+            self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
+
+            self.ui.errorLabel.hide()
+            self.messenger = LinkedInMessenger(self.messagingController, template,
+                                               self.selectedConnections, teardown_func=teardown)
             QThreadPool.globalInstance().start(self.messenger)
             startStopButton.setText("Stop")
         else:
@@ -103,8 +117,45 @@ class InstanceWidget(QWidget):
         self.ui.autoMessageButton.clicked.connect(self.autoMessage)
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
-        self.ui.autoMessageButton.clicked.connect(self.sendMessageToAll)
         self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
+        self.ui.startButton.clicked.connect(self.messagingController.start)
+        self.ui.startButton.clicked.connect(lambda: self.ui.stopButton.setEnabled(True))
+        self.ui.startButton.clicked.connect(lambda: self.ui.startButton.setEnabled(False))
+        self.ui.stopButton.clicked.connect(self.messagingController.stop)
+        self.ui.stopButton.clicked.connect(lambda: self.ui.stopButton.setEnabled(False))
+        self.ui.stopButton.clicked.connect(lambda: self.ui.startButton.setEnabled(True))
+        self.ui.syncButton.setCheckable(True)
+        self.ui.syncButton.toggled.connect(self.synchronizeAccount)
+
+    def synchronizeAccount(self, checked):
+        """Synchronizes account using options given in GUI"""
+
+        def onComplete():
+            self.connector = None
+            self.ui.syncButton.setText('Closing...')
+            self.syncController.stop()
+            self.ui.syncButton.setText('Synchronize Database')
+
+        def teardown():  # This will naturally call onComplete, otherwise it is called twice
+            self.ui.syncButton.setChecked(False)
+
+        if checked:
+            options = {
+                'headless': self.ui.headlessBoxSync.isChecked(),
+                'messages': self.ui.updateMessagesBox.isChecked(),
+                'connections': self.ui.updateConnectionsBox.isChecked(),
+                'accept new': self.ui.newConnectionsBox.isChecked()
+            }
+
+            self.ui.syncButton.setText('Stop')
+            self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
+
+            self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
+            QThreadPool.globalInstance().start(self.synchronizer)
+        else:
+            if self.synchronizer:
+                QThreadPool.globalInstance().cancel(self.synchronizer)
+            onComplete()
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""
@@ -124,15 +175,9 @@ class InstanceWidget(QWidget):
         """Handles changing the headless mode on the controller's browser"""
 
         if checked:
-            self.controller.options.headless = True
-        elif "--headless" in self.controller.options:
-            self.controller.options.headless = False
-
-    def sendMessageToAll(self):
-        """Calls function to send messages to all, deactivates tabs, and sets tab to logger"""
-
-        self.ui.messagingTab.setEnabled(False)
-        self.ui.syncTab.setEnabled(False)
-        self.ui.tabWidget.setCurrentIndex(2)  # 2 is the logger
-
-        self.controller.messageAll(self.selectedConnections, self.ui.messageTemplateEdit.toPlainText())
+            self.ui.closeBrowserBox.setChecked(True)
+            self.ui.closeBrowserBox.setEnabled(False)
+            self.messagingController.options.headless = True
+        else:
+            self.ui.closeBrowserBox.setEnabled(True)
+            self.messagingController.options.headless = False

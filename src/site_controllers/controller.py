@@ -1,5 +1,6 @@
 import os
 import psutil
+import subprocess
 import time
 from typing import List, Iterable
 from abc import ABC as AbstractBaseClass
@@ -58,6 +59,8 @@ class Controller(AbstractBaseClass):
     def start(self):
         """Starts the controller"""
 
+        self.info("Starting Controller")
+
         if self.isRunning:
             return
 
@@ -70,7 +73,9 @@ class Controller(AbstractBaseClass):
 
     def stop(self):
         """Stops the controller by closing the browser"""
+        self.info("Stopping browser")
         self.browser.quit()
+
         while self.isRunning:
             pass
         self.browser = None

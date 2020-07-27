@@ -17,7 +17,7 @@ from site_controllers.decorators import *
 from emails import PinValidator
 
 from common.logging import initial_timestamp, LOG_FILES_DIR
-from common.strings import onlyAplhaNumeric, equalTo
+from common.strings import onlyAplhaNumeric, equalTo, fromHTML
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
 
@@ -38,7 +38,7 @@ class LinkedInController(Controller):
 
         Controller.__init__(self, *args, **kwargs)
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
-        self.info(f"Creating Linkedin controller for {self._username}")
+        self.info(f"Created LinkedIn controller for {self._username}")
 
     def initLogger(self):
         """Creates a logger for this user's linkedin controller only"""
@@ -258,6 +258,7 @@ class LinkedInController(Controller):
         self.info("Verifying the message was sent")
         now = datetime.now()
         msg, timestamp = self.getLastMessageWithConnection(person, assumeConversationIsOpened=True)
+        print(equalTo(msg, message, normalize_whitespace=True), timestamp - now > timedelta(minutes=1))
         if not msg or not equalTo(msg, message, normalize_whitespace=True) or timestamp - now > timedelta(minutes=1):
             self.critical(f"The last message was '{msg}' and it was sent at {timestamp}")
             raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
@@ -272,8 +273,8 @@ class LinkedInController(Controller):
             firstName = connection.split(' ')[0]
             # Tested: doesn't matter if either of the params below isn't put in the template
             msg = usingTemplate.format(firstName=firstName, fullName=connection)
-            print(msg)
-            # self.sendMessageTo(connection, msg)
+            # print(msg)
+            self.sendMessageTo(connection, msg)
 
     @authentication_required
     def getLastMessageWithConnection(self, person, assumeConversationIsOpened=False):
@@ -302,7 +303,6 @@ class LinkedInController(Controller):
             datetime = combineDateAndTime(date, time)
 
         return msg, datetime
-
 
     @authentication_required
     def getConversationHistory(self, person: str, numMessages = 1_000_000, assumeConversationIsOpened=False):
@@ -418,18 +418,46 @@ class LinkedInController(Controller):
 
 class LinkedInMessenger(Task):
 
-    def __init__(self, controller, message, connections, setup_func=None, teardown_func=None):
+    def __init__(self, controller, msgTemplate, connections, setup_func=None, teardown_func=None):
         super().__init__(controller, setup = setup_func, teardown = teardown_func)
-        self.message = message
+        self.msgTemplate = msgTemplate
         self.connections = connections
 
     def run(self):
         self.setup()
 
         self.controller.start()
-        for contact in self.connections:
-            self.controller.sendMessageTo(contact, self.message)
-        self.controller.stop()
+        self.controller.messageAll(self.connections, usingTemplate=self.msgTemplate)
+
+        self.teardown()
+
+
+class LinkedInSynchronizer(Task):
+
+    def __init__(self, controller, options, setup_func=None, teardown_func=None):
+        super().__init__(controller, setup = setup_func, teardown = teardown_func)
+        self.options: dict = options
+
+    def run(self):
+        self.setup()
+        opts = self.options
+
+        if opts.get('headless'):
+            self.controller.options.headless = True
+
+        self.controller.start()
+
+        if opts.get('accept new'):
+            newCons = self.controller.acceptAllConnections()
+            # TODO: Do necessary things to handle new connections
+
+        if opts.get('connections'):
+            # TODO: Add connections scraping/syncing here
+            pass
+
+        if opts.get('messages'):
+            # TODO: Synchronize messages
+            pass
 
         self.teardown()
 

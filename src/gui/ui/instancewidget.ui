@@ -32,7 +32,7 @@
    <item row="0" column="0">
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="messagingTab">
       <attribute name="title">
@@ -62,7 +62,7 @@
             <property name="spacing">
              <number>2</number>
             </property>
-            <item row="0" column="0">
+            <item row="1" column="0">
              <widget class="QListWidget" name="allConnectionsList">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -102,7 +102,7 @@
             <property name="spacing">
              <number>2</number>
             </property>
-            <item row="0" column="0">
+            <item row="1" column="0">
              <widget class="QListWidget" name="selectedConnectionsList">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -115,6 +115,13 @@
                 <width>16777215</width>
                 <height>16777215</height>
                </size>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0">
+             <widget class="QCheckBox" name="selectAllBox">
+              <property name="text">
+               <string>All Connections</string>
               </property>
              </widget>
             </item>
@@ -167,27 +174,10 @@
           </layout>
          </item>
          <item>
-          <widget class="QTextEdit" name="messageTemplateEdit">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-          </widget>
+          <widget class="QPlainTextEdit" name="messageTemplateEdit"/>
          </item>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <item>
-            <spacer name="horizontalSpacer">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
            <item>
             <widget class="QPushButton" name="saveTemplateButton">
              <property name="enabled">
@@ -208,6 +198,69 @@
              </property>
              <property name="checkable">
               <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_4">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="errorLabel">
+             <property name="palette">
+              <palette>
+               <active>
+                <colorrole role="WindowText">
+                 <brush brushstyle="SolidPattern">
+                  <color alpha="255">
+                   <red>252</red>
+                   <green>0</green>
+                   <blue>0</blue>
+                  </color>
+                 </brush>
+                </colorrole>
+               </active>
+               <inactive>
+                <colorrole role="WindowText">
+                 <brush brushstyle="SolidPattern">
+                  <color alpha="255">
+                   <red>252</red>
+                   <green>0</green>
+                   <blue>0</blue>
+                  </color>
+                 </brush>
+                </colorrole>
+               </inactive>
+               <disabled>
+                <colorrole role="WindowText">
+                 <brush brushstyle="SolidPattern">
+                  <color alpha="255">
+                   <red>120</red>
+                   <green>120</green>
+                   <blue>120</blue>
+                  </color>
+                 </brush>
+                </colorrole>
+               </disabled>
+              </palette>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Error:</string>
              </property>
             </widget>
            </item>
@@ -246,7 +299,7 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="0">
+           <item row="3" column="0">
             <widget class="QCheckBox" name="headlessBoxSync">
              <property name="text">
               <string>Headless (No Browser)</string>
@@ -257,6 +310,13 @@
             <widget class="QCheckBox" name="updateConnectionsBox">
              <property name="text">
               <string>Update Connections List</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QCheckBox" name="newConnectionsBox">
+             <property name="text">
+              <string>Accept New Connections</string>
              </property>
             </widget>
            </item>
@@ -359,33 +419,74 @@
        <string>Settings &amp;&amp; Other</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_18">
-       <item row="1" column="0">
-        <widget class="QGroupBox" name="groupBox_8">
+       <item row="0" column="0">
+        <widget class="QGroupBox" name="groupBox_7">
          <property name="title">
-          <string>Other Functions</string>
+          <string>Settings</string>
          </property>
-         <widget class="QPushButton" name="acceptConnectionsButton">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
+         <widget class="QCheckBox" name="headlessBoxGeneral">
           <property name="geometry">
            <rect>
             <x>10</x>
-            <y>80</y>
-            <width>191</width>
-            <height>28</height>
+            <y>70</y>
+            <width>501</width>
+            <height>20</height>
            </rect>
           </property>
           <property name="text">
-           <string>Accept All Connection Requests</string>
+           <string>Run in Headless Mode (No visible browser, log still active)</string>
           </property>
          </widget>
-         <widget class="QWidget" name="layoutWidget">
+         <widget class="QCheckBox" name="closeBrowserBox">
+          <property name="geometry">
+           <rect>
+            <x>10</x>
+            <y>110</y>
+            <width>601</width>
+            <height>20</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Automatically close browser after completing task (Can be changed during execution)</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+         <widget class="QWidget" name="layoutWidget1">
           <property name="geometry">
            <rect>
             <x>10</x>
             <y>30</y>
-            <width>851</width>
+            <width>251</width>
+            <height>24</height>
+           </rect>
+          </property>
+          <layout class="QFormLayout" name="formLayout2">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_2">
+             <property name="text">
+              <string>Browser:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="browserBox">
+             <item>
+              <property name="text">
+               <string>Chrome</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="layoutWidget">
+          <property name="geometry">
+           <rect>
+            <x>290</x>
+            <y>30</y>
+            <width>601</width>
             <height>30</height>
            </rect>
           </property>
@@ -393,7 +494,7 @@
            <item>
             <widget class="QPushButton" name="startButton">
              <property name="text">
-              <string>Manual Start</string>
+              <string>Manual Start (Logs In)</string>
              </property>
             </widget>
            </item>
@@ -419,70 +520,6 @@
               </size>
              </property>
             </spacer>
-           </item>
-          </layout>
-         </widget>
-        </widget>
-       </item>
-       <item row="0" column="0">
-        <widget class="QGroupBox" name="groupBox_7">
-         <property name="title">
-          <string>Settings</string>
-         </property>
-         <widget class="QCheckBox" name="headlessBoxGeneral">
-          <property name="geometry">
-           <rect>
-            <x>10</x>
-            <y>30</y>
-            <width>501</width>
-            <height>20</height>
-           </rect>
-          </property>
-          <property name="text">
-           <string>Run in Headless Mode (No visible browser, log still active. Disables next option)</string>
-          </property>
-         </widget>
-         <widget class="QCheckBox" name="closeBrowserBox">
-          <property name="geometry">
-           <rect>
-            <x>10</x>
-            <y>70</y>
-            <width>601</width>
-            <height>20</height>
-           </rect>
-          </property>
-          <property name="text">
-           <string>Automatically close browser after completing task (Can be changed during execution)</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-         <widget class="QWidget" name="layoutWidget1">
-          <property name="geometry">
-           <rect>
-            <x>10</x>
-            <y>110</y>
-            <width>251</width>
-            <height>24</height>
-           </rect>
-          </property>
-          <layout class="QFormLayout" name="formLayout2">
-           <item row="0" column="0">
-            <widget class="QLabel" name="label_2">
-             <property name="text">
-              <string>Browser:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="browserBox">
-             <item>
-              <property name="text">
-               <string>Chrome</string>
-              </property>
-             </item>
-            </widget>
            </item>
           </layout>
          </widget>
