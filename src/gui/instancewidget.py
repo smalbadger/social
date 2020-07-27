@@ -126,6 +126,28 @@ class InstanceWidget(QWidget):
         self.ui.stopButton.clicked.connect(lambda: self.ui.startButton.setEnabled(True))
         self.ui.syncButton.setCheckable(True)
         self.ui.syncButton.toggled.connect(self.synchronizeAccount)
+        self.ui.selectAllBox.toggled.connect(self.selectAll)
+
+    def selectAll(self, checked):
+        """Selects all connections to send them a message"""
+        sel = self.ui.selectedConnectionsList
+        alc = self.ui.allConnectionsList
+
+        if checked:
+            sel.clear()
+
+            items = []
+            for x in range(alc.count()):
+                items.append(alc.item(x))
+            self.selectedConnections = [item.text() for item in items]
+
+            sel.addItems(self.selectedConnections)
+
+            sel.setEnabled(False)
+        else:
+            sel.clear()
+            self.selectedConnections = []
+            sel.setEnabled(True)
 
     def synchronizeAccount(self, checked):
         """Synchronizes account using options given in GUI"""
