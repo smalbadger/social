@@ -6,6 +6,9 @@ Database Structure: Social
 Clients Table
 -------------
     -> ID
+    -> Name
+    -> Email
+    -> Phone #
     -> linkedin account (From LinkedIn Accounts Table)
     ** Others to come
 
