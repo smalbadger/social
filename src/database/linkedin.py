@@ -57,9 +57,9 @@ Response Meaning
 
 
 from sqlalchemy import create_engine
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, Integer
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from pprint import pprint
 
 
@@ -91,51 +91,112 @@ class Messages(Base):
 
 # --- Sam's Structure ---------------------------------------------------------
 
-# class Client(Base):
-#
-#     __tablename__ = "Clients"
-#
-#     ID = Column(Integer, primary_key=True)
-#     LinkedIn_Account = Column(Integer)
-#
-# class LinkedInAccount(Base):
-#
-#     __tablename__ = "LinkedIn Accounts"
-#
-#     ID = Column(Integer, primary_key=True)
-#     Email = Column(String, unique=True)
-#     Username = Column(String)
-#     Password = Column(String)
-#     Date_Created = Column(String)
-#     Flagged_As_Bot = Column(Integer)
-#
-# class LinkedInConnection(Base):
-#
-#     __tablename__ = "LinkedIn Connections"
-#
-#     ID = Column(Integer, primary_key=True)
-#     Account = Column()
-#     Connecton_Name = Column(String)
-#     Connection_URL = Column(String)
-#
-# class LinkedInMessageTemplate(Base):
-#
-#     __tablename__ = "LinkedIn Message Templates"
+class Client(Base):
+
+    __tablename__ = "clients"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+    email = Column(String, unique=True)
+    phone = Column(String, unique=True)
+
+    linkedin_account = relationship("LinkedInAccount", uselist=False, back_populates="client")
+
+class LinkedInAccount(Base):
+
+    __tablename__ = "linkedin_accounts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    client_id = Column(Integer, ForeignKey('clients.id'))
+    email = Column(String, unique=True)
+    username = Column(String)
+    password = Column(String)
+    flagged_as_bot_date = Column(DateTime, default=None)
+    flagged_as_bot = Column(Integer, default=0)
+
+    client = relationship("Client", back_populates="linkedin_account")
+    connections = relationship("LinkedInConnection", back_populates="account")
+    messages = relationship("LinkedInMessage", back_populates="account")
+
+class LinkedInConnection(Base):
+
+    __tablename__ = "linkedin_connections"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
+    name = Column(String)
+    url = Column(String)
+    location = Column(String)
+    position = Column(String)
+    contact_date = Column(DateTime)
+
+    account = relationship("LinkedInAccount", back_populates="connections")
+    messages = relationship("LinkedInMessage", back_populates="connection")
+
+class LinkedInMessageTemplate(Base):
+
+    __tablename__ = "linkedin_message_templates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
+    message_template = Column(String, unique=True)
+    crc = Column(Integer)
+    date_created = Column(DateTime)
+
+    account = relationship("LinkedInAccount", back_populates="message_templates")
+    instances = relationship("LinkedInMessage", back_populates="template")
+
+class LinkedInMessage(Base):
+
+    __tablename__ = "linkedin_messages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
+    template_id = Column(Integer, ForeignKey('linkedin_message_templates.id'))
+    recipient_connection_id = Column(Integer, ForeignKey('linkedin_connections.id'))
+    message_crc = Column(Integer)
+    response = Column(Integer)
+
+    template = relationship("LinkedInMessageTemplate", back_populates="instances")
+    recipient = relationship("LinkedInConnection", back_populates="messages")
+    account = relationship("LinkedInAccount", back_populates="messages")
+
+class ResponseMeanings(Base):
+
+    __tablename__ = "response_meanings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    meaning = Column(String, unique=True)
 
 
+def migrateOldDatabase():
+    contacts = session.query(Contacts).all()
+    messages = session.query(Messages).all()
 
+    # messages_dict = {}
+    # for m in messages:
+
+
+    client_dict = {}
+    account_dict = {}
+    connection_dict = {}
+
+    for c in contacts:
+        if c.Account not in client_dict:
+            client = Client(name=c.Full_Name)
+            account = LinkedInAccount(username=c.Full_Name)
+            client.linkedin_account = account
+            account.client = client
+            client_dict[c.Account] = client
+            account_dict[c.Account] = account
+
+        connection_dict[f"{c.Account} -> {c.Full_Name}"] = LinkedInConnection(account=account_dict[c.Account])
+
+    print(connection_dict)
+    print(account_dict)
+    print(client_dict)
 
 
 if __name__ == "__main__":
 
-    contacts = session.query(Contacts).all()
-    messages = session.query(Messages).all()
-
-    for c in contacts:
-        print(f"{c.Account} -> {c.Full_Name} -> {c.MSG_CRC}")
-
-    for m in messages:
-        print(m.MSG)
-
-    print(f"# of contacts: {len(contacts)}")
-    print(f"# of messages: {len(messages)}")
+    migrateOldDatabase()
