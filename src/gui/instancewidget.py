@@ -39,6 +39,9 @@ class InstanceWidget(QWidget):
         self.controller = CONTROLLERS.get(platformName)
         self.email = "linkedin.test11@facade-technologies.com"
         self.pwd = "linkedin.test11"
+
+        self.email = "philippecutillas@gmail.com"
+        self.pwd = "Frenchman98!"
         self.opts = [f'{UserAgent().random}']
         self.browser = self.ui.browserBox.currentText()
 
@@ -187,6 +190,7 @@ class InstanceWidget(QWidget):
                                                   browser=self.browser, options=self.opts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
             self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
+            self.syncController.connectionsScraped.connect(self.refreshConnections)
             QThreadPool.globalInstance().start(self.synchronizer)
 
             self.ui.syncButton.setText('Stop')
@@ -197,6 +201,14 @@ class InstanceWidget(QWidget):
                 except RuntimeError as e:
                     self.syncController.warning(str(e))
             onComplete()
+
+    def refreshConnections(self, conns: dict):
+        """Clears the all connections list and selected list, and fills the all connections list with new ones"""
+
+        self.ui.allConnectionsList.clear()
+        self.ui.allConnectionsList.addItems(conns.keys())
+        self.ui.selectedConnectionsList.clear()
+        self.selectedConnections = []
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""

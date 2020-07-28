@@ -4,6 +4,8 @@ import html
 import logging
 from datetime import timedelta, datetime, date
 
+from PySide2.QtCore import QObject, Signal
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -11,7 +13,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 
-from site_controllers.controller import Controller, Task
+from site_controllers.controller import Controller, Task, Beacon
 from site_controllers.exceptions import *
 from site_controllers.decorators import *
 from emails import PinValidator
@@ -32,6 +34,8 @@ class LinkedInController(Controller):
     """
     The controller for LinkedIn
     """
+
+    Beacon.connectionsScraped = Signal(dict)
 
     def __init__(self, *args, **kwargs):
         """Initializes LinkedIn Controller"""
@@ -415,6 +419,114 @@ class LinkedInController(Controller):
 
         return accepted
 
+    def getAllConnections(self) -> dict:
+        """Gets all contacts and returns them in a dictionary"""
+
+        self.info('Getting all connections')
+
+        connections = {}
+
+        # Find profile pic, click on it
+        profile = self.browser.find_element_by_xpath('//div[@data-control-name="identity_profile_photo"]').find_element_by_xpath("./..")
+        profile.click()
+
+        # Find connection page link, click on it
+        connLink = self.browser.find_element_by_xpath('//a[@data-control-name="topcard_view_all_connections"]')
+        connLink.click()
+
+        self.info('Waiting for page to load, getting URL')
+        necessary_wait(2)
+        baseURL = self.browser.current_url
+        mainWindow = self.browser.window_handles[0]
+        page = 1
+
+        # Make new tab to handle the mutual connections stuff
+        self.info('Making new tab to handle mutual connections')
+        self.browser.execute_script("window.open('');")
+        mutualWindow = self.browser.window_handles[1]
+
+        # switch back
+        self.browser.switch_to.window(mainWindow)
+
+        # Iterate through connections on page, then click next
+        while True:
+            conns = self.browser.find_elements_by_class_name('search-result__info')
+            for connection in conns:
+
+                # Get info
+                profileLink = connection.find_element_by_class_name("search-result__result-link").get_attribute('href')
+                name = connection.find_element_by_class_name("name").get_attribute('innerHTML')
+                position = connection.find_element_by_class_name("subline-level-1").get_attribute('innerHTML')
+                location = connection.find_element_by_class_name("subline-level-2").get_attribute('innerHTML')
+
+                try:
+                    sharedStr = connection.find_element_by_class_name('search-result__social-proof-count').text
+                except NoSuchElementException:
+                    sharedStr = None
+
+                # Convert
+                profileLink = fromHTML(profileLink)
+                name = fromHTML(name)
+                position = fromHTML(position).strip()
+                location = fromHTML(location[:-len(' Area')]).strip()
+
+                # Other Information
+                if sharedStr:
+                    sharedStr = fromHTML(sharedStr)
+                    if sharedStr.find('other shared connection') > -1:  # 3+, search the last link
+                        # click last link
+                        mutualLink = connection.find_element_by_css_selector('[data-control-name="view_mutual_connections"]').get_attribute('href')
+
+                        self.browser.switch_to.window(mutualWindow)
+                        self.browser.get(mutualLink)
+
+                        # get new url
+                        necessary_wait(2)
+                        m_baseURL = self.browser.current_url
+                        m_page = 1
+
+                        names = []
+
+                        # similar to general while loop but only gets names
+                        while True:
+                            m_conns = self.browser.find_elements_by_class_name('search-result__info')
+
+                            for m_connection in m_conns:
+                                name = m_connection.find_element_by_class_name("name").get_attribute('innerHTML')
+                                names.append(fromHTML(name))
+
+                            try:
+                                self.browser.find_element_by_xpath('//button[@data-test="no-results-cta"]')
+                                break
+                            except NoSuchElementException:
+                                m_page += 1
+                                self.browser.get(m_baseURL + f'&page={m_page}')
+
+                        self.browser.switch_to.window(mainWindow)
+                    elif sharedStr.find('are shared connections') > -1:  # 2, get both names
+                        names = sharedStr[:-len(' are shared connections')].split(' and ')
+                    else:  # 1, get name
+                        names = [sharedStr.split(' is')[0]]
+                else:
+                    names = []
+
+                connections[name] = {
+                    'link': profileLink,
+                    'position': position,
+                    'location': location,
+                    'mutual': names
+                }
+
+            try:
+                self.browser.find_element_by_xpath('//button[@data-test="no-results-cta"]')
+                break
+            except NoSuchElementException:
+                page += 1
+                self.browser.get(baseURL + f'&page={page}')
+
+        self.connectionsScraped.emit(connections)
+        return connections
+
 
 class LinkedInMessenger(Task):
 
@@ -449,11 +561,13 @@ class LinkedInSynchronizer(Task):
 
         if opts.get('accept new'):
             newCons = self.controller.acceptAllConnections()
+
             # TODO: Do necessary things to handle new connections
+            self.controller.browser.get("https://www.linkedin.com/feed/")
 
         if opts.get('connections'):
-            # TODO: Add connections scraping/syncing here
-            pass
+            connections = self.controller.getAllConnections()
+            # TODO: Add connections scraping/syncing here. currently repopulates the all contacts list
 
         if opts.get('messages'):
             # TODO: Synchronize messages
