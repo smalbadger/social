@@ -32,7 +32,7 @@ class InstanceWidget(QWidget):
 
         # TODO: These credentials need to be obtained elsewhere instead of hard-coding. This is just for testing
         #  purposes.
-        self.controllerConstructor = locals().get(platformName + 'Controller')
+        self.controllerConstructor = globals().get(platformName + 'Controller')
         self.email = "linkedin.test11@facade-technologies.com"
         self.pwd = "linkedin.test11"
         self.opts = [f'{UserAgent().random}']
@@ -98,8 +98,8 @@ class InstanceWidget(QWidget):
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             # Controller stuff
-            self.messagingController = self.controller(self.clientName, self.email, self.pwd,
-                                                       browser=self.browser, options=self.opts)
+            self.messagingController = self.controllerConstructor(self.clientName, self.email, self.pwd,
+                                                                  browser=self.browser, options=self.opts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                self.selectedConnections, teardown_func=teardown)
@@ -179,11 +179,13 @@ class InstanceWidget(QWidget):
 
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
-            self.syncController = self.controller(self.clientName, self.email, self.pwd,
-                                                  browser=self.browser, options=self.opts)
+            self.syncController = self.controllerConstructor(self.clientName, self.email, self.pwd,
+                                                             browser=self.browser, options=self.opts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+
             self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
             self.syncController.connectionsScraped.connect(self.refreshConnections)
+
             QThreadPool.globalInstance().start(self.synchronizer)
 
             self.ui.syncButton.setText('Stop')
