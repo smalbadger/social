@@ -11,10 +11,6 @@ from site_controllers.linkedin import LinkedInController, LinkedInMessenger, Lin
 from fake_useragent import UserAgent
 from common.strings import fromHTML
 
-CONTROLLERS = {
-    'LinkedIn': LinkedInController
-}
-
 
 class InstanceWidget(QWidget):
 
@@ -36,12 +32,9 @@ class InstanceWidget(QWidget):
 
         # TODO: These credentials need to be obtained elsewhere instead of hard-coding. This is just for testing
         #  purposes.
-        self.controller = CONTROLLERS.get(platformName)
+        self.controllerConstructor = locals().get(platformName + 'Controller')
         self.email = "linkedin.test11@facade-technologies.com"
         self.pwd = "linkedin.test11"
-
-        self.email = "philippecutillas@gmail.com"
-        self.pwd = "Frenchman98!"
         self.opts = [f'{UserAgent().random}']
         self.browser = self.ui.browserBox.currentText()
 
@@ -60,7 +53,7 @@ class InstanceWidget(QWidget):
         """
 
         # TODO: Load connections and message templates from database
-        self.ui.messageTemplateEdit.setPlainText("yo yo {firstName}, your whole name is {fullName}\n\n YEEEET")
+        self.ui.messageTemplateEdit.setPlainText("yo yo {firstName}, your whole name is {fullName}")
         self.ui.templatesBox.clear()
         self.ui.templatesBox.setCurrentText("Template 1")
         self.ui.allConnectionsList.addItems(["Mary-Ann Johnson", "Bobby Tables", "George d'tousla canil-bater"])
@@ -126,7 +119,7 @@ class InstanceWidget(QWidget):
         Connects all UI signals to functions
         """
 
-        self.ui.autoMessageButton.clicked.connect(self.autoMessage)
+        self.ui.autoMessageButton.toggled.connect(self.autoMessage)
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
         self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
