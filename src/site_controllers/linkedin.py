@@ -22,6 +22,38 @@ from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
 
 
+#########################################################
+# Element Identification Strings
+#########################################################
+class EIS:
+    login_username_input                     = "username"
+    login_password_input                     = "password"
+    login_submit_button                      = "button[type=submit]"
+
+    captcha_challenge                        = "captcha-challenge"
+    pin_verification_input                   = "input__email_verification_pin"
+
+    connection_bar                           = "msg-overlay-bubble-header"
+    connection_bar_maximize                  = "overlay.maximize_connection_list_bar"
+    connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"
+    connection_message_select                = "//h4[text()={concat}]/../.."
+
+    message_scroll_box                       = "msg-s-message-list"
+    message_editor                           = "msg-form__contenteditable"
+    message_send                             = "msg-form__send-button"
+    message_item                             = "msg-s-message-list__event"
+    message_date                             = "msg-s-message-list__time-heading"
+    message_time                             = "msg-s-message-group__timestamp"
+    message_author                           = "msg-s-message-group__name"
+    message_body                             = "msg-s-event-listitem__body"
+
+    profile_link                             = '//span[text()="{connectionName}"]./..'
+    connection_request_accept_button         = "//button[@class='invitation-card__action-btn artdeco-button" \
+                                               "artdeco-button--2 artdeco-button--secondary ember-view']"
+
+
+
+
 class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
@@ -109,9 +141,9 @@ class LinkedInController(Controller):
         if "Login" in self.browser.title or "Sign in" in self.browser.title:
 
             self.info(f"Entering email: {self._email}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id("username"), self._email, 1, 3, 0, .25)
+            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
             self.info(f"Entering password: {'*'*len(self._password)}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id("password"), self._password, 1, 3, 0, .25)
+            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
 
             # If manual is True, we require the user to press the login button.
             if manual:
@@ -120,7 +152,7 @@ class LinkedInController(Controller):
             else:
                 self.info("Submitting login request")
                 random_uniform_wait(1, 3)
-                self.browser.find_element_by_css_selector('button[type=submit]').click()
+                self.browser.find_element_by_css_selector(EIS.login_submit_button).click()
 
             if not self.auth_check():
                 raise InvalidCredentialsException("Authentication Failed")
@@ -136,7 +168,7 @@ class LinkedInController(Controller):
             method = ""
 
             # Determine if it's asking for a pin
-            pin_inputs = self.browser.find_elements_by_id("input__email_verification_pin")
+            pin_inputs = self.browser.find_elements_by_id(EIS.pin_verification_input)
             if pin_inputs:
                 method = "pin"
                 timeout = timedelta(minutes=1)
@@ -150,7 +182,7 @@ class LinkedInController(Controller):
             timeout = timedelta(minutes=5)
             found = False
             while True:
-                captcha = self.browser.find_elements_by_id('captcha-challenge')
+                captcha = self.browser.find_elements_by_id(EIS.captcha_challenge)
                 if captcha:
                     if not found:
                         self.critical(f"Detected Captcha. You have {timeout.total_seconds()/60} minutes to solve it.")
@@ -177,10 +209,9 @@ class LinkedInController(Controller):
     def maximizeConnectionPopup(self):
         """opens the connection popup"""
         self.info("Finding connection list bar")
-        cbt = "header[data-control-name={}imize_connection_list_bar]"  # connection bar template
-        possible_connection_bars = self.browser.find_elements_by_class_name("msg-overlay-bubble-header")
+        possible_connection_bars = self.browser.find_elements_by_class_name(EIS.connection_bar)
         for possibility in possible_connection_bars:
-            if possibility.get_attribute("data-control-name") == "overlay.maximize_connection_list_bar":
+            if possibility.get_attribute("data-control-name") == EIS.connection_bar_maximize:
                 self.info("maximizing the connection list")
                 possibility.click()
 
@@ -191,7 +222,7 @@ class LinkedInController(Controller):
 
         # make sure conversation list is visible
         searchbox = WebDriverWait(self.browser, 3).until(
-            EC.visibility_of_element_located((By.ID, "msg-overlay-list-bubble-search__search-typeahead-input")))
+            EC.visibility_of_element_located((By.ID, EIS.connection_search)))
         self.info("The search field has been found")
         self.highlightElement(searchbox)
         self.info("Clearing the search field")
@@ -208,7 +239,7 @@ class LinkedInController(Controller):
         concat = "concat(\"" + "\", \"".join(list(person)) + "\")"
         necessary_wait(1)
         target_account = WebDriverWait(self.browser, 10) \
-            .until(EC.element_to_be_clickable((By.XPATH, f"//h4[text()={concat}]/../..")))
+            .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_message_select.format(concat=concat))))
         self.info(f"scrolling through results to {person}")
         ActionChains(self.browser).move_to_element(target_account).perform()
         self.highlightElement(target_account)
@@ -245,12 +276,12 @@ class LinkedInController(Controller):
         self.openConversationWith(person)
 
         self.info("Finding the message box")
-        msg_box = self.browser.find_element_by_class_name("msg-form__contenteditable")
+        msg_box = self.browser.find_element_by_class_name(EIS.message_editor)
         self.highlightElement(msg_box)
         self.info(f"Typing the message: {message}")
         msg_box.send_keys(message)
         self.info("Finding the submit button")
-        msg_send = self.browser.find_element_by_class_name("msg-form__send-button")
+        msg_send = self.browser.find_element_by_class_name(EIS.message_send)
         self.highlightElement(msg_send)
         self.info("Sending the message")
         msg_send.click()
@@ -287,17 +318,17 @@ class LinkedInController(Controller):
 
         necessary_wait(.5)
 
-        messages = self.browser.find_elements_by_class_name("msg-s-event-listitem__body")
+        messages = self.browser.find_elements_by_class_name(EIS.message_body)
         if messages:
-            msg = messages[-1].get_attribute("innerHTML").replace("<!---->", "").strip()
+            msg = self.getInnerHTML(messages[-1])
 
-        dates = self.browser.find_elements_by_class_name("msg-s-message-list__time-heading")
+        dates = self.browser.find_elements_by_class_name(EIS.message_date)
         if dates:
-            date = convertToDate(dates[-1].get_attribute("innerHTML").replace("<!---->", "").strip())
+            date = convertToDate(self.getInnerHTML(dates[-1]))
 
-        times = self.browser.find_elements_by_class_name("msg-s-message-group__timestamp")
+        times = self.browser.find_elements_by_class_name(EIS.message_time)
         if times:
-            time = convertToTime(times[-1].get_attribute("innerHTML").replace("<!---->", "").strip())
+            time = convertToTime(self.getInnerHTML(times[-1]))
 
         if date and time:
             datetime = combineDateAndTime(date, time)
@@ -324,7 +355,7 @@ class LinkedInController(Controller):
         prevHTML = ""
         necessary_wait(1)
         for i in range(round(numMessages / 20)):
-            scroll_areas = self.browser.find_elements_by_class_name("msg-s-message-list")
+            scroll_areas = self.browser.find_elements_by_class_name(EIS.message_scroll_box)
             if scroll_areas:
                 scroll_area = scroll_areas[0]
                 self.info(f"Loading previous messages with {person}...")
@@ -336,13 +367,13 @@ class LinkedInController(Controller):
                 else:
                     prevHTML = currentHTML
 
-        messageList = self.browser.find_elements_by_class_name("msg-s-message-list__event")
+        messageList = self.browser.find_elements_by_class_name(EIS.message_item)
 
         search_criteria = {
-            "date": "msg-s-message-list__time-heading",
-            "time": "msg-s-message-group__timestamp",
-            "name": "msg-s-message-group__name",
-            "body": "msg-s-event-listitem__body"
+            "date": EIS.message_date,
+            "time": EIS.message_time,
+            "name": EIS.message_author,
+            "body": EIS.message_body
         }
 
         self.info(f"Scraping messages with {person}...")
@@ -363,7 +394,8 @@ class LinkedInController(Controller):
                         current[elem_type] = convertToTime(current[elem_type])
 
                     elif elem_type == "body":
-                        new_msg_body = (combineDateAndTime(current['date'], current.get("time", None)), current["name"], current["body"])
+                        t = combineDateAndTime(current['date'], current.get("time", None))
+                        new_msg_body = (t, current["name"], current["body"])
                         history.append(new_msg_body)
 
         self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
@@ -383,10 +415,7 @@ class LinkedInController(Controller):
 
         self.info('Getting connection requests')
         try:
-            acceptButtons = self.browser.find_elements_by_xpath(
-                "//button[@class='invitation-card__action-btn artdeco-button artdeco-button--2 "
-                "artdeco-button--secondary ember-view']"
-            )
+            acceptButtons = self.browser.find_elements_by_xpath(EIS.connection_request_accept_button)
 
             if not acceptButtons:
                 raise NoSuchElementException
@@ -408,7 +437,7 @@ class LinkedInController(Controller):
             firstName = connectionName.split(' ')[0]
 
             self.info(f"Accepting {firstName} and adding to new connections list")
-            profLinkElement = self.browser.find_element_by_xpath(f'//span[text()="{connectionName}"]').find_element_by_xpath("./..")
+            profLinkElement = self.browser.find_element_by_xpath(EIS.profile_link.format(connectionName = connectionName))
             profLink = profLinkElement.get_attribute('href')
             button.click()
             accepted.append((connectionName, profLink))
