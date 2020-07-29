@@ -11,10 +11,6 @@ from site_controllers.linkedin import LinkedInController, LinkedInMessenger, Lin
 from fake_useragent import UserAgent
 from common.strings import fromHTML
 
-CONTROLLERS = {
-    'LinkedIn': LinkedInController
-}
-
 
 class InstanceWidget(QWidget):
 
@@ -36,7 +32,7 @@ class InstanceWidget(QWidget):
 
         # TODO: These credentials need to be obtained elsewhere instead of hard-coding. This is just for testing
         #  purposes.
-        self.controller = CONTROLLERS.get(platformName)
+        self.controllerConstructor = globals().get(platformName + 'Controller')
         self.email = "linkedin.test11@facade-technologies.com"
         self.pwd = "linkedin.test11"
         self.opts = [f'{UserAgent().random}']
@@ -57,7 +53,7 @@ class InstanceWidget(QWidget):
         """
 
         # TODO: Load connections and message templates from database
-        self.ui.messageTemplateEdit.setPlainText("yo yo {firstName}, your whole name is {fullName}\n\n YEEEET")
+        self.ui.messageTemplateEdit.setPlainText("yo yo {firstName}, your whole name is {fullName}")
         self.ui.templatesBox.clear()
         self.ui.templatesBox.setCurrentText("Template 1")
         self.ui.allConnectionsList.addItems(["Mary-Ann Johnson", "Bobby Tables", "George d'tousla canil-bater"])
@@ -102,8 +98,8 @@ class InstanceWidget(QWidget):
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             # Controller stuff
-            self.messagingController = self.controller(self.clientName, self.email, self.pwd,
-                                                       browser=self.browser, options=self.opts)
+            self.messagingController = self.controllerConstructor(self.clientName, self.email, self.pwd,
+                                                                  browser=self.browser, options=self.opts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                self.selectedConnections, teardown_func=teardown)
@@ -123,7 +119,7 @@ class InstanceWidget(QWidget):
         Connects all UI signals to functions
         """
 
-        self.ui.autoMessageButton.clicked.connect(self.autoMessage)
+        self.ui.autoMessageButton.toggled.connect(self.autoMessage)
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
         self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
@@ -183,10 +179,13 @@ class InstanceWidget(QWidget):
 
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
-            self.syncController = self.controller(self.clientName, self.email, self.pwd,
-                                                  browser=self.browser, options=self.opts)
+            self.syncController = self.controllerConstructor(self.clientName, self.email, self.pwd,
+                                                             browser=self.browser, options=self.opts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+
             self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
+            self.syncController.connectionsScraped.connect(self.refreshConnections)
+
             QThreadPool.globalInstance().start(self.synchronizer)
 
             self.ui.syncButton.setText('Stop')
@@ -197,6 +196,14 @@ class InstanceWidget(QWidget):
                 except RuntimeError as e:
                     self.syncController.warning(str(e))
             onComplete()
+
+    def refreshConnections(self, conns: dict):
+        """Clears the all connections list and selected list, and fills the all connections list with new ones"""
+
+        self.ui.allConnectionsList.clear()
+        self.ui.allConnectionsList.addItems(conns.keys())
+        self.ui.selectedConnectionsList.clear()
+        self.selectedConnections = []
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""

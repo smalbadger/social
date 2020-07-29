@@ -14,7 +14,6 @@ def equalTo(s1, s2, normalize_whitespace=True, normalize_html_chars=True):
         s1 = fromHTML(s1).replace(u'\xa0', u' ')
         s2 = fromHTML(s2).replace(u'\xa0', u' ')
 
-    print(s1, s2)
     return s1 == s2
 
 
