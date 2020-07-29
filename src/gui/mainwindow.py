@@ -1,13 +1,16 @@
 import logging
 
-from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog, QApplication
-from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QProgressDialog
 
 from gui.ui.ui_mainwindow import Ui_MainWindow
 from gui.instancetabwidget import InstanceTabWidget
 from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
 from gui.logwidget import LogWidget
+
+from common.nongui import RunInNewThread
+
+from database.linkedin import session, Client
 
 
 class SocialView(QMainWindow):
@@ -37,15 +40,28 @@ class SocialView(QMainWindow):
         self.browser = None  # This will only be a string. Gets converted to object in controller.py
         self.instances = {}
 
+        # Other objects
+        self.prog = QProgressDialog("Fetching clients, please wait...", "Hide", 0, 0, parent=self)
+        self.prog.setModal(True)
+        self.prog.hide()
+
         # Connect signals
-        self.ui.newInstanceButton.clicked.connect(self.openNID)
+        self.ui.newInstanceButton.clicked.connect(self.newInstanceClicked)
 
-    def openNID(self):
+    def newInstanceClicked(self):
         """
-        Opens a new instance dialog
+        Opens a spinning animation while client list is being fetched, then opens a new instance dialog
         """
+        self.prog.show()
+        RunInNewThread(self.getClients).andConnect(self.openNID)
 
-        nid = NewInstanceDialog(parent=self)
+    def openNID(self, clients: list):
+        """
+        Opens a new instance dialog, populating it with clients list
+        """
+        self.prog.hide()
+
+        nid = NewInstanceDialog(clients, parent=self)
         nid.setModal(True)
         nid.newInstanceCreated.connect(self.addInstance)
         nid.exec_()
@@ -80,3 +96,9 @@ class SocialView(QMainWindow):
 
         layout.addWidget(instanceWidget)
         self.ui.instanceBox.setTitle(instanceTab.getName())
+
+    #############################
+    # Database stuff
+    #############################
+    def getClients(self) -> list:
+        return session.query(Client).all()

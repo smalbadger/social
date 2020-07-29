@@ -4,14 +4,12 @@ from PySide2.QtCore import Signal
 from gui.ui.ui_newinstancedialog import Ui_Dialog
 from gui.instancewidget import InstanceWidget
 
-from database.linkedin import session, Client
-
 
 class NewInstanceDialog(QDialog):
 
     newInstanceCreated = Signal(InstanceWidget)
 
-    def __init__(self, parent):
+    def __init__(self, clients, parent):
         QDialog.__init__(self, parent=parent)
 
         self.ui = Ui_Dialog()
@@ -20,8 +18,6 @@ class NewInstanceDialog(QDialog):
         self.mainWindow = parent
         self.ui.errorLabel.hide()
 
-        # Load Clients
-        clients = session.query(Client).all()
         for client in clients:
             self.ui.clientBox.addItem(client.name, userData=client)
 

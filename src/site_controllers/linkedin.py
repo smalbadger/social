@@ -635,8 +635,6 @@ class LinkedInController(Controller):
         return profileLink, position, location
 
 
-
-
 class LinkedInMessenger(Task):
 
     def __init__(self, controller, msgTemplate, connections, setup_func=None, teardown_func=None):
