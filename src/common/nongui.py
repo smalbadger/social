@@ -28,6 +28,8 @@ class NonGUIOperation(QRunnable):
                 out = self._func(*self._args, **self._kwargs)
             else:
                 out = self._func(*self._args)
+        elif self._kwargs:
+            out = self._func(**self._kwargs)
         else:
             out = self._func()
 
