@@ -14,14 +14,14 @@ from common.strings import fromHTML
 
 class InstanceWidget(QWidget):
 
-    def __init__(self, clientName, platformName):
+    def __init__(self, client, platformName):
         QWidget.__init__(self)
 
         self.ui = Ui_mainWidget()
         self.ui.setupUi(self)
 
         self.platformName = platformName
-        self.clientName = clientName
+        self.client = client
         self.ui.errorLabel.hide()
 
         self.lw = LogWidget(self.ui.instanceLogTextEdit)

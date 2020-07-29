@@ -45,8 +45,8 @@ def migrateOldDatabase():
 
     return  # in case someone runs this function
 
-    contacts = newSession.query(Contacts).all()
-    messages = newSession.query(Messages).all()
+    contacts = session.query(Contacts).all()
+    messages = session.query(Messages).all()
 
     message_templates_dict = {}
     msg_template = None

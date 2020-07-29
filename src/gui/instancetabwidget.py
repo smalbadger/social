@@ -8,13 +8,13 @@ class InstanceTabWidget(QWidget):
 
     clicked = Signal()
 
-    def __init__(self, username, platform):
+    def __init__(self, client, platform):
         super().__init__(None)
 
         self.ui = Ui_Form()
         self.ui.setupUi(self)
 
-        self.ui.nameLabel.setText(username)
+        self.ui.nameLabel.setText(client.name)
         self.ui.platformLabel.setText(platform)
 
         if platform == "LinkedIn":

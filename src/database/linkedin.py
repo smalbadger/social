@@ -100,3 +100,9 @@ class ResponseMeanings(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     meaning = Column(String, unique=True)
 
+if __name__ == '__main__':
+    clients = session.query(Client).all()
+    for c in clients:
+        print(c.linkedin_account.username)
+        for connection in c.linkedin_account.connections:
+            print("\t" + connection.name)

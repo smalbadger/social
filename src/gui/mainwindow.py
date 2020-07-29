@@ -58,7 +58,7 @@ class SocialView(QMainWindow):
         :type instance: InstanceWidget
         """
 
-        newTab = InstanceTabWidget(instance.clientName, instance.platformName)
+        newTab = InstanceTabWidget(instance.client, instance.platformName)
         self.instances[newTab] = instance
 
         newTab.clicked.connect(lambda: self.selectInstance(newTab))
