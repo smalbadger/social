@@ -1,15 +1,32 @@
 import os
 import psutil
+import subprocess
 import time
 from typing import List, Iterable
 from abc import ABC as AbstractBaseClass
 from abc import abstractmethod
+
+from PySide2.QtCore import QObject, QRunnable
 
 from selenium.webdriver import Remote
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
 from site_controllers.exceptions import *
+
+
+class Beacon(QObject):
+    """
+    Since the controllers can't inherit QObject, we instantiate a Beacon to handle signals,
+    and then add them back as attributes to the controllers.
+    """
+
+    def __init__(self, controller):
+        QObject.__init__(self)
+
+        for sigName, sigInst in vars(self).items():
+            setattr(controller, sigName, sigInst)
+
 
 class Controller(AbstractBaseClass):
     """
@@ -39,6 +56,10 @@ class Controller(AbstractBaseClass):
         :param options: Arguments to use when launching the browser
         :type options: Iterable[str]
         """
+
+        super().__init__()
+        self.__b = Beacon(self)
+
         # store private variables first
         self._logger = None
         self._initialURL = None
@@ -53,6 +74,11 @@ class Controller(AbstractBaseClass):
     def start(self):
         """Starts the controller"""
 
+        self.info("Starting Controller")
+
+        if self.isRunning:
+            return
+
         if not self.browser:
             self.browser = self._browserConstructor(options=self.options)
             self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
@@ -63,9 +89,12 @@ class Controller(AbstractBaseClass):
     def stop(self):
         """Stops the controller by closing the browser"""
         self.browser.quit()
+
         while self.isRunning:
             pass
         self.browser = None
+
+        self.info("Stopped browser")
 
     #############################################################
     #  Abstract Methods
@@ -205,3 +234,21 @@ class Controller(AbstractBaseClass):
     def exception(self, *args, **kwargs):
         self._logger.exception(*args, **kwargs)
 
+
+class Task(QRunnable):
+    """Subclass this to create a task that can be run from the GUI."""
+
+    def __init__(self, controller: Controller, setup=None, teardown=None):
+        super().__init__()
+        self.controller = controller
+
+        self._setup = setup
+        self._teardown = teardown
+
+    def setup(self):
+        if self._setup:
+            self._setup()
+
+    def teardown(self):
+        if self._teardown:
+            self._teardown()
