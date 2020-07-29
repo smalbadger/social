@@ -53,7 +53,15 @@ class EIS:
     connection_request_accept_button         = "//button[@class='invitation-card__action-btn artdeco-button" \
                                                "artdeco-button--2 artdeco-button--secondary ember-view']"
 
-
+    profile_picture                          = '//div[@data-control-name="identity_profile_photo"]/..'
+    all_connections_link                     = '//a[@data-control-name="topcard_view_all_connections"]'
+    connection_card_info_class               = 'search-result__info'
+    connection_card_profile_link             = '[data-control-name="view_mutual_connections"]'
+    connection_card_position                 = "subline-level-1"
+    connection_card_location                 = "subline-level-2"
+    connection_card_mutual_text              = 'search-result__social-proof-count'
+    connection_card_mutual_link              = '[data-control-name="view_mutual_connections"]'
+    no_results_button                        = '//button[@data-test="no-results-cta"]'
 
 
 class LinkedInException(ControllerException):
@@ -464,11 +472,11 @@ class LinkedInController(Controller):
         self.info('Getting all connections')
 
         # Find profile pic, click on it
-        profile = self.browser.find_element_by_xpath('//div[@data-control-name="identity_profile_photo"]').find_element_by_xpath("./..")
+        profile = self.browser.find_element_by_xpath(EIS.profile_picture)
         profile.click()
 
         # Find connection page link, click on it
-        connLink = self.browser.find_element_by_xpath('//a[@data-control-name="topcard_view_all_connections"]')
+        connLink = self.browser.find_element_by_xpath(EIS.all_connections_link)
         connLink.click()
 
         self.info('Waiting for page to load, getting URL')
@@ -504,7 +512,7 @@ class LinkedInController(Controller):
         page = 1
 
         while True:
-            conns = self.browser.find_elements_by_class_name('search-result__info')
+            conns = self.browser.find_elements_by_class_name(EIS.connection_card_info_class)
             for connection in conns:
 
                 name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
@@ -530,7 +538,7 @@ class LinkedInController(Controller):
                     self.info('')
 
             try:
-                self.browser.find_element_by_xpath('//button[@data-test="no-results-cta"]')
+                self.browser.find_element_by_xpath(EIS.no_results_button)
                 break
             except NoSuchElementException:
                 page += 1
@@ -550,7 +558,7 @@ class LinkedInController(Controller):
         """
 
         try:
-            sharedStr = fromHTML(connection.find_element_by_class_name('search-result__social-proof-count').text)
+            sharedStr = fromHTML(connection.find_element_by_class_name(EIS.connection_card_mutual_text).text)
         except NoSuchElementException:
             sharedStr = None
 
@@ -560,9 +568,7 @@ class LinkedInController(Controller):
 
         if sharedStr.find('other shared connection') > -1:  # 3+, search the last link
             # click last link
-            mutualLink = connection.find_element_by_css_selector(
-                '[data-control-name="view_mutual_connections"]'
-            ).get_attribute('href')
+            mutualLink = connection.find_element_by_css_selector(EIS.connection_card_mutual_link).get_attribute('href')
 
             self.info('Switching to 2nd tab')
             self.browser.switch_to.window(self.mutualWindow)
@@ -577,14 +583,14 @@ class LinkedInController(Controller):
 
             # similar to general while loop but only gets names
             while True:
-                m_conns = self.browser.find_elements_by_class_name('search-result__info')
+                m_conns = self.browser.find_elements_by_class_name(EIS.connection_card_info_class)
 
                 for m_connection in m_conns:
                     name = m_connection.find_element_by_class_name("name").get_attribute('innerHTML')
                     names.append(fromHTML(name))
 
                 try:
-                    self.browser.find_element_by_xpath('//button[@data-test="no-results-cta"]')
+                    self.browser.find_element_by_xpath(EIS.no_results_button)
                     break
                 except NoSuchElementException:
                     m_page += 1
@@ -609,19 +615,19 @@ class LinkedInController(Controller):
         """
 
         self.info('Getting profile link')
-        profileLink = fromHTML(connection.find_element_by_class_name("search-result__result-link")
+        profileLink = fromHTML(connection.find_element_by_class_name(EIS.connection_card_profile_link)
                                .get_attribute('href'))
 
         if pos:
             self.info('Getting employment information')
-            position = fromHTML(connection.find_element_by_class_name("subline-level-1")
+            position = fromHTML(connection.find_element_by_class_name(EIS.connection_card_position)
                                 .get_attribute('innerHTML')).strip()
         else:
             position = None
 
         if loc:
             self.info('Getting general location')
-            location = fromHTML(connection.find_element_by_class_name("subline-level-2")
+            location = fromHTML(connection.find_element_by_class_name(EIS.connection_card_location)
                                 .get_attribute('innerHTML')[:-len(' Area')]).strip()
         else:
             location = None
