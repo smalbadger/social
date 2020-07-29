@@ -9,12 +9,6 @@ from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
 from gui.logwidget import LogWidget
 
-if hasattr(Qt, 'AA_EnableHighDpiScaling'):
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-
-if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
-
 
 class SocialView(QMainWindow):
 
@@ -75,10 +69,8 @@ class SocialView(QMainWindow):
     def selectInstance(self, instanceTab):
         """Opens an instance by selecting an existing tab."""
 
-        instanceWidget = self.instances.get(instanceTab, None)
-        if not instanceWidget:
-            instanceWidget = InstanceWidget(instanceTab.getName(), "linkedin.test11@facade-technologies.com", "linkedin.test11")
-            self.instances[instanceTab] = instanceWidget
+        instanceWidget = self.instances.get(instanceTab)
+        # This should never be None now that instancewidgets and instancetabs are made in pairs
 
         layout = self.ui.instanceBox.layout()
         for i in reversed(range(layout.count())):

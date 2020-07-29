@@ -20,7 +20,8 @@ class InstanceTabWidget(QWidget):
         if platform == "LinkedIn":
             logoFile = u":/icon/resources/logos/linkedin.png"
 
-        self.ui.logoLabel.setPixmap(QPixmap(logoFile))
+        scrnProp = QApplication.desktop().height() / 2160
+        self.ui.logoLabel.setPixmap(QPixmap(logoFile).scaled(80 * scrnProp, 80 * scrnProp))
 
     def getName(self):
         return self.ui.nameLabel.text()

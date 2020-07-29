@@ -4,6 +4,8 @@ import html
 import logging
 from datetime import timedelta, datetime, date
 
+from PySide2.QtCore import QObject, Signal
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -11,13 +13,13 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 
-from site_controllers.controller import Controller, Task
+from site_controllers.controller import Controller, Task, Beacon
 from site_controllers.exceptions import *
 from site_controllers.decorators import *
 from emails import PinValidator
 
 from common.logging import initial_timestamp, LOG_FILES_DIR
-from common.strings import onlyAplhaNumeric, equalTo
+from common.strings import onlyAplhaNumeric, equalTo, fromHTML
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
 
@@ -51,7 +53,15 @@ class EIS:
     connection_request_accept_button         = "//button[@class='invitation-card__action-btn artdeco-button" \
                                                "artdeco-button--2 artdeco-button--secondary ember-view']"
 
-
+    profile_picture                          = '//div[@data-control-name="identity_profile_photo"]/..'
+    all_connections_link                     = '//a[@data-control-name="topcard_view_all_connections"]'
+    connection_card_info_class               = 'search-result__info'
+    connection_card_profile_link             = '[data-control-name="view_mutual_connections"]'
+    connection_card_position                 = "subline-level-1"
+    connection_card_location                 = "subline-level-2"
+    connection_card_mutual_text              = 'search-result__social-proof-count'
+    connection_card_mutual_link              = '[data-control-name="view_mutual_connections"]'
+    no_results_button                        = '//button[@data-test="no-results-cta"]'
 
 
 class LinkedInException(ControllerException):
@@ -65,12 +75,17 @@ class LinkedInController(Controller):
     The controller for LinkedIn
     """
 
+    Beacon.connectionsScraped = Signal(dict)
+
     def __init__(self, *args, **kwargs):
         """Initializes LinkedIn Controller"""
 
         Controller.__init__(self, *args, **kwargs)
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
-        self.info(f"Creating Linkedin controller for {self._username}")
+        self.mainWindow = None
+        self.mutualWindow = None
+
+        self.info(f"Created LinkedIn controller for {self._username}")
 
     def initLogger(self):
         """Creates a logger for this user's linkedin controller only"""
@@ -96,6 +111,7 @@ class LinkedInController(Controller):
         """Gets the name of the logger that this controller is using"""
         return self._loggerName
 
+    @ensure_browser_is_running
     def auth_check(self):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
@@ -113,7 +129,7 @@ class LinkedInController(Controller):
         :raises PinValidationException: If there was a problem retrieving the validation pin.
         :raises SecurityVerificationException: If an unknown security verification method is used or
         :raises CaptchaTimeoutException: If a captcha appears and was not solved in time
-        :rauses AuthenticationException: If we were unable to leave the login page for an unknown reason
+        :raises AuthenticationException: If we were unable to leave the login page for an unknown reason
         :raises LinkedInException: If we arrived at an unknown location or there was another issue.
 
         :param manual: If True, wait for the user to click the submit button. Credentials are entered automatically.
@@ -288,10 +304,23 @@ class LinkedInController(Controller):
         self.info("Verifying the message was sent")
         now = datetime.now()
         msg, timestamp = self.getLastMessageWithConnection(person, assumeConversationIsOpened=True)
+        print(equalTo(msg, message, normalize_whitespace=True), timestamp - now > timedelta(minutes=1))
         if not msg or not equalTo(msg, message, normalize_whitespace=True) or timestamp - now > timedelta(minutes=1):
             self.critical(f"The last message was '{msg}' and it was sent at {timestamp}")
             raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
         self.info("The message was sent successfully")
+
+    @authentication_required
+    def messageAll(self, connections: list, usingTemplate: str):
+        """Messages all connections with the template usingTemplate"""
+        # TODO: Check for past messages sent by this bot
+
+        for connection in connections:
+            firstName = connection.split(' ')[0]
+            # Tested: doesn't matter if either of the params below isn't put in the template
+            msg = usingTemplate.format(firstName=firstName, fullName=connection)
+            # print(msg)
+            self.sendMessageTo(connection, msg)
 
     @authentication_required
     def getLastMessageWithConnection(self, person, assumeConversationIsOpened=False):
@@ -320,7 +349,6 @@ class LinkedInController(Controller):
             datetime = combineDateAndTime(date, time)
 
         return msg, datetime
-
 
     @authentication_required
     def getConversationHistory(self, person: str, numMessages = 1_000_000, assumeConversationIsOpened=False):
@@ -431,20 +459,228 @@ class LinkedInController(Controller):
 
         return accepted
 
+    def getAllConnections(self, current: list = None, getMutualInfoFor: list = None,
+                          location=True, position=True) -> dict:
+        """
+        Gets all contacts and returns them in a dictionary
+        :param current: A list of currently stored connections
+        :param getMutualInfoFor: A list of connections you want the mutual connections info for
+        :param location: whether to store location information about the connections
+        :param position: whether to store job/position info about the connections
+        """
+
+        self.info('Getting all connections')
+
+        # Find profile pic, click on it
+        profile = self.browser.find_element_by_xpath(EIS.profile_picture)
+        profile.click()
+
+        # Find connection page link, click on it
+        connLink = self.browser.find_element_by_xpath(EIS.all_connections_link)
+        connLink.click()
+
+        self.info('Waiting for page to load, getting URL')
+        necessary_wait(2)
+        baseURL = self.browser.current_url
+        self.mainWindow = self.browser.window_handles[0]
+
+        # Make new tab to handle the mutual connections stuff
+        self.info('Making new tab to handle mutual connections')
+        self.browser.execute_script("window.open('');")
+        self.mutualWindow = self.browser.window_handles[1]
+
+        # switch back
+        self.browser.switch_to.window(self.mainWindow)
+
+        # Iterate through connections on page, then click next
+        connections = self.scrapeConnections(baseURL, current=current, getMutualInfoFor=getMutualInfoFor,
+                                             location=location, position=position)
+
+        return connections
+
+    def scrapeConnections(self, baseURL,  current: list = None, getMutualInfoFor: list = None,
+                          location=True, position=True):
+        """
+        The while loop that iterates through all connections, getting their info
+        """
+        if current is None:
+            current = []
+        if getMutualInfoFor is None:
+            getMutualInfoFor = []
+
+        connections = {}
+        page = 1
+
+        while True:
+            conns = self.browser.find_elements_by_class_name(EIS.connection_card_info_class)
+            for connection in conns:
+
+                name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
+
+                if name not in current:
+                    self.info('')
+                    self.info(f'--- Getting information about {name} ---')
+
+                    profileLink, pos, loc = self.getConnectionInfo(connection, pos=position, loc=location)
+
+                    if name in getMutualInfoFor:
+                        names = self.getMutualConnections(connection)
+                    else:
+                        names = None
+
+                    connections[name] = {
+                        'link': profileLink,
+                        'position': pos,
+                        'location': loc,
+                        'mutual': names
+                    }
+
+                    self.info('')
+
+            try:
+                self.browser.find_element_by_xpath(EIS.no_results_button)
+                break
+            except NoSuchElementException:
+                page += 1
+                self.info(f'// Switching to page {page} of connections \\\\')
+                self.browser.get(baseURL + f'&page={page}')
+
+        self.info('')
+        self.info('** Scraped all connections and their information. **')
+        self.info('')
+
+        self.connectionsScraped.emit(connections)
+        return connections
+
+    def getMutualConnectionsWith(self, connection):
+        """
+        Gets mutual connections between user and connection. connection variable is a web element, not a name
+        """
+
+        try:
+            sharedStr = fromHTML(connection.find_element_by_class_name(EIS.connection_card_mutual_text).text)
+        except NoSuchElementException:
+            sharedStr = None
+
+        if not sharedStr:
+            self.info('No mutual connections')
+            return sharedStr
+
+        if sharedStr.find('other shared connection') > -1:  # 3+, search the last link
+            # click last link
+            mutualLink = connection.find_element_by_css_selector(EIS.connection_card_mutual_link).get_attribute('href')
+
+            self.info('Switching to 2nd tab')
+            self.browser.switch_to.window(self.mutualWindow)
+            self.browser.get(mutualLink)
+
+            # get new url
+            necessary_wait(2)
+            m_baseURL = self.browser.current_url
+            m_page = 1
+
+            names = []
+
+            # similar to general while loop but only gets names
+            while True:
+                m_conns = self.browser.find_elements_by_class_name(EIS.connection_card_info_class)
+
+                for m_connection in m_conns:
+                    name = m_connection.find_element_by_class_name("name").get_attribute('innerHTML')
+                    names.append(fromHTML(name))
+
+                try:
+                    self.browser.find_element_by_xpath(EIS.no_results_button)
+                    break
+                except NoSuchElementException:
+                    m_page += 1
+                    self.info(f'// Tab 2: Switching to page {m_page} of mutual connections \\\\')
+                    self.browser.get(m_baseURL + f'&page={m_page}')
+
+            self.info('Switching back to original tab')
+            self.browser.switch_to.window(self.mainWindow)
+
+        elif sharedStr.find('are shared connections') > -1:  # 2, get both names
+            names = sharedStr[:-len(' are shared connections')].split(' and ')
+
+        else:  # 1, get name
+            names = [sharedStr.split(' is')[0]]
+
+        self.info(f'Found {len(names)} mutual connection(s)')
+        return names
+
+    def getConnectionInfo(self, connection, pos=True, loc=True, mutual=True):
+        """
+        Gets info about a connection. The connection variable is a web element, not a name
+        """
+
+        self.info('Getting profile link')
+        profileLink = fromHTML(connection.find_element_by_class_name(EIS.connection_card_profile_link)
+                               .get_attribute('href'))
+
+        if pos:
+            self.info('Getting employment information')
+            position = fromHTML(connection.find_element_by_class_name(EIS.connection_card_position)
+                                .get_attribute('innerHTML')).strip()
+        else:
+            position = None
+
+        if loc:
+            self.info('Getting general location')
+            location = fromHTML(connection.find_element_by_class_name(EIS.connection_card_location)
+                                .get_attribute('innerHTML')[:-len(' Area')]).strip()
+        else:
+            location = None
+
+        return profileLink, position, location
+
+
+
 
 class LinkedInMessenger(Task):
 
-    def __init__(self, controller, message, connections, setup_func=None, teardown_func=None):
+    def __init__(self, controller, msgTemplate, connections, setup_func=None, teardown_func=None):
         super().__init__(controller, setup = setup_func, teardown = teardown_func)
-        self.message = message
+        self.msgTemplate = msgTemplate
         self.connections = connections
 
     def run(self):
         self.setup()
 
         self.controller.start()
-        for contact in self.connections:
-            self.controller.sendMessageTo(contact, self.message)
-        self.controller.stop()
+        self.controller.messageAll(self.connections, usingTemplate=self.msgTemplate)
 
         self.teardown()
+
+
+class LinkedInSynchronizer(Task):
+
+    def __init__(self, controller, options, setup_func=None, teardown_func=None):
+        super().__init__(controller, setup = setup_func, teardown = teardown_func)
+        self.options: dict = options
+
+    def run(self):
+        self.setup()
+        opts = self.options
+
+        if opts.get('headless'):
+            self.controller.options.headless = True
+
+        self.controller.start()
+
+        if opts.get('accept new'):
+            newCons = self.controller.acceptAllConnections()
+
+            # TODO: Do necessary things to handle new connections
+            self.controller.browser.get("https://www.linkedin.com/feed/")
+
+        if opts.get('connections'):
+            connections = self.controller.getAllConnections()
+            # TODO: Add connections scraping/syncing here. currently repopulates the all contacts list
+
+        if opts.get('messages'):
+            # TODO: Synchronize messages
+            pass
+
+        self.teardown()
+
