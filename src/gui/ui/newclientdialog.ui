@@ -32,7 +32,7 @@
         <widget class="QLineEdit" name="clientName"/>
        </item>
        <item>
-        <widget class="QCheckBox" name="checkBox">
+        <widget class="QCheckBox" name="testerBox">
          <property name="text">
           <string>For testing</string>
          </property>
@@ -48,7 +48,7 @@
       </widget>
      </item>
      <item row="1" column="1">
-      <widget class="QLineEdit" name="clientName_2"/>
+      <widget class="QLineEdit" name="clientEmail"/>
      </item>
      <item row="2" column="0">
       <widget class="QLabel" name="label_11">
@@ -58,7 +58,7 @@
       </widget>
      </item>
      <item row="2" column="1">
-      <widget class="QLineEdit" name="clientName_3"/>
+      <widget class="QLineEdit" name="clientPhone"/>
      </item>
     </layout>
    </item>
@@ -86,7 +86,7 @@
       <item row="0" column="0">
        <widget class="QTabWidget" name="tabWidget">
         <property name="currentIndex">
-         <number>2</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="linkedInTab">
          <attribute name="title">
@@ -101,21 +101,21 @@
             <item row="0" column="0">
              <widget class="QLabel" name="label_2">
               <property name="text">
-               <string>Email/Username: </string>
+               <string>Username:</string>
               </property>
              </widget>
             </item>
             <item row="0" column="1">
              <widget class="QLineEdit" name="linkedInUsername"/>
             </item>
-            <item row="1" column="0">
+            <item row="2" column="0">
              <widget class="QLabel" name="label_3">
               <property name="text">
                <string>Password:</string>
               </property>
              </widget>
             </item>
-            <item row="1" column="1">
+            <item row="2" column="1">
              <widget class="QLineEdit" name="linkedInPassword">
               <property name="inputMethodHints">
                <set>Qt::ImhNoAutoUppercase|Qt::ImhNoPredictiveText|Qt::ImhSensitiveData</set>
@@ -124,6 +124,16 @@
                <enum>QLineEdit::PasswordEchoOnEdit</enum>
               </property>
              </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_12">
+              <property name="text">
+               <string>Email:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="linkedInEmail"/>
             </item>
            </layout>
           </item>
