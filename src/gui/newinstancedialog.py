@@ -7,6 +7,7 @@ from gui.newclientdialog import NewClientDialog
 
 from common.threading import Task
 from database.linkedin import session, Client
+from site_controllers.linkedin import LinkedInController
 
 
 class NewInstanceDialog(QDialog):
@@ -23,23 +24,29 @@ class NewInstanceDialog(QDialog):
         self.ui.errorLabel.hide()
 
         self.ui.newClientButton.clicked.connect(self.newClient)
+        self.ui.clientBox.activated.connect(self.populatePlatforms)
+        self.ui.platformBox.setEnabled(False)
 
         self.populateClients()
 
     def newClient(self):
-
+        """Gives the user a chance to create a new client and link accounts"""
         newClientDialog = NewClientDialog()
         newClientDialog.exec_()
+        newClientDialog.clientCreated.connect(self.populateClient)
 
+    def populateClient(self, client):
+        """Adds a single client to the client combo box"""
+        self.ui.clientBox.addItem(client.name, userData=client)
 
     def populateClients(self):
-
+        """Fetches all clients from the database and populates the client combo box with them"""
         prog = QProgressDialog("Fetching clients, please wait...", "Hide", 0, 0, parent=self)
         prog.setModal(True)
 
         def populate(clients):
             for client in clients:
-                self.ui.clientBox.addItem(client.name, userData=client)
+                self.populateClient(client)
             prog.close()
 
         task = Task(session.query(Client).all)
@@ -47,6 +54,19 @@ class NewInstanceDialog(QDialog):
         QThreadPool.globalInstance().start(task)
         self.show()
         prog.exec_()
+
+    def populatePlatforms(self):
+        """Populates the platform combo box with the account types owned by the currently selected client"""
+
+        client = self.ui.clientBox.currentData()
+        self.ui.platformBox.clear()
+        self.ui.platformBox.setEnabled(False)
+
+        if client.linkedin_account:
+            self.ui.platformBox.addItem("LinkedIn", LinkedInController)
+            self.ui.platformBox.setEnabled(True)
+
+        # TODO: Add other platform types as they become supported.
 
     def accept(self):
         """
@@ -56,11 +76,23 @@ class NewInstanceDialog(QDialog):
         client = self.ui.clientBox.currentData()
         platform = self.ui.platformBox.currentText()
 
+        self.ui.errorLabel.hide()
+        errors = []
+
+        if not client:
+            errors.append("Select a client")
+        if not platform:
+            errors.append("Select a platform")
+
         for inst in self.mainWindow.instances.values():
             if inst.client.id == client.id and inst.platformName == platform:
-                self.ui.errorLabel.setText(f"Error: A {platform} Controller is already running for {client.name}")
-                self.ui.errorLabel.show()
-                return
+                errors.append(f"Error: A {platform} is already running for {client.name}")
+                break
+
+        if errors:
+            self.ui.errorLabel.setText("\n".join(errors))
+            self.ui.errorLabel.show()
+            return
 
         newInst = InstanceWidget(client, platform)
         self.newInstanceCreated.emit(newInst)

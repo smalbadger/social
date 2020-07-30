@@ -28,7 +28,7 @@ class SocialView(QMainWindow):
         self.instanceTabLayout.addStretch()
 
         # Setup general log
-        lw = LogWidget(self.ui.generalLogTextEdit)
+        lw = LogWidget(self.ui.generalLogTextEdit_2)
         lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         lw.setLevel(logging.DEBUG)
         logging.getLogger("controller").addHandler(lw)
