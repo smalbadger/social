@@ -56,7 +56,7 @@ class EIS:
     profile_picture                          = '//div[@data-control-name="identity_profile_photo"]/..'
     all_connections_link                     = '//a[@data-control-name="topcard_view_all_connections"]'
     connection_card_info_class               = 'search-result__info'
-    connection_card_profile_link             = '[data-control-name="view_mutual_connections"]'
+    connection_card_profile_link             = '[data-control-name="search_srp_result"]'
     connection_card_position                 = "subline-level-1"
     connection_card_location                 = "subline-level-2"
     connection_card_mutual_text              = 'search-result__social-proof-count'
@@ -535,8 +535,6 @@ class LinkedInController(Controller):
                         'mutual': names
                     }
 
-                    self.info('')
-
             try:
                 self.browser.find_element_by_xpath(EIS.no_results_button)
                 break
@@ -615,7 +613,7 @@ class LinkedInController(Controller):
         """
 
         self.info('Getting profile link')
-        profileLink = fromHTML(connection.find_element_by_class_name(EIS.connection_card_profile_link)
+        profileLink = fromHTML(connection.find_element_by_css_selector(EIS.connection_card_profile_link)
                                .get_attribute('href'))
 
         if pos:

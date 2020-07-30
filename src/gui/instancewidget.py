@@ -7,16 +7,17 @@ from selenium.common.exceptions import InvalidSessionIdException
 from gui.logwidget import LogWidget
 from gui.ui.ui_instancewidget import Ui_mainWidget
 
-from site_controllers.linkedin import LinkedInController, LinkedInMessenger, LinkedInSynchronizer
+from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
 from common.strings import fromHTML
 from common.threading import Task
-from database.linkedin import session, Client, LinkedInConnection
+from common.logging import controller_logger
+from database.linkedin import *
 
 
 class InstanceWidget(QWidget):
 
-    def __init__(self, client: Client, platformName):
+    def __init__(self, client: Client, cConstructor):
         QWidget.__init__(self)
 
         self.ui = Ui_mainWidget()
@@ -24,23 +25,23 @@ class InstanceWidget(QWidget):
 
         # Client info
         self.client = client
-        self.platformName = platformName
-        if platformName == 'LinkedIn':
+        self.platformName = cConstructor.__name__[:-len('Controller')]
+        if self.platformName == 'LinkedIn':
             self.account = client.linkedin_account
         else:
-            self.account = None  # TODO: update with new platforms
+            self.account = None  # TODO: update when new platforms are available
 
         # Account info
         self.email = self.account.email
         self.pwd = self.account.password
-        self.profilename = self.account.profilename
+        self.profilename = self.account.username
 
         # Browser
         self.opts = [f'{UserAgent().random}']
         self.browser = self.ui.browserBox.currentText()
 
         # Controllers and tasks
-        self.controllerConstructor = globals().get(platformName + 'Controller')
+        self.controllerConstructor = cConstructor
         self.messagingController = None
         self.messenger = None
         self.selectedConnections = []
@@ -58,6 +59,7 @@ class InstanceWidget(QWidget):
 
         # Populate values
         self.fetchValues()
+        controller_logger.info(f'{self.platformName} instance created for {self.client.name}')
 
     def fetchValues(self):
         """
@@ -102,8 +104,8 @@ class InstanceWidget(QWidget):
 
             prog.close()
 
-        task = Task(lambda: session.query(LinkedInConnection)
-                    .filter(LinkedInConnection.account_id == self.account.id))
+        task = Task(lambda: session.query(LinkedInMessageTemplate)
+                    .filter(LinkedInMessageTemplate.account_id == self.account.id))
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
@@ -149,7 +151,7 @@ class InstanceWidget(QWidget):
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             # Controller stuff
-            self.messagingController = self.controllerConstructor(self.clientName, self.email, self.pwd,
+            self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
                                                                   browser=self.browser, options=self.opts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
@@ -230,7 +232,7 @@ class InstanceWidget(QWidget):
 
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
-            self.syncController = self.controllerConstructor(self.clientName, self.email, self.pwd,
+            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
                                                              browser=self.browser, options=self.opts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 

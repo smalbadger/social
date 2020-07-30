@@ -74,7 +74,11 @@ class NewInstanceDialog(QDialog):
         """
 
         client = self.ui.clientBox.currentData()
-        platform = self.ui.platformBox.currentText()
+        platform = self.ui.platformBox.currentData()
+        platformName = self.ui.platformBox.currentText()
+
+        # At this point, platform has already been wrapped by the class decorator, so we need:
+        platform = platform.innerCls
 
         self.ui.errorLabel.hide()
         errors = []
@@ -85,8 +89,8 @@ class NewInstanceDialog(QDialog):
             errors.append("Select a platform")
 
         for inst in self.mainWindow.instances.values():
-            if inst.client.id == client.id and inst.platformName == platform:
-                errors.append(f"Error: A {platform} is already running for {client.name}")
+            if inst.client.id == client.id and inst.platformName == platformName:
+                errors.append(f"Error: A {platformName} instance is already running for {client.name}")
                 break
 
         if errors:

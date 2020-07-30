@@ -64,6 +64,9 @@ def log_all_exceptions(Cls):
 
 
     class NewCls(object):
+
+        innerCls = Cls
+
         def __init__(self, *args, **kwargs):
             self.oInstance = Cls(*args, **kwargs)
 
