@@ -1,15 +1,19 @@
-from PySide2.QtWidgets import QDialog
-from PySide2.QtCore import Signal
+from PySide2.QtWidgets import QDialog, QProgressDialog
+from PySide2.QtCore import Signal, QThreadPool
 
 from gui.ui.ui_newinstancedialog import Ui_Dialog
 from gui.instancewidget import InstanceWidget
+from gui.newclientdialog import NewClientDialog
+
+from common.threading import Task
+from database.linkedin import session, Client
 
 
 class NewInstanceDialog(QDialog):
 
     newInstanceCreated = Signal(InstanceWidget)
 
-    def __init__(self, clients, parent):
+    def __init__(self, parent):
         QDialog.__init__(self, parent=parent)
 
         self.ui = Ui_Dialog()
@@ -18,8 +22,31 @@ class NewInstanceDialog(QDialog):
         self.mainWindow = parent
         self.ui.errorLabel.hide()
 
-        for client in clients:
-            self.ui.clientBox.addItem(client.name, userData=client)
+        self.ui.newClientButton.clicked.connect(self.newClient)
+
+        self.populateClients()
+
+    def newClient(self):
+
+        newClientDialog = NewClientDialog()
+        newClientDialog.exec_()
+
+
+    def populateClients(self):
+
+        prog = QProgressDialog("Fetching clients, please wait...", "Hide", 0, 0, parent=self)
+        prog.setModal(True)
+
+        def populate(clients):
+            for client in clients:
+                self.ui.clientBox.addItem(client.name, userData=client)
+            prog.close()
+
+        task = Task(session.query(Client).all)
+        task.finished.connect(populate)
+        QThreadPool.globalInstance().start(task)
+        self.show()
+        prog.exec_()
 
     def accept(self):
         """

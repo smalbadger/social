@@ -2,9 +2,9 @@ import os
 import sys
 import html
 import logging
-from datetime import timedelta, datetime, date
+from datetime import timedelta, datetime
 
-from PySide2.QtCore import QObject, Signal
+from PySide2.QtCore import Signal
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,7 +13,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 
-from site_controllers.controller import Controller, Task, Beacon
+from site_controllers.controller import Controller, Task
 from site_controllers.exceptions import *
 from site_controllers.decorators import *
 from emails import PinValidator
@@ -21,8 +21,8 @@ from emails import PinValidator
 from common.logging import initial_timestamp, LOG_FILES_DIR
 from common.strings import onlyAplhaNumeric, equalTo, fromHTML
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
-from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
-
+from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
+from common.beacon import Beacon
 
 #########################################################
 # Element Identification Strings
