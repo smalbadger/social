@@ -1,6 +1,6 @@
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog
 from PySide2.QtCore import QThreadPool
 from selenium.common.exceptions import InvalidSessionIdException
 
@@ -10,53 +10,104 @@ from gui.ui.ui_instancewidget import Ui_mainWidget
 from site_controllers.linkedin import LinkedInController, LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
 from common.strings import fromHTML
+from common.threading import Task
+from database.linkedin import session, Client, LinkedInConnection
 
 
 class InstanceWidget(QWidget):
 
-    def __init__(self, client, platformName):
+    def __init__(self, client: Client, platformName):
         QWidget.__init__(self)
 
         self.ui = Ui_mainWidget()
         self.ui.setupUi(self)
 
-        self.platformName = platformName
+        # Client info
         self.client = client
-        self.ui.errorLabel.hide()
+        self.platformName = platformName
+        if platformName == 'LinkedIn':
+            self.account = client.linkedin_account
+        else:
+            self.account = None  # TODO: update with new platforms
 
+        # Account info
+        self.email = self.account.email
+        self.pwd = self.account.password
+        self.profilename = self.account.profilename
+
+        # Browser
+        self.opts = [f'{UserAgent().random}']
+        self.browser = self.ui.browserBox.currentText()
+
+        # Controllers and tasks
+        self.controllerConstructor = globals().get(platformName + 'Controller')
+        self.messagingController = None
+        self.messenger = None
+        self.selectedConnections = []
+        self.syncController = None
+        self.synchronizer = None
+
+        # Logger
         self.lw = LogWidget(self.ui.instanceLogTextEdit)
         self.lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.lw.setLevel(logging.DEBUG)
 
-        self.selectedConnections = []
-
-        # TODO: These credentials need to be obtained elsewhere instead of hard-coding. This is just for testing
-        #  purposes.
-        self.controllerConstructor = globals().get(platformName + 'Controller')
-        self.email = "linkedin.test11@facade-technologies.com"
-        self.pwd = "linkedin.test11"
-        self.opts = [f'{UserAgent().random}']
-        self.browser = self.ui.browserBox.currentText()
-
-        self.messagingController = None
-        self.messenger = None
-
-        self.syncController = None
-        self.synchronizer = None
-
-        self.initializeValues()
+        # Final stuff
         self.connectSignalsToFunctions()
+        self.ui.errorLabel.hide()
 
-    def initializeValues(self):
+        # Populate values
+        self.fetchValues()
+
+    def fetchValues(self):
         """
-        Initializes values to what is collected from the database
+        Initializes connections and then initializes templates
         """
 
-        # TODO: Load connections and message templates from database
-        self.ui.messageTemplateEdit.setPlainText("yo yo {firstName}, your whole name is {fullName}")
+        prog = QProgressDialog('Fetching Connections...', 'Hide', 0, 0, parent=self.window())
+        prog.setModal(True)
+        prog.setWindowTitle('Fetching Connections...')
+
+        def populate(connections):
+            self.ui.allConnectionsList.addItems([con.name for con in connections])
+            prog.close()
+            self.fetchTemplates()
+
+        task = Task(lambda: session.query(LinkedInConnection)
+                    .filter(LinkedInConnection.account_id == self.account.id))
+        task.finished.connect(populate)
+        QThreadPool.globalInstance().start(task)
+
+        prog.exec_()
+
+    def fetchTemplates(self):
+        """
+        Gets templates associated to account
+        """
+
         self.ui.templatesBox.clear()
-        self.ui.templatesBox.setCurrentText("Template 1")
-        self.ui.allConnectionsList.addItems(["Mary-Ann Johnson", "Bobby Tables", "George d'tousla canil-bater"])
+
+        prog = QProgressDialog('Getting templates...', 'Hide', 0, 0, parent=self.window())
+        prog.setModal(True)
+        prog.setWindowTitle('Getting templates...')
+
+        def populate(templates):
+            template = None
+
+            for template in templates:
+                self.ui.templatesBox.addItem(f'Template {template.id}', userData=template)
+
+            if template:
+                self.ui.messageTemplateEdit.setPlainText(template.message_template)
+
+            prog.close()
+
+        task = Task(lambda: session.query(LinkedInConnection)
+                    .filter(LinkedInConnection.account_id == self.account.id))
+        task.finished.connect(populate)
+        QThreadPool.globalInstance().start(task)
+
+        prog.exec_()
 
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""

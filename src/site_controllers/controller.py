@@ -84,7 +84,7 @@ class Controller(AbstractBaseClass):
             self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
 
         self.browser.get(self._initialURL)
-        self.login(manual=False)
+        self.login(manual=not self._password)
 
     def stop(self):
         """Stops the controller by closing the browser"""
