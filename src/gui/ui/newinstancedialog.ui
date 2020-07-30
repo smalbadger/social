@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>472</width>
-    <height>141</height>
+    <height>114</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,51 +17,69 @@
    <bool>false</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="2" column="0">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Client:</string>
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
-    <layout class="QFormLayout" name="formLayout">
-     <item row="0" column="0">
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>Client:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
+   <item row="0" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
       <widget class="QComboBox" name="clientBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>200</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="editable">
-        <bool>true</bool>
+        <bool>false</bool>
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="label_2">
+     <item>
+      <widget class="QPushButton" name="newClientButton">
        <property name="text">
-        <string>Platform:</string>
+        <string>New</string>
        </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QComboBox" name="platformBox">
-       <item>
-        <property name="text">
-         <string>LinkedIn</string>
-        </property>
-       </item>
       </widget>
      </item>
     </layout>
    </item>
    <item row="1" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Platform:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QComboBox" name="platformBox">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <item>
+      <property name="text">
+       <string>LinkedIn</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="2" column="0">
     <widget class="QLabel" name="errorLabel">
      <property name="palette">
       <palette>
@@ -111,6 +129,16 @@
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
