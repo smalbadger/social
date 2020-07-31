@@ -1,6 +1,6 @@
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QListWidget
 from PySide2.QtCore import QThreadPool
 from selenium.common.exceptions import InvalidSessionIdException
 
@@ -45,6 +45,7 @@ class InstanceWidget(QWidget):
         self.messagingController = None
         self.messenger = None
         self.selectedConnections = []
+        self.allConnections = {}
         self.syncController = None
         self.synchronizer = None
 
@@ -61,7 +62,7 @@ class InstanceWidget(QWidget):
         self.fetchValues()
         controller_logger.info(f'{self.platformName} instance created for {self.client.name}')
 
-    def fetchValues(self):
+    def fetchValues(self, skipTemplates=False):
         """
         Initializes connections and then initializes templates
         """
@@ -71,9 +72,16 @@ class InstanceWidget(QWidget):
         prog.setWindowTitle('Fetching Connections...')
 
         def populate(connections):
-            self.ui.allConnectionsList.addItems([con.name for con in connections])
+            self.ui.allConnectionsList.clear()
+            self.selectedConnections = []
+            self.ui.selectedConnectionsList
+            for con in connections:
+                self.ui.allConnectionsList.addItem(con.name)
+                self.allConnections[con.name] = con
             prog.close()
-            self.fetchTemplates()
+
+            if not skipTemplates:
+                self.fetchTemplates()
 
         task = Task(lambda: session.query(LinkedInConnection)
                     .filter(LinkedInConnection.account_id == self.account.id))
@@ -223,10 +231,12 @@ class InstanceWidget(QWidget):
             self.ui.syncButton.setChecked(False)
 
         if checked:
+            acl = self.ui.allConnectionsList
             options = {
                 'headless': self.ui.headlessBoxSync.isChecked(),
                 'messages': self.ui.updateMessagesBox.isChecked(),
                 'connections': self.ui.updateConnectionsBox.isChecked(),
+                'known': [acl.item(i).text() for i in range(acl.count())],
                 'accept new': self.ui.newConnectionsBox.isChecked()
             }
 
@@ -237,7 +247,7 @@ class InstanceWidget(QWidget):
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 
             self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
-            self.syncController.connectionsScraped.connect(self.refreshConnections)
+            self.syncController.connectionsScraped.connect(self.scrapedConnectionsHandler)
 
             QThreadPool.globalInstance().start(self.synchronizer)
 
@@ -250,13 +260,19 @@ class InstanceWidget(QWidget):
                     self.syncController.warning(str(e))
             onComplete()
 
-    def refreshConnections(self, conns: dict):
+    def scrapedConnectionsHandler(self, conns: dict):
         """Clears the all connections list and selected list, and fills the all connections list with new ones"""
 
-        self.ui.allConnectionsList.clear()
-        self.ui.allConnectionsList.addItems(conns.keys())
-        self.ui.selectedConnectionsList.clear()
-        self.selectedConnections = []
+        prog = QProgressDialog('Processing Collected Data...', 'Hide', 0, 0, parent=self.window())
+        prog.setModal(True)
+        prog.setWindowTitle("Processing...")
+
+        task = Task(lambda: self.processScrapedConnections(conns))
+        task.finished.connect(prog.close)
+        task.finished.connect(lambda: self.fetchValues(skipTemplates=True))
+        QThreadPool.globalInstance().start(task)
+
+        prog.show()
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""
@@ -281,3 +297,86 @@ class InstanceWidget(QWidget):
         else:
             self.ui.closeBrowserBox.setEnabled(True)
             self.messagingController.options.headless = False
+
+    #######################################
+    # Database stuff (Call these in Tasks)
+    #######################################
+
+    def processScrapedConnections(self, conns: dict):
+        """
+        - Pulls connections from DB, finds the ones that correlate to entries in conns, and updates them.
+        - If there are new connections, adds them to the database.
+        - Pulls again from database after getting updated and checks that new connections were added successfully
+        - If not, they get logged as errors.
+        - Finally, UI gets updated with newly pulled list of connections.
+        """
+
+        prev = session.query(LinkedInConnection).filter(LinkedInConnection.account_id == self.account.id)
+
+        # Iterate through all connections scraped
+        controller_logger.info('')
+        controller_logger.info('Adding/updating collected data in database...')
+        for name in conns.keys():
+            alreadyExists = False
+            conDict = conns[name]
+
+            # These get defaulted in the controllers, and can't be re-defaulted without lots of if statements
+            link = conDict.get('link')
+            position = conDict.get('position')
+            location = conDict.get('location')
+            # mutual = conDict.get('mutual')
+
+            # First look for connections to update
+            for prevCon in prev:
+                if prevCon.url == link:
+                    alreadyExists = True
+
+                    if link != prevCon.url:
+                        prevCon.url = link
+
+                    if position != prevCon.position:
+                        prevCon.position = position
+
+                    if location != prevCon.location:
+                        prevCon.location = location
+
+                    # TODO: Implement mutual connections in database, if necessary
+
+                    break
+
+            if alreadyExists:
+                session.commit()
+                continue
+
+            # Now we know it is a new connection
+
+            session.add(
+                LinkedInConnection(
+                    name=name,
+                    account=self.account,
+                    url=link,
+                    location=location,
+                    position=position
+                )
+            )
+
+            session.commit()
+
+        # Now make sure all connections were added successfully
+        for name in conns.keys():
+            conDict = conns[name]
+            link = conDict['link']
+            # Only need to check if the new row was made. Filtering by link because it is unique
+            entry = session.query(LinkedInConnection).filter(LinkedInConnection.url == link)[0]
+
+            if not entry:
+                # Should only happen if there is an error adding a new connection
+                controller_logger.error(f'{name} could not be added to the database.')
+
+            elif conDict['location'] != entry.location or conDict['position'] != entry.position:
+                # For updated connections
+                controller_logger.error(f'{name} could not be updated.')
+
+        # Then return with nothing since the fetchValues function will be called again
+        controller_logger.info('Done')
+        controller_logger.info('')
