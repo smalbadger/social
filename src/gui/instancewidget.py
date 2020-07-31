@@ -266,13 +266,12 @@ class InstanceWidget(QWidget):
         prog = QProgressDialog('Processing Collected Data...', 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle("Processing...")
+        prog.show()
 
-        task = Task(lambda: self.processScrapedConnections(conns))
+        task = Task(lambda: processScrapedConnections(conns, self.account))
         task.finished.connect(prog.close)
         task.finished.connect(lambda: self.fetchValues(skipTemplates=True))
         QThreadPool.globalInstance().start(task)
-
-        prog.show()
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""
@@ -298,85 +297,86 @@ class InstanceWidget(QWidget):
             self.ui.closeBrowserBox.setEnabled(True)
             self.messagingController.options.headless = False
 
-    #######################################
-    # Database stuff (Call these in Tasks)
-    #######################################
 
-    def processScrapedConnections(self, conns: dict):
-        """
-        - Pulls connections from DB, finds the ones that correlate to entries in conns, and updates them.
-        - If there are new connections, adds them to the database.
-        - Pulls again from database after getting updated and checks that new connections were added successfully
-        - If not, they get logged as errors.
-        - Finally, UI gets updated with newly pulled list of connections.
-        """
+#######################################
+# Database stuff (Call these in Tasks)
+#######################################
 
-        prev = session.query(LinkedInConnection).filter(LinkedInConnection.account_id == self.account.id)
+def processScrapedConnections(conns: dict, account):
+    """
+    - Pulls connections from DB, finds the ones that correlate to entries in conns, and updates them.
+    - If there are new connections, adds them to the database.
+    - Pulls again from database after getting updated and checks that new connections were added successfully
+    - If not, they get logged as errors.
+    - Finally, UI gets updated with newly pulled list of connections.
+    """
 
-        # Iterate through all connections scraped
-        controller_logger.info('')
-        controller_logger.info('Adding/updating collected data in database...')
-        for name in conns.keys():
-            alreadyExists = False
-            conDict = conns[name]
+    prev = session.query(LinkedInConnection).filter(LinkedInConnection.account_id == account.id)
 
-            # These get defaulted in the controllers, and can't be re-defaulted without lots of if statements
-            link = conDict.get('link')
-            position = conDict.get('position')
-            location = conDict.get('location')
-            # mutual = conDict.get('mutual')
+    # Iterate through all connections scraped
+    controller_logger.info('')
+    controller_logger.info('Adding/updating collected data in database...')
+    for name in conns.keys():
+        alreadyExists = False
+        conDict = conns[name]
 
-            # First look for connections to update
-            for prevCon in prev:
-                if prevCon.url == link:
-                    alreadyExists = True
+        # These get defaulted in the controllers, and can't be re-defaulted without lots of if statements
+        link = conDict.get('link')
+        position = conDict.get('position')
+        location = conDict.get('location')
+        # mutual = conDict.get('mutual')
 
-                    if link != prevCon.url:
-                        prevCon.url = link
+        # First look for connections to update
+        for prevCon in prev:
+            if prevCon.url == link:
+                alreadyExists = True
 
-                    if position != prevCon.position:
-                        prevCon.position = position
+                if link != prevCon.url:
+                    prevCon.url = link
 
-                    if location != prevCon.location:
-                        prevCon.location = location
+                if position != prevCon.position:
+                    prevCon.position = position
 
-                    # TODO: Implement mutual connections in database, if necessary
+                if location != prevCon.location:
+                    prevCon.location = location
 
-                    break
+                # TODO: Implement mutual connections in database, if necessary
 
-            if alreadyExists:
-                session.commit()
-                continue
+                break
 
-            # Now we know it is a new connection
-
-            session.add(
-                LinkedInConnection(
-                    name=name,
-                    account=self.account,
-                    url=link,
-                    location=location,
-                    position=position
-                )
-            )
-
+        if alreadyExists:
             session.commit()
+            continue
 
-        # Now make sure all connections were added successfully
-        for name in conns.keys():
-            conDict = conns[name]
-            link = conDict['link']
-            # Only need to check if the new row was made. Filtering by link because it is unique
-            entry = session.query(LinkedInConnection).filter(LinkedInConnection.url == link)[0]
+        # Now we know it is a new connection
 
-            if not entry:
-                # Should only happen if there is an error adding a new connection
-                controller_logger.error(f'{name} could not be added to the database.')
+        session.add(
+            LinkedInConnection(
+                name=name,
+                account=account,
+                url=link,
+                location=location,
+                position=position
+            )
+        )
 
-            elif conDict['location'] != entry.location or conDict['position'] != entry.position:
-                # For updated connections
-                controller_logger.error(f'{name} could not be updated.')
+        session.commit()
 
-        # Then return with nothing since the fetchValues function will be called again
-        controller_logger.info('Done')
-        controller_logger.info('')
+    # Now make sure all connections were added successfully
+    for name in conns.keys():
+        conDict = conns[name]
+        link = conDict['link']
+        # Only need to check if the new row was made. Filtering by link because it is unique
+        entry = session.query(LinkedInConnection).filter(LinkedInConnection.url == link)[0]
+
+        if not entry:
+            # Should only happen if there is an error adding a new connection
+            controller_logger.error(f'{name} could not be added to the database.')
+
+        elif conDict['location'] != entry.location or conDict['position'] != entry.position:
+            # For updated connections
+            controller_logger.error(f'{name} could not be updated.')
+
+    # Then return with nothing since the fetchValues function will be called again
+    controller_logger.info('Done')
+    controller_logger.info('')
