@@ -1,15 +1,14 @@
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QListWidget
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox
 from PySide2.QtCore import QThreadPool
-from selenium.common.exceptions import InvalidSessionIdException
 
 from gui.logwidget import LogWidget
 from gui.ui.ui_instancewidget import Ui_mainWidget
 
 from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
-from common.strings import fromHTML
+from common.strings import fromHTML, toHTML
 from common.threading import Task
 from common.logging import controller_logger
 from database.linkedin import *
@@ -54,12 +53,14 @@ class InstanceWidget(QWidget):
         self.lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.lw.setLevel(logging.DEBUG)
 
+        # Populate and initialize values
+        self.numTemplates = 0
+        self.currentTempIndex = -1
+        self.fetchValues()
+
         # Final stuff
         self.connectSignalsToFunctions()
         self.ui.errorLabel.hide()
-
-        # Populate values
-        self.fetchValues()
         controller_logger.info(f'{self.platformName} instance created for {self.client.name}')
 
     def fetchValues(self, skipTemplates=False):
@@ -73,11 +74,13 @@ class InstanceWidget(QWidget):
 
         def populate(connections):
             self.ui.allConnectionsList.clear()
+            self.ui.selectedConnectionsList.clear()
             self.selectedConnections = []
-            self.ui.selectedConnectionsList
+
             for con in connections:
                 self.ui.allConnectionsList.addItem(con.name)
                 self.allConnections[con.name] = con
+
             prog.close()
 
             if not skipTemplates:
@@ -88,28 +91,43 @@ class InstanceWidget(QWidget):
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
-        prog.exec_()
+        prog.show()
 
-    def fetchTemplates(self):
+    def fetchTemplates(self, refreshing=False):
         """
         Gets templates associated to account
         """
 
         self.ui.templatesBox.clear()
 
-        prog = QProgressDialog('Getting templates...', 'Hide', 0, 0, parent=self.window())
+        if refreshing:
+            msg = 'Refreshing template list...'
+        else:
+            msg = 'Getting templates...'
+
+        prog = QProgressDialog(msg, 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
-        prog.setWindowTitle('Getting templates...')
+        prog.setWindowTitle(msg)
 
         def populate(templates):
-            template = None
+            self.numTemplates = 0
+            self.ui.templatesBox.clear()
+            self.ui.templatesBox.blockSignals(True)
 
             for template in templates:
-                self.ui.templatesBox.addItem(f'Template {template.id}', userData=template)
+                # TODO: Replace with actual template name when implemented in database
+                self.numTemplates += 1
+                self.addTemplate(f'Template {self.numTemplates}', template)
 
-            if template:
-                self.ui.messageTemplateEdit.setPlainText(template.message_template)
+            if self.numTemplates is not 0:
+                # Loads the last template
+                self.currentTempIndex = self.numTemplates-1
+                self.ui.templatesBox.setCurrentIndex(self.currentTempIndex)
+                self.loadTemplateAtIndex(self.currentTempIndex, skipSave=True)
+            else:
+                self.createNewTemplate(skipSave=True)
 
+            self.ui.templatesBox.blockSignals(False)
             prog.close()
 
         task = Task(lambda: session.query(LinkedInMessageTemplate)
@@ -117,7 +135,7 @@ class InstanceWidget(QWidget):
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
-        prog.exec_()
+        prog.show()
 
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
@@ -184,9 +202,79 @@ class InstanceWidget(QWidget):
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
         self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
-        self.ui.syncButton.setCheckable(True)
         self.ui.syncButton.toggled.connect(self.synchronizeAccount)
         self.ui.selectAllBox.toggled.connect(self.selectAll)
+        self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
+        self.ui.newTemplateButton.clicked.connect(self.createNewTemplate)
+        self.ui.templatesBox.currentIndexChanged.connect(self.loadTemplateAtIndex)
+
+    def addTemplate(self, name: str, data):
+        """
+        Adds a template to the template box. Naturally triggers the loadTemplateAtIndex function
+        """
+        self.ui.templatesBox.addItem(name, userData=data)
+
+    def saveCurrentTemplate(self, prompt=False):
+        """
+        Saves the current template to the database.
+        """
+
+        if prompt:
+            ans = QMessageBox.question(self.window(), 'Save', 'Save current template?')
+        else:
+            ans = QMessageBox.Yes
+
+        if ans == QMessageBox.Yes:
+            template = self.ui.templatesBox.itemData(self.currentTempIndex)
+            template.message_template = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
+
+            prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
+            prog.setModal(True)
+            prog.setWindowTitle('Saving...')
+
+            task = Task(session.commit)
+            task.finished.connect(prog.close)
+            QThreadPool.globalInstance().start(task)
+
+            prog.show()
+
+        self.currentTempIndex = self.ui.templatesBox.currentIndex()
+
+    def createNewTemplate(self, skipSave=False):
+        """
+        Creates a new template, and asks if the current one should be saved
+        """
+
+        # TODO: Implement QInputDialog to prompt for template name
+        session.add(
+            LinkedInMessageTemplate(
+                account_id=self.account.id,
+                message_template="",
+                crc=-1
+            )
+        )  # Defaulting crc to -1
+
+        if not skipSave:
+            self.saveCurrentTemplate(prompt=True)
+
+        self.fetchTemplates(refreshing=True)
+
+    def loadTemplateAtIndex(self, index: int, skipSave=False):
+        """
+        Loads template from the template at index "index" in the template choosing box,
+        asking to save current one beforehand
+        """
+
+        if not skipSave:
+            self.saveCurrentTemplate(prompt=True)
+
+        try:
+            text = self.ui.templatesBox.itemData(index).message_template.decode('unicode_escape')
+        except AttributeError:
+            # One-liners with no special characters don't need to be decoded
+            text = self.ui.templatesBox.itemData(index).message_template
+
+        self.ui.messageTemplateEdit.setPlainText(text)
 
     def selectAll(self, checked):
         """Selects all connections to send them a message"""
