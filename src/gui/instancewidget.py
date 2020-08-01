@@ -267,13 +267,9 @@ class InstanceWidget(QWidget):
 
         if not skipSave:
             self.saveCurrentTemplate(prompt=True)
-
-        try:
-            text = self.ui.templatesBox.itemData(index).message_template.decode('unicode_escape')
-        except AttributeError:
-            # One-liners with no special characters don't need to be decoded
-            text = self.ui.templatesBox.itemData(index).message_template
-
+        
+        # Encode text from db into bytes, then decode into unicode from unicode_escape
+        text = self.ui.templatesBox.itemData(index).message_template.encode('latin1').decode('unicode_escape')
         self.ui.messageTemplateEdit.setPlainText(text)
 
     def selectAll(self, checked):
