@@ -1,6 +1,6 @@
 import datetime
 from sqlalchemy import create_engine
-from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, Date, Time, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
@@ -40,10 +40,27 @@ class LinkedInAccount(Base):
     tester = Column(Boolean, default=False)
 
     # -- ORM --------------------------
-    client = relationship("Client", back_populates="linkedin_account")
-    connections = relationship("LinkedInConnection", back_populates="account")
-    messages = relationship("LinkedInMessage", back_populates="account")
-    message_templates = relationship("LinkedInMessageTemplate", back_populates="account")
+    client = relationship("Client", uselist=False, back_populates="linkedin_account")
+    connections = relationship("LinkedInConnection", uselist=True, back_populates="account")
+    messages = relationship("LinkedInMessage", uselist=True, back_populates="account")
+    message_templates = relationship("LinkedInMessageTemplate", uselist=True, back_populates="account")
+    daily_activity = relationship("LinkedInAccountDailyActivity", uselist=True, back_populates="account")
+
+class LinkedInAccountDailyActivity(Base):
+    """Keeps track of a single LinkedIn account's daily activity."""
+
+    __tablename__ = "linkedin_accounts_daily_activity"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
+    date = Column(Date)
+    message_count = Column(Integer, default=0)
+    connection_request_count = Column(Integer, default=0)
+    activity_limit = Column(Integer, default=10)
+    last_activity = Column(DateTime, default=None)
+
+    # -- ORM --------------------------
+    account = relationship("LinkedInAccount", uselist=False, back_populates="daily_activity")
 
 class LinkedInConnection(Base):
     """LinkedIn Connections belonging to our clients (connections mutual to multiple clients will be duplicated)"""
@@ -58,8 +75,8 @@ class LinkedInConnection(Base):
     position = Column(String, default="")
 
     # -- ORM --------------------------
-    account = relationship("LinkedInAccount", back_populates="connections")
-    messages = relationship("LinkedInMessage", back_populates="recipient")
+    account = relationship("LinkedInAccount", uselist=False, back_populates="connections")
+    messages = relationship("LinkedInMessage", uselist=True, back_populates="recipient")
 
 class LinkedInMessageTemplate(Base):
     """Message templates for LinkedIn that will be blasted out to our connections"""
@@ -73,8 +90,8 @@ class LinkedInMessageTemplate(Base):
     date_created = Column(DateTime, default=datetime.datetime.utcnow)
 
     # -- ORM --------------------------
-    account = relationship("LinkedInAccount", back_populates="message_templates")
-    instances = relationship("LinkedInMessage", back_populates="template")
+    account = relationship("LinkedInAccount", uselist=False, back_populates="message_templates")
+    instances = relationship("LinkedInMessage", uselist=True, back_populates="template")
 
 class LinkedInMessage(Base):
     """Instances of the Message templates that we actually sent to connections."""
@@ -88,16 +105,15 @@ class LinkedInMessage(Base):
     response = Column(Integer, default=0)
 
     # -- ORM --------------------------
-    template = relationship("LinkedInMessageTemplate", back_populates="instances")
-    recipient = relationship("LinkedInConnection", back_populates="messages")
-    account = relationship("LinkedInAccount", back_populates="messages")
+    template = relationship("LinkedInMessageTemplate", uselist=False, back_populates="instances")
+    recipient = relationship("LinkedInConnection", uselist=False, back_populates="messages")
+    account = relationship("LinkedInAccount", uselist=False, back_populates="messages")
 
 class ResponseMeanings(Base):
     """Meaning of message responses"""
 
     __tablename__ = "response_meanings"
 
-    # -- ORM --------------------------
     id = Column(Integer, primary_key=True, autoincrement=True)
     meaning = Column(String, unique=True)
 
