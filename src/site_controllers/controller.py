@@ -54,10 +54,37 @@ class Controller(AbstractBaseClass):
         self._username = username
         self._email = email
         self._password = password
+        self._criticalLoginInfo = ()
 
         self.initLogger()
         self.options = list(options)
+        print(self.options.arguments)
         self.browser = browser
+
+    def checkForValidConfiguration(self):
+        """
+        Determines if the controller configuration is Valid
+
+        :raises InvalidOptionsException: if invalid options are provided
+        """
+        if self.isManualLoginNeeded() and "headless" in self.options.arguments:
+            missingCredentials = ', '.join(self.getMissingCriticalLoginInfo())
+            raise InvalidOptionsException("The controller cannot be started in headless mode because the following "
+                                          f"credentials were not provided: {missingCredentials}")
+        # TODO: Add more checks as necessary
+
+    def isManualLoginNeeded(self):
+        manual = False
+        for field in self._criticalLoginInfo:
+            manual = manual or not self.__getattribute__(f"_{field}")
+        return manual
+
+    def getMissingCriticalLoginInfo(self):
+        missingFields = []
+        for field in self._criticalLoginInfo:
+            if not self.__getattribute__(f"_{field}"):
+                missingFields.append(field)
+        return missingFields
 
     def start(self):
         """Starts the controller"""
@@ -72,7 +99,7 @@ class Controller(AbstractBaseClass):
             self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
 
         self.browser.get(self._initialURL)
-        self.login(manual=not self._password)
+        self.login(manual=self.isManualLoginNeeded())
 
     def stop(self):
         """Stops the controller by closing the browser"""
@@ -89,7 +116,7 @@ class Controller(AbstractBaseClass):
     #############################################################
 
     @abstractmethod
-    def login(self):
+    def login(self, manual=False):
         """Process taken to login"""
         pass
 

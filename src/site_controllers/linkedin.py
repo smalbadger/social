@@ -84,7 +84,8 @@ class LinkedInController(Controller):
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
         self.mainWindow = None
         self.mutualWindow = None
-
+        self._criticalLoginInfo = ("email", "password")
+        self.checkForValidConfiguration()
         self.info(f"Created LinkedIn controller for {self._username}")
 
     def initLogger(self):
@@ -155,15 +156,20 @@ class LinkedInController(Controller):
         #       bot, so we use some randomness to lessen the chances of hitting a reCAPTCHA.
         if "Login" in self.browser.title or "Sign in" in self.browser.title:
 
-            self.info(f"Entering email: {self._email}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
-            self.info(f"Entering password: {'*'*len(self._password)}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
+            if self._email:
+                self.info(f"Entering email: {self._email}")
+                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
 
-            # If manual is True, we require the user to press the login button.
+            if self._password:
+                self.info(f"Entering password: {'*'*len(self._password)}")
+                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
+
+            # If manual is True, we require the user to press the login button (allowing them to change the credentials too)
             if manual:
-                while not self.browser.current_url == self._initialURL:
-                    necessary_wait(.1)
+                self.warning(f"Waiting for credentials to be entered manually for {self._username}")
+                while not self.auth_check():
+                    necessary_wait(1)
+                self.warning(f"Not waiting anymore")
             else:
                 self.info("Submitting login request")
                 random_uniform_wait(1, 3)
@@ -662,10 +668,6 @@ class LinkedInSynchronizer(Task):
     def run(self):
         self.setup()
         opts = self.options
-
-        if opts.get('headless'):
-            self.controller.options.headless = True
-
         self.controller.start()
 
         if opts.get('accept new'):
