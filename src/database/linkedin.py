@@ -33,7 +33,7 @@ class LinkedInAccount(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True)
-    username = Column(String)
+    profile_name = Column(String)
     password = Column(String)
     flagged_as_bot_date = Column(DateTime, default=None)
     flagged_as_bot = Column(Integer, default=0)
@@ -104,6 +104,6 @@ class ResponseMeanings(Base):
 if __name__ == '__main__':
     clients = session.query(Client).all()
     for c in clients:
-        print(c.linkedin_account.username)
+        print(c.linkedin_account.profile_name)
         for connection in c.linkedin_account.connections:
             print("\t" + connection.name)

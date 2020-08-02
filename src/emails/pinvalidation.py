@@ -22,11 +22,11 @@ class PinValidator:
         # we choose the inbox but you can select others
         self.mailbox.select('inbox')
 
-    def get_pin(self, username:str, email_origin:'str', timeout:timedelta, time:datetime = None) -> str:
+    def get_pin(self, profile_name:str, email_origin: 'str', timeout:timedelta, time:datetime = None) -> str:
         """
         Searches the inbox for a pin validation message belonging to the specific user.
 
-        :param username: The full linkedin username of the person to search for
+        :param profile_name: The full linkedin profile name of the person to search for
         :param email_origin: The emails belonging to the user for which we're validating the pin.
         :param timeout: The amount of time we want to try getting the pin before giving up
         :param time: The approximate time that the pin was sent.
