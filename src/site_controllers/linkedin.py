@@ -24,10 +24,12 @@ from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
 
+
 #########################################################
 # Element Identification Strings
 #########################################################
 class EIS:
+    login_header                             = "header__content__heading"
     login_username_input                     = "username"
     login_password_input                     = "password"
     login_submit_button                      = "button[type=submit]"
@@ -68,7 +70,6 @@ class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
 
-
 @log_all_exceptions
 class LinkedInController(Controller):
     """
@@ -76,6 +77,7 @@ class LinkedInController(Controller):
     """
 
     Beacon.connectionsScraped = Signal(dict)
+    CRITICAL_LOGIN_INFO = ("email", "password")
 
     def __init__(self, *args, **kwargs):
         """Initializes LinkedIn Controller"""
@@ -84,7 +86,8 @@ class LinkedInController(Controller):
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
         self.mainWindow = None
         self.mutualWindow = None
-
+        self._criticalLoginInfo = LinkedInController.innerCls.CRITICAL_LOGIN_INFO
+        self.checkForValidConfiguration()
         self.info(f"Created LinkedIn controller for {self._username}")
 
     def initLogger(self):
@@ -155,15 +158,22 @@ class LinkedInController(Controller):
         #       bot, so we use some randomness to lessen the chances of hitting a reCAPTCHA.
         if "Login" in self.browser.title or "Sign in" in self.browser.title:
 
-            self.info(f"Entering email: {self._email}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
-            self.info(f"Entering password: {'*'*len(self._password)}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
+            if self._email:
+                self.info(f"Entering email: {self._email}")
+                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
 
-            # If manual is True, we require the user to press the login button.
+            if self._password:
+                self.info(f"Entering password: {'*'*len(self._password)}")
+                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
+
+            # If manual is True, we require the user to press the login button (allowing them to change the credentials too)
             if manual:
-                while not self.browser.current_url == self._initialURL:
-                    necessary_wait(.1)
+                self.warning(f"Waiting for credentials to be entered manually for {self._username}")
+                header = self.browser.find_element_by_class_name(EIS.login_header)
+                self.setInnerText(header, f"Please login for {self._username}")
+                while not self.auth_check():
+                    necessary_wait(1)
+                self.warning(f"Not waiting anymore")
             else:
                 self.info("Submitting login request")
                 random_uniform_wait(1, 3)
@@ -662,10 +672,6 @@ class LinkedInSynchronizer(Task):
     def run(self):
         self.setup()
         opts = self.options
-
-        if opts.get('headless'):
-            self.controller.options.headless = True
-
         self.controller.start()
 
         if opts.get('accept new'):

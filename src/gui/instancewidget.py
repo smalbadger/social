@@ -58,6 +58,17 @@ class InstanceWidget(QWidget):
         self.currentTempIndex = -1
         self.fetchValues()
 
+        # If critical login info is not available, disable headless mode.
+        headlessEnabled = True
+        for field in cConstructor.CRITICAL_LOGIN_INFO:
+            if not self.account.__getattribute__(field):
+                headlessEnabled = False
+                break
+        self.ui.headlessBoxSync.setChecked(headlessEnabled)
+        self.ui.headlessBoxSync.setEnabled(headlessEnabled)
+        self.ui.headlessBoxGeneral.setChecked(headlessEnabled)
+        self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
+
         # Final stuff
         self.connectSignalsToFunctions()
         self.ui.errorLabel.hide()
@@ -317,7 +328,6 @@ class InstanceWidget(QWidget):
         if checked:
             acl = self.ui.allConnectionsList
             options = {
-                'headless': self.ui.headlessBoxSync.isChecked(),
                 'messages': self.ui.updateMessagesBox.isChecked(),
                 'connections': self.ui.updateConnectionsBox.isChecked(),
                 'known': [acl.item(i).text() for i in range(acl.count())],
@@ -326,8 +336,11 @@ class InstanceWidget(QWidget):
 
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
+            syncBrowserOpts = self.opts
+            if self.ui.headlessBoxSync.isChecked():
+                syncBrowserOpts.append("headless")
             self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                             browser=self.browser, options=self.opts)
+                                                             browser=self.browser, options=syncBrowserOpts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 
             self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
