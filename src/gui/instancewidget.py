@@ -173,6 +173,11 @@ class InstanceWidget(QWidget):
         startStopButton = self.ui.autoMessageButton
 
         def onComplete():
+            """Called on completion of the Messenger task"""
+            startStopButton.setChecked(False)
+            if not self.messagingController:
+                return
+
             startStopButton.setText("Closing, please wait...")
             startStopButton.setEnabled(False)
 
@@ -186,9 +191,6 @@ class InstanceWidget(QWidget):
 
             startStopButton.setText("Send Message to Selected Connections")
             startStopButton.setEnabled(True)
-
-        def teardown():  # This will naturally call onComplete, otherwise it is called twice
-            startStopButton.setChecked(False)
 
         if start:
             template = self.ui.messageTemplateEdit.toPlainText()
@@ -211,7 +213,7 @@ class InstanceWidget(QWidget):
                                                                   browser=self.browser, options=messagingOpts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
-                                               self.selectedConnections, teardown_func=teardown)
+                                               self.selectedConnections, teardown_func=onComplete)
             QThreadPool.globalInstance().start(self.messenger)
 
             startStopButton.setText("Stop")
@@ -385,7 +387,12 @@ class InstanceWidget(QWidget):
     def synchronizeAccount(self, checked):
         """Synchronizes account using options given in GUI"""
 
+        syncBtn = self.ui.syncButton
         def onComplete():
+            """Called on completion of the Synchronizer task"""
+            syncBtn.setChecked(False)
+            if not self.syncController:
+                return
             self.ui.syncButton.setText('Closing...')
             self.ui.syncButton.setEnabled(False)
 
@@ -399,9 +406,6 @@ class InstanceWidget(QWidget):
 
             self.ui.syncButton.setText('Synchronize Database')
             self.ui.syncButton.setEnabled(True)
-
-        def teardown():  # This will naturally call onComplete, otherwise it is called twice
-            self.ui.syncButton.setChecked(False)
 
         if checked:
             acl = self.ui.allConnectionsList
@@ -421,7 +425,7 @@ class InstanceWidget(QWidget):
                                                              browser=self.browser, options=syncBrowserOpts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 
-            self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
+            self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=onComplete)
             self.syncController.connectionsScraped.connect(self.scrapedConnectionsHandler)
 
             QThreadPool.globalInstance().start(self.synchronizer)
