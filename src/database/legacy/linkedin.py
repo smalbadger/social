@@ -67,7 +67,7 @@ def migrateOldDatabase():
 
             if c.Account not in client_dict:
                 client = Client(name=c.Account, email="", phone="", tester=False)
-                account = LinkedInAccount(username=c.Account, email="", password="")
+                account = LinkedInAccount(profile_name=c.Account, email="", password="")
                 client.linkedin_account = account
                 client_dict[c.Account] = client
                 account_dict[c.Account] = account
