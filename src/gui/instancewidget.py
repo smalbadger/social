@@ -302,7 +302,10 @@ class InstanceWidget(QWidget):
 
         template = self.ui.templatesBox.itemData(self.currentTempIndex)
         newMsg = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
-        curMsg = template.message_template.encode('latin1')
+        if template:
+            curMsg = template.message_template.encode('latin1')
+        else:
+            curMsg = newMsg  # No need to save if there is nothing currently loaded
 
         # Only save if the text has been changed
         if curMsg != newMsg:
