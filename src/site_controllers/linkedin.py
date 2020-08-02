@@ -30,7 +30,7 @@ from common.beacon import Beacon
 #########################################################
 class EIS:
     login_header                             = "header__content__heading"
-    login_email_input                        = "username"
+    login_username_input                     = "username"
     login_password_input                     = "password"
     login_submit_button                      = "button[type=submit]"
 
@@ -88,11 +88,11 @@ class LinkedInController(Controller):
         self.mutualWindow = None
         self._criticalLoginInfo = LinkedInController.innerCls.CRITICAL_LOGIN_INFO
         self.checkForValidConfiguration()
-        self.info(f"Created LinkedIn controller for {self._profile_name}")
+        self.info(f"Created LinkedIn controller for {self._username}")
 
     def initLogger(self):
         """Creates a logger for this user's linkedin controller only"""
-        alphaNumericName = onlyAplhaNumeric(self._profile_name, '_')
+        alphaNumericName = onlyAplhaNumeric(self._username, '_')
         filename = os.path.abspath(os.path.join(LOG_FILES_DIR, f"{initial_timestamp}--{alphaNumericName}.log"))
 
         format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -160,7 +160,7 @@ class LinkedInController(Controller):
 
             if self._email:
                 self.info(f"Entering email: {self._email}")
-                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_email_input), self._email, 1, 3, 0, .25)
+                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
 
             if self._password:
                 self.info(f"Entering password: {'*'*len(self._password)}")
@@ -168,9 +168,9 @@ class LinkedInController(Controller):
 
             # If manual is True, we require the user to press the login button (allowing them to change the credentials too)
             if manual:
-                self.warning(f"Waiting for credentials to be entered manually for {self._profile_name}")
+                self.warning(f"Waiting for credentials to be entered manually for {self._username}")
                 header = self.browser.find_element_by_class_name(EIS.login_header)
-                self.setInnerText(header, f"Please login for {self._profile_name}")
+                self.setInnerText(header, f"Please login for {self._username}")
                 while not self.auth_check():
                     necessary_wait(1)
                 self.warning(f"Not waiting anymore")
@@ -198,7 +198,7 @@ class LinkedInController(Controller):
                 method = "pin"
                 timeout = timedelta(minutes=1)
                 self.info("Detected pin validation method. Retrieving PIN from email.")
-                pin = PinValidator().get_pin(self._profile_name, self._email, timeout)
+                pin = PinValidator().get_pin(self._username, self._email, timeout)
                 self.info(f"Retrieved PIN: {pin}")
                 pin_inputs[0].send_keys(pin + Keys.RETURN)
                 return
@@ -292,7 +292,7 @@ class LinkedInController(Controller):
         msg_details = f"""Sending message:
 
         To: {person}
-        From: {self._profile_name}
+        From: {self._username}
         Content: {message}
         """
 

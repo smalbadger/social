@@ -29,12 +29,12 @@ class Controller(AbstractBaseClass):
     IMPLICIT_WAIT = 1
     HIGHLIGHT_ENABLED = True
 
-    def __init__(self, profile_name: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
+    def __init__(self, username: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
         """
         Initializes controller
 
-        :param profile_name: The profile name of the account to log into.
-        :type profile_name: str
+        :param username: The username of the account to log into.
+        :type username: str
         :param email: The emails of the account to log into.
         :type email: str
         :param password: The password of the account to log into.
@@ -51,7 +51,7 @@ class Controller(AbstractBaseClass):
         # store private variables first
         self._logger = None
         self._initialURL = None
-        self._profile_name = profile_name
+        self._username = username
         self._email = email
         self._password = password
         self._criticalLoginInfo = ()

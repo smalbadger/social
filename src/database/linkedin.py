@@ -33,7 +33,7 @@ class LinkedInAccount(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True)
-    profile_name = Column(String)
+    username = Column(String)
     password = Column(String)
     flagged_as_bot_date = Column(DateTime, default=None)
     flagged_as_bot = Column(Integer, default=0)
