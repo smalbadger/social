@@ -118,7 +118,7 @@ class InstanceWidget(QWidget):
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
-        prog.show()
+        prog.exec_()
 
     def fetchTemplates(self, refreshing=False):
         """
@@ -162,7 +162,7 @@ class InstanceWidget(QWidget):
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
-        prog.show()
+        prog.exec_()
 
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
@@ -289,7 +289,7 @@ class InstanceWidget(QWidget):
             task.finished.connect(prog.close)
             QThreadPool.globalInstance().start(task)
 
-            prog.show()
+            prog.exec_()
 
     def addTemplate(self, name: str, data):
         """
@@ -325,7 +325,7 @@ class InstanceWidget(QWidget):
                 task.finished.connect(prog.close)
                 QThreadPool.globalInstance().start(task)
 
-                prog.show()
+                prog.exec_()
                 controller_logger.info("")
                 controller_logger.info(f"Saving {self.ui.templatesBox.itemText(self.currentTempIndex)}")
 
@@ -445,7 +445,7 @@ class InstanceWidget(QWidget):
         prog = QProgressDialog('Processing Collected Data...', 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle("Processing...")
-        prog.show()
+        prog.exec_()
 
         task = Task(lambda: processScrapedConnections(conns, self.account))
         task.finished.connect(prog.close)
