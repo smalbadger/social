@@ -33,7 +33,7 @@ class InstanceWidget(QWidget):
         # Account info
         self.email = self.account.email
         self.pwd = self.account.password
-        self.profilename = self.account.username
+        self.profile_name = self.account.profile_name
 
         # Browser
         self.opts = [f'{UserAgent().random}']
@@ -204,8 +204,11 @@ class InstanceWidget(QWidget):
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             # Controller stuff
+            messagingOpts = self.opts[:]
+            if self.ui.headlessBoxGeneral.isChecked():
+                messagingOpts.append("headless")
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                                  browser=self.browser, options=self.opts)
+                                                                  browser=self.browser, options=messagingOpts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                self.selectedConnections, teardown_func=teardown)
@@ -228,7 +231,6 @@ class InstanceWidget(QWidget):
         self.ui.autoMessageButton.toggled.connect(self.autoMessage)
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
-        self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
         self.ui.syncButton.toggled.connect(self.synchronizeAccount)
         self.ui.selectAllBox.toggled.connect(self.selectAll)
         self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
@@ -298,13 +300,9 @@ class InstanceWidget(QWidget):
 
         if not skipSave:
             self.saveCurrentTemplate(prompt=True)
-
-        try:
-            text = self.ui.templatesBox.itemData(index).message_template.decode('unicode_escape')
-        except AttributeError:
-            # One-liners with no special characters don't need to be decoded
-            text = self.ui.templatesBox.itemData(index).message_template
-
+        
+        # Encode text from db into bytes, then decode into unicode from unicode_escape
+        text = self.ui.templatesBox.itemData(index).message_template.encode('latin1').decode('unicode_escape')
         self.ui.messageTemplateEdit.setPlainText(text)
 
     def selectAll(self, checked):
@@ -406,17 +404,6 @@ class InstanceWidget(QWidget):
             ind = self.ui.selectedConnectionsList.row(connection)
             self.ui.selectedConnectionsList.takeItem(ind)
             self.selectedConnections.remove(connection.text())
-
-    def checkGeneralHeadless(self, checked):
-        """Handles changing the headless mode on the controller's browser"""
-
-        if checked:
-            self.ui.closeBrowserBox.setChecked(True)
-            self.ui.closeBrowserBox.setEnabled(False)
-            self.messagingController.options.headless = True
-        else:
-            self.ui.closeBrowserBox.setEnabled(True)
-            self.messagingController.options.headless = False
 
 
 #######################################
