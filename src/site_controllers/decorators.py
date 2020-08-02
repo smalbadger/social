@@ -44,24 +44,28 @@ def print_page_on_exception(func):
 
     return check
 
+def log_exceptions(func, controller):
+    """Log all exceptions"""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            controller.exception(e)
+            raise e
+
+    return wrapper
+
 def log_all_exceptions(Cls):
-    """Apply the log_exceptions decorator to every instance method"""
+    """
+    Apply the log_exceptions decorator to every instance method
 
-
-    def log_exceptions(func, controller):
-        """Log all exceptions"""
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                controller.exception(e)
-                raise e
-
-        return wrapper
-
+    WARNING: This causes issues with accessing class variables! To access class variables of classes where this
+             decorator is applied, the .innerCls attribute must be used. For instance:
+             LinkedInController.innerCls.CRITICAL_LOGIN_INFO
+    """
 
     class NewCls(object):
 
@@ -77,6 +81,10 @@ def log_all_exceptions(Cls):
             instance of the decorated class). If it manages to fetch the attribute from self.oInstance, and
             the attribute is an instance method then `log_exceptions` is applied.
             """
+            print(self)
+            if self == NewCls.innerCls:
+                return super(NewCls.innerCls, self).__getattribute__(s)
+
             try:
                 x = super(NewCls, self).__getattribute__(s)
             except AttributeError:

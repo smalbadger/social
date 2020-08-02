@@ -228,6 +228,10 @@ class Controller(AbstractBaseClass):
         """
         return element.get_attribute('innerHTML').replace('<!---->', '').strip()
 
+    def setInnerText(self, element, innerText):
+        """Sets the innerText of an element"""
+        self.browser.execute_script(f"arguments[0].innerText = '{innerText}'", element)
+
     #############################################################
     #  Logging Shortcuts
     #############################################################

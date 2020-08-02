@@ -58,12 +58,16 @@ class InstanceWidget(QWidget):
         self.currentTempIndex = -1
         self.fetchValues()
 
-        # If email or password is not known, disable headless options so we can enter credentials manually.
-        if not self.email or not self.pwd:
-            self.ui.headlessBoxSync.setChecked(False)
-            self.ui.headlessBoxSync.setEnabled(False)
-            self.ui.headlessBoxGeneral.setChecked(False)
-            self.ui.headlessBoxGeneral.setEnabled(False)
+        # If critical login info is not available, disable headless mode.
+        headlessEnabled = True
+        for field in cConstructor.CRITICAL_LOGIN_INFO:
+            if not self.account.__getattribute__(field):
+                headlessEnabled = False
+                break
+        self.ui.headlessBoxSync.setChecked(headlessEnabled)
+        self.ui.headlessBoxSync.setEnabled(headlessEnabled)
+        self.ui.headlessBoxGeneral.setChecked(headlessEnabled)
+        self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
 
         # Final stuff
         self.connectSignalsToFunctions()

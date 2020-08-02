@@ -24,10 +24,12 @@ from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
 
+
 #########################################################
 # Element Identification Strings
 #########################################################
 class EIS:
+    login_header                             = "header__content__heading"
     login_username_input                     = "username"
     login_password_input                     = "password"
     login_submit_button                      = "button[type=submit]"
@@ -68,7 +70,6 @@ class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
 
-
 @log_all_exceptions
 class LinkedInController(Controller):
     """
@@ -76,6 +77,7 @@ class LinkedInController(Controller):
     """
 
     Beacon.connectionsScraped = Signal(dict)
+    CRITICAL_LOGIN_INFO = ("email", "password")
 
     def __init__(self, *args, **kwargs):
         """Initializes LinkedIn Controller"""
@@ -84,7 +86,7 @@ class LinkedInController(Controller):
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
         self.mainWindow = None
         self.mutualWindow = None
-        self._criticalLoginInfo = ("email", "password")
+        self._criticalLoginInfo = LinkedInController.innerCls.CRITICAL_LOGIN_INFO
         self.checkForValidConfiguration()
         self.info(f"Created LinkedIn controller for {self._username}")
 
@@ -167,6 +169,8 @@ class LinkedInController(Controller):
             # If manual is True, we require the user to press the login button (allowing them to change the credentials too)
             if manual:
                 self.warning(f"Waiting for credentials to be entered manually for {self._username}")
+                header = self.browser.find_element_by_class_name(EIS.login_header)
+                self.setInnerText(header, f"Please login for {self._username}")
                 while not self.auth_check():
                     necessary_wait(1)
                 self.warning(f"Not waiting anymore")
