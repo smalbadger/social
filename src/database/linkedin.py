@@ -1,3 +1,4 @@
+import datetime
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
@@ -69,7 +70,7 @@ class LinkedInMessageTemplate(Base):
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
     message_template = Column(String, unique=True)
     crc = Column(Integer)
-    date_created = Column(DateTime)
+    date_created = Column(DateTime, default=datetime.datetime.utcnow)
 
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", back_populates="message_templates")

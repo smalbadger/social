@@ -2,9 +2,9 @@ import os
 import sys
 import html
 import logging
-from datetime import timedelta, datetime, date
+from datetime import timedelta, datetime
 
-from PySide2.QtCore import QObject, Signal
+from PySide2.QtCore import Signal
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,7 +13,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 
-from site_controllers.controller import Controller, Task, Beacon
+from site_controllers.controller import Controller, Task
 from site_controllers.exceptions import *
 from site_controllers.decorators import *
 from emails import PinValidator
@@ -21,13 +21,15 @@ from emails import PinValidator
 from common.logging import initial_timestamp, LOG_FILES_DIR
 from common.strings import onlyAplhaNumeric, equalTo, fromHTML
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
-from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait, TODO_get_rid_of_this_wait
+from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
+from common.beacon import Beacon
 
 
 #########################################################
 # Element Identification Strings
 #########################################################
 class EIS:
+    login_header                             = "header__content__heading"
     login_username_input                     = "username"
     login_password_input                     = "password"
     login_submit_button                      = "button[type=submit]"
@@ -56,7 +58,7 @@ class EIS:
     profile_picture                          = '//div[@data-control-name="identity_profile_photo"]/..'
     all_connections_link                     = '//a[@data-control-name="topcard_view_all_connections"]'
     connection_card_info_class               = 'search-result__info'
-    connection_card_profile_link             = '[data-control-name="view_mutual_connections"]'
+    connection_card_profile_link             = '[data-control-name="search_srp_result"]'
     connection_card_position                 = "subline-level-1"
     connection_card_location                 = "subline-level-2"
     connection_card_mutual_text              = 'search-result__social-proof-count'
@@ -68,7 +70,6 @@ class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
 
-
 @log_all_exceptions
 class LinkedInController(Controller):
     """
@@ -76,6 +77,7 @@ class LinkedInController(Controller):
     """
 
     Beacon.connectionsScraped = Signal(dict)
+    CRITICAL_LOGIN_INFO = ("email", "password")
 
     def __init__(self, *args, **kwargs):
         """Initializes LinkedIn Controller"""
@@ -84,7 +86,8 @@ class LinkedInController(Controller):
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
         self.mainWindow = None
         self.mutualWindow = None
-
+        self._criticalLoginInfo = LinkedInController.innerCls.CRITICAL_LOGIN_INFO
+        self.checkForValidConfiguration()
         self.info(f"Created LinkedIn controller for {self._username}")
 
     def initLogger(self):
@@ -155,15 +158,22 @@ class LinkedInController(Controller):
         #       bot, so we use some randomness to lessen the chances of hitting a reCAPTCHA.
         if "Login" in self.browser.title or "Sign in" in self.browser.title:
 
-            self.info(f"Entering email: {self._email}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
-            self.info(f"Entering password: {'*'*len(self._password)}")
-            send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
+            if self._email:
+                self.info(f"Entering email: {self._email}")
+                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_username_input), self._email, 1, 3, 0, .25)
 
-            # If manual is True, we require the user to press the login button.
+            if self._password:
+                self.info(f"Entering password: {'*'*len(self._password)}")
+                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
+
+            # If manual is True, we require the user to press the login button (allowing them to change the credentials too)
             if manual:
-                while not self.browser.current_url == self._initialURL:
-                    necessary_wait(.1)
+                self.warning(f"Waiting for credentials to be entered manually for {self._username}")
+                header = self.browser.find_element_by_class_name(EIS.login_header)
+                self.setInnerText(header, f"Please login for {self._username}")
+                while not self.auth_check():
+                    necessary_wait(1)
+                self.warning(f"Not waiting anymore")
             else:
                 self.info("Submitting login request")
                 random_uniform_wait(1, 3)
@@ -459,14 +469,15 @@ class LinkedInController(Controller):
 
         return accepted
 
-    def getAllConnections(self, current: list = None, getMutualInfoFor: list = None,
-                          location=True, position=True) -> dict:
+    def getNewConnections(self, known: list = None, getMutualInfoFor: list = None,
+                          withLocation=True, withPosition=True, updateConnections=None) -> dict:
         """
         Gets all contacts and returns them in a dictionary
-        :param current: A list of currently stored connections
+        :param known: A list of currently stored connections
         :param getMutualInfoFor: A list of connections you want the mutual connections info for
-        :param location: whether to store location information about the connections
-        :param position: whether to store job/position info about the connections
+        :param withLocation: whether to store location information about the connections
+        :param withPosition: whether to store job/position info about the connections
+        :param updateConnections: update all info for those in this list
         """
 
         self.info('Getting all connections')
@@ -493,20 +504,23 @@ class LinkedInController(Controller):
         self.browser.switch_to.window(self.mainWindow)
 
         # Iterate through connections on page, then click next
-        connections = self.scrapeConnections(baseURL, current=current, getMutualInfoFor=getMutualInfoFor,
-                                             location=location, position=position)
+        connections = self.scrapeConnections(baseURL, known=known, getMutualInfoFor=getMutualInfoFor,
+                                             location=withLocation, position=withPosition,
+                                             updateConnections=updateConnections)
 
         return connections
 
-    def scrapeConnections(self, baseURL,  current: list = None, getMutualInfoFor: list = None,
-                          location=True, position=True):
+    def scrapeConnections(self, baseURL,  known: list = None, getMutualInfoFor: list = None,
+                          location=True, position=True, updateConnections=None):
         """
         The while loop that iterates through all connections, getting their info
         """
-        if current is None:
-            current = []
+        if known is None:
+            known = []
         if getMutualInfoFor is None:
             getMutualInfoFor = []
+        if updateConnections is None:
+            updateConnections = []
 
         connections = {}
         page = 1
@@ -517,7 +531,7 @@ class LinkedInController(Controller):
 
                 name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
 
-                if name not in current:
+                if name not in known or name in updateConnections + getMutualInfoFor:
                     self.info('')
                     self.info(f'--- Getting information about {name} ---')
 
@@ -526,7 +540,7 @@ class LinkedInController(Controller):
                     if name in getMutualInfoFor:
                         names = self.getMutualConnections(connection)
                     else:
-                        names = None
+                        names = []
 
                     connections[name] = {
                         'link': profileLink,
@@ -534,8 +548,6 @@ class LinkedInController(Controller):
                         'location': loc,
                         'mutual': names
                     }
-
-                    self.info('')
 
             try:
                 self.browser.find_element_by_xpath(EIS.no_results_button)
@@ -560,7 +572,7 @@ class LinkedInController(Controller):
         try:
             sharedStr = fromHTML(connection.find_element_by_class_name(EIS.connection_card_mutual_text).text)
         except NoSuchElementException:
-            sharedStr = None
+            sharedStr = ""
 
         if not sharedStr:
             self.info('No mutual connections')
@@ -609,13 +621,13 @@ class LinkedInController(Controller):
         self.info(f'Found {len(names)} mutual connection(s)')
         return names
 
-    def getConnectionInfo(self, connection, pos=True, loc=True, mutual=True):
+    def getConnectionInfo(self, connection, pos=True, loc=True):
         """
         Gets info about a connection. The connection variable is a web element, not a name
         """
 
         self.info('Getting profile link')
-        profileLink = fromHTML(connection.find_element_by_class_name(EIS.connection_card_profile_link)
+        profileLink = fromHTML(connection.find_element_by_css_selector(EIS.connection_card_profile_link)
                                .get_attribute('href'))
 
         if pos:
@@ -623,18 +635,16 @@ class LinkedInController(Controller):
             position = fromHTML(connection.find_element_by_class_name(EIS.connection_card_position)
                                 .get_attribute('innerHTML')).strip()
         else:
-            position = None
+            position = ""
 
         if loc:
             self.info('Getting general location')
             location = fromHTML(connection.find_element_by_class_name(EIS.connection_card_location)
                                 .get_attribute('innerHTML')[:-len(' Area')]).strip()
         else:
-            location = None
+            location = ""
 
         return profileLink, position, location
-
-
 
 
 class LinkedInMessenger(Task):
@@ -662,10 +672,6 @@ class LinkedInSynchronizer(Task):
     def run(self):
         self.setup()
         opts = self.options
-
-        if opts.get('headless'):
-            self.controller.options.headless = True
-
         self.controller.start()
 
         if opts.get('accept new'):
@@ -675,7 +681,8 @@ class LinkedInSynchronizer(Task):
             self.controller.browser.get("https://www.linkedin.com/feed/")
 
         if opts.get('connections'):
-            connections = self.controller.getAllConnections()
+            known = opts.get('known')
+            connections = self.controller.getNewConnections(known=known)
             # TODO: Add connections scraping/syncing here. currently repopulates the all contacts list
 
         if opts.get('messages'):

@@ -2,6 +2,10 @@ class ControllerException(Exception):
     def __init__(self, msg):
         super().__init__(msg)
 
+class InvalidOptionsException(ControllerException):
+    def __init__(self, msg):
+        super().__init__(msg)
+
 class MessageNotSentException(ControllerException):
     def __init__(self, msg):
         super().__init__(msg)

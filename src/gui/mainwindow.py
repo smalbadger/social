@@ -1,13 +1,14 @@
 import logging
 
-from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QDialog, QApplication
-from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 
 from gui.ui.ui_mainwindow import Ui_MainWindow
 from gui.instancetabwidget import InstanceTabWidget
 from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
 from gui.logwidget import LogWidget
+
+from database.linkedin import session, Client
 
 
 class SocialView(QMainWindow):
@@ -27,7 +28,7 @@ class SocialView(QMainWindow):
         self.instanceTabLayout.addStretch()
 
         # Setup general log
-        lw = LogWidget(self.ui.generalLogTextEdit)
+        lw = LogWidget(self.ui.generalLogTextEdit_2)
         lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         lw.setLevel(logging.DEBUG)
         logging.getLogger("controller").addHandler(lw)
@@ -40,9 +41,9 @@ class SocialView(QMainWindow):
         # Connect signals
         self.ui.newInstanceButton.clicked.connect(self.openNID)
 
-    def openNID(self):
+    def openNID(self, clients: list):
         """
-        Opens a new instance dialog
+        Opens a new instance dialog, populating it with clients list
         """
 
         nid = NewInstanceDialog(parent=self)
@@ -80,3 +81,9 @@ class SocialView(QMainWindow):
 
         layout.addWidget(instanceWidget)
         self.ui.instanceBox.setTitle(instanceTab.getName())
+
+    #############################
+    # Database stuff
+    #############################
+    def getClients(self) -> list:
+        return session.query(Client).all()

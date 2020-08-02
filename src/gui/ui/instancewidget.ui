@@ -159,6 +159,26 @@
             </layout>
            </item>
            <item>
+            <widget class="QPushButton" name="saveTemplateButton">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>Save</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="saveTemplateButton_2">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>Delete</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <spacer name="horizontalSpacer_3">
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -171,6 +191,16 @@
              </property>
             </spacer>
            </item>
+           <item>
+            <widget class="QPushButton" name="newTemplateButton">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>New Template</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
          <item>
@@ -178,16 +208,6 @@
          </item>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <item>
-            <widget class="QPushButton" name="saveTemplateButton">
-             <property name="enabled">
-              <bool>true</bool>
-             </property>
-             <property name="text">
-              <string>Save Template As...</string>
-             </property>
-            </widget>
-           </item>
            <item>
             <widget class="QPushButton" name="autoMessageButton">
              <property name="enabled">
@@ -304,6 +324,9 @@
              <property name="text">
               <string>Headless (No Browser)</string>
              </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
             </widget>
            </item>
            <item row="1" column="0">
@@ -327,7 +350,10 @@
            <item>
             <widget class="QPushButton" name="syncButton">
              <property name="text">
-              <string>Synchronize Database</string>
+              <string>Synchronize</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
@@ -350,6 +376,9 @@
           <spacer name="verticalSpacer">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::MinimumExpanding</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -424,63 +453,86 @@
          <property name="title">
           <string>Settings</string>
          </property>
-         <widget class="QCheckBox" name="headlessBoxGeneral">
-          <property name="geometry">
-           <rect>
-            <x>10</x>
-            <y>70</y>
-            <width>501</width>
-            <height>20</height>
-           </rect>
-          </property>
-          <property name="text">
-           <string>Run in Headless Mode (No visible browser, log still active)</string>
-          </property>
-         </widget>
-         <widget class="QCheckBox" name="closeBrowserBox">
-          <property name="geometry">
-           <rect>
-            <x>10</x>
-            <y>110</y>
-            <width>601</width>
-            <height>20</height>
-           </rect>
-          </property>
-          <property name="text">
-           <string>Automatically close browser after completing task (Can be changed during execution)</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-         <widget class="QWidget" name="layoutWidget1">
-          <property name="geometry">
-           <rect>
-            <x>10</x>
-            <y>30</y>
-            <width>251</width>
-            <height>24</height>
-           </rect>
-          </property>
-          <layout class="QFormLayout" name="formLayout2">
-           <item row="0" column="0">
-            <widget class="QLabel" name="label_2">
-             <property name="text">
-              <string>Browser:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="browserBox">
-             <item>
-              <property name="text">
-               <string>Chrome</string>
+         <layout class="QGridLayout" name="gridLayout_3">
+          <item row="0" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_3">
+              <item>
+               <layout class="QVBoxLayout" name="verticalLayout_2">
+                <item>
+                 <layout class="QFormLayout" name="formLayout2">
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="label_2">
+                    <property name="text">
+                     <string>Browser:</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QComboBox" name="browserBox">
+                    <item>
+                     <property name="text">
+                      <string>Chrome</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="headlessBoxGeneral">
+                  <property name="text">
+                   <string>Run in Headless Mode (No visible browser, log still active)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="closeBrowserBox">
+                  <property name="text">
+                   <string>Automatically close browser after completing task (Can be changed during execution)</string>
+                  </property>
+                  <property name="checked">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <spacer name="verticalSpacer_2">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeType">
+                 <enum>QSizePolicy::MinimumExpanding</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
-             </item>
-            </widget>
-           </item>
-          </layout>
-         </widget>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+         </layout>
         </widget>
        </item>
       </layout>

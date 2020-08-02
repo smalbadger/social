@@ -1,62 +1,168 @@
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox
 from PySide2.QtCore import QThreadPool
-from selenium.common.exceptions import InvalidSessionIdException
 
 from gui.logwidget import LogWidget
 from gui.ui.ui_instancewidget import Ui_mainWidget
 
-from site_controllers.linkedin import LinkedInController, LinkedInMessenger, LinkedInSynchronizer
+from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
-from common.strings import fromHTML
+from common.strings import fromHTML, toHTML
+from common.threading import Task
+from common.logging import controller_logger
+from database.linkedin import *
 
 
 class InstanceWidget(QWidget):
 
-    def __init__(self, client, platformName):
+    def __init__(self, client: Client, cConstructor):
         QWidget.__init__(self)
 
         self.ui = Ui_mainWidget()
         self.ui.setupUi(self)
 
-        self.platformName = platformName
+        # Client info
         self.client = client
-        self.ui.errorLabel.hide()
+        self.platformName = cConstructor.__name__[:-len('Controller')]
+        if self.platformName == 'LinkedIn':
+            self.account = client.linkedin_account
+        else:
+            self.account = None  # TODO: update when new platforms are available
 
+        # Account info
+        self.email = self.account.email
+        self.pwd = self.account.password
+        self.profilename = self.account.username
+
+        # Browser
+        self.opts = [f'{UserAgent().random}']
+        self.browser = self.ui.browserBox.currentText()
+
+        # Controllers and tasks
+        self.controllerConstructor = cConstructor
+        self.messagingController = None
+        self.messenger = None
+        self.selectedConnections = []
+        self.allConnections = {}
+        self.syncController = None
+        self.synchronizer = None
+
+        # Logger
         self.lw = LogWidget(self.ui.instanceLogTextEdit)
         self.lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.lw.setLevel(logging.DEBUG)
 
-        self.selectedConnections = []
+        # Populate and initialize values
+        self.numTemplates = 0
+        self.currentTempIndex = -1
+        self.fetchValues()
 
-        # TODO: These credentials need to be obtained elsewhere instead of hard-coding. This is just for testing
-        #  purposes.
-        self.controllerConstructor = globals().get(platformName + 'Controller')
-        self.email = "linkedin.test11@facade-technologies.com"
-        self.pwd = "linkedin.test11"
-        self.opts = [f'{UserAgent().random}']
-        self.browser = self.ui.browserBox.currentText()
+        # If critical login info is not available, disable headless mode.
+        headlessEnabled = True
+        for field in cConstructor.CRITICAL_LOGIN_INFO:
+            if not self.account.__getattribute__(field):
+                headlessEnabled = False
+                break
+        self.ui.headlessBoxSync.setChecked(headlessEnabled)
+        self.ui.headlessBoxSync.setEnabled(headlessEnabled)
+        self.ui.headlessBoxGeneral.setChecked(headlessEnabled)
+        self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
 
-        self.messagingController = None
-        self.messenger = None
-
-        self.syncController = None
-        self.synchronizer = None
-
-        self.initializeValues()
+        # Final stuff
         self.connectSignalsToFunctions()
+        self.ui.errorLabel.hide()
+        controller_logger.info(f'{self.platformName} instance created for {self.client.name}')
 
-    def initializeValues(self):
+    def updateStatusOfMessengerButton(self):
+        """Enable/disable the auto message button by looking at the selected connections list and the template editor"""
+        enable = True
+
+        # There must be text in the template editor
+        if not self.ui.messageTemplateEdit.toPlainText().strip():
+            enable = False
+
+        # There must be connections in the selected connections list
+        elif not self.ui.selectedConnectionsList.count():
+            enable = False
+
+        # TODO: Add condition that the template must be saved before sending it?
+
+        self.ui.autoMessageButton.setEnabled(enable)
+
+    def fetchValues(self, skipTemplates=False):
         """
-        Initializes values to what is collected from the database
+        Initializes connections and then initializes templates
         """
 
-        # TODO: Load connections and message templates from database
-        self.ui.messageTemplateEdit.setPlainText("yo yo {firstName}, your whole name is {fullName}")
+        prog = QProgressDialog('Fetching Connections...', 'Hide', 0, 0, parent=self.window())
+        prog.setModal(True)
+        prog.setWindowTitle('Fetching Connections...')
+
+        def populate(connections):
+            self.ui.allConnectionsList.clear()
+            self.ui.selectedConnectionsList.clear()
+            self.selectedConnections = []
+
+            for con in connections:
+                self.ui.allConnectionsList.addItem(con.name)
+                self.allConnections[con.name] = con
+
+            prog.close()
+
+            if not skipTemplates:
+                self.fetchTemplates()
+
+        task = Task(lambda: session.query(LinkedInConnection)
+                    .filter(LinkedInConnection.account_id == self.account.id))
+        task.finished.connect(populate)
+        QThreadPool.globalInstance().start(task)
+
+        prog.show()
+
+    def fetchTemplates(self, refreshing=False):
+        """
+        Gets templates associated to account
+        """
+
         self.ui.templatesBox.clear()
-        self.ui.templatesBox.setCurrentText("Template 1")
-        self.ui.allConnectionsList.addItems(["Mary-Ann Johnson", "Bobby Tables", "George d'tousla canil-bater"])
+
+        if refreshing:
+            msg = 'Refreshing template list...'
+        else:
+            msg = 'Getting templates...'
+
+        prog = QProgressDialog(msg, 'Hide', 0, 0, parent=self.window())
+        prog.setModal(True)
+        prog.setWindowTitle(msg)
+
+        def populate(templates):
+            self.numTemplates = 0
+            self.ui.templatesBox.clear()
+            self.ui.templatesBox.blockSignals(True)
+
+            for template in templates:
+                # TODO: Replace with actual template name when implemented in database
+                self.numTemplates += 1
+                self.addTemplate(f'Template {self.numTemplates}', template)
+
+            if self.numTemplates is not 0:
+                # Loads the last template
+                self.currentTempIndex = self.numTemplates-1
+                self.ui.templatesBox.setCurrentIndex(self.currentTempIndex)
+                self.loadTemplateAtIndex(self.currentTempIndex, skipSave=True)
+            else:
+                self.createNewTemplate(skipSave=True)
+
+            self.ui.templatesBox.blockSignals(False)
+            prog.close()
+
+        task = Task(lambda: session.query(LinkedInMessageTemplate)
+                    .filter(LinkedInMessageTemplate.account_id == self.account.id))
+        task.finished.connect(populate)
+        QThreadPool.globalInstance().start(task)
+
+        prog.show()
 
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
@@ -98,7 +204,7 @@ class InstanceWidget(QWidget):
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             # Controller stuff
-            self.messagingController = self.controllerConstructor(self.clientName, self.email, self.pwd,
+            self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
                                                                   browser=self.browser, options=self.opts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
@@ -123,9 +229,83 @@ class InstanceWidget(QWidget):
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
         self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
-        self.ui.syncButton.setCheckable(True)
         self.ui.syncButton.toggled.connect(self.synchronizeAccount)
         self.ui.selectAllBox.toggled.connect(self.selectAll)
+        self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
+        self.ui.newTemplateButton.clicked.connect(self.createNewTemplate)
+        self.ui.templatesBox.currentIndexChanged.connect(self.loadTemplateAtIndex)
+        self.ui.messageTemplateEdit.textChanged.connect(self.updateStatusOfMessengerButton)
+        self.ui.allConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
+        self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
+        self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
+
+    def addTemplate(self, name: str, data):
+        """
+        Adds a template to the template box. Naturally triggers the loadTemplateAtIndex function
+        """
+        self.ui.templatesBox.addItem(name, userData=data)
+
+    def saveCurrentTemplate(self, prompt=False):
+        """
+        Saves the current template to the database.
+        """
+
+        if prompt:
+            ans = QMessageBox.question(self.window(), 'Save', 'Save current template?')
+        else:
+            ans = QMessageBox.Yes
+
+        if ans == QMessageBox.Yes:
+            template = self.ui.templatesBox.itemData(self.currentTempIndex)
+            template.message_template = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
+
+            prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
+            prog.setModal(True)
+            prog.setWindowTitle('Saving...')
+
+            task = Task(session.commit)
+            task.finished.connect(prog.close)
+            QThreadPool.globalInstance().start(task)
+
+            prog.show()
+
+        self.currentTempIndex = self.ui.templatesBox.currentIndex()
+
+    def createNewTemplate(self, skipSave=False):
+        """
+        Creates a new template, and asks if the current one should be saved
+        """
+
+        # TODO: Implement QInputDialog to prompt for template name
+        session.add(
+            LinkedInMessageTemplate(
+                account_id=self.account.id,
+                message_template="",
+                crc=-1
+            )
+        )  # Defaulting crc to -1
+
+        if not skipSave:
+            self.saveCurrentTemplate(prompt=True)
+
+        self.fetchTemplates(refreshing=True)
+
+    def loadTemplateAtIndex(self, index: int, skipSave=False):
+        """
+        Loads template from the template at index "index" in the template choosing box,
+        asking to save current one beforehand
+        """
+
+        if not skipSave:
+            self.saveCurrentTemplate(prompt=True)
+
+        try:
+            text = self.ui.templatesBox.itemData(index).message_template.decode('unicode_escape')
+        except AttributeError:
+            # One-liners with no special characters don't need to be decoded
+            text = self.ui.templatesBox.itemData(index).message_template
+
+        self.ui.messageTemplateEdit.setPlainText(text)
 
     def selectAll(self, checked):
         """Selects all connections to send them a message"""
@@ -170,21 +350,25 @@ class InstanceWidget(QWidget):
             self.ui.syncButton.setChecked(False)
 
         if checked:
+            acl = self.ui.allConnectionsList
             options = {
-                'headless': self.ui.headlessBoxSync.isChecked(),
                 'messages': self.ui.updateMessagesBox.isChecked(),
                 'connections': self.ui.updateConnectionsBox.isChecked(),
+                'known': [acl.item(i).text() for i in range(acl.count())],
                 'accept new': self.ui.newConnectionsBox.isChecked()
             }
 
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
-            self.syncController = self.controllerConstructor(self.clientName, self.email, self.pwd,
-                                                             browser=self.browser, options=self.opts)
+            syncBrowserOpts = self.opts
+            if self.ui.headlessBoxSync.isChecked():
+                syncBrowserOpts.append("headless")
+            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
+                                                             browser=self.browser, options=syncBrowserOpts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 
             self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
-            self.syncController.connectionsScraped.connect(self.refreshConnections)
+            self.syncController.connectionsScraped.connect(self.scrapedConnectionsHandler)
 
             QThreadPool.globalInstance().start(self.synchronizer)
 
@@ -197,13 +381,18 @@ class InstanceWidget(QWidget):
                     self.syncController.warning(str(e))
             onComplete()
 
-    def refreshConnections(self, conns: dict):
+    def scrapedConnectionsHandler(self, conns: dict):
         """Clears the all connections list and selected list, and fills the all connections list with new ones"""
 
-        self.ui.allConnectionsList.clear()
-        self.ui.allConnectionsList.addItems(conns.keys())
-        self.ui.selectedConnectionsList.clear()
-        self.selectedConnections = []
+        prog = QProgressDialog('Processing Collected Data...', 'Hide', 0, 0, parent=self.window())
+        prog.setModal(True)
+        prog.setWindowTitle("Processing...")
+        prog.show()
+
+        task = Task(lambda: processScrapedConnections(conns, self.account))
+        task.finished.connect(prog.close)
+        task.finished.connect(lambda: self.fetchValues(skipTemplates=True))
+        QThreadPool.globalInstance().start(task)
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""
@@ -228,3 +417,87 @@ class InstanceWidget(QWidget):
         else:
             self.ui.closeBrowserBox.setEnabled(True)
             self.messagingController.options.headless = False
+
+
+#######################################
+# Database stuff (Call these in Tasks)
+#######################################
+
+def processScrapedConnections(conns: dict, account):
+    """
+    - Pulls connections from DB, finds the ones that correlate to entries in conns, and updates them.
+    - If there are new connections, adds them to the database.
+    - Pulls again from database after getting updated and checks that new connections were added successfully
+    - If not, they get logged as errors.
+    - Finally, UI gets updated with newly pulled list of connections.
+    """
+
+    prev = session.query(LinkedInConnection).filter(LinkedInConnection.account_id == account.id)
+
+    # Iterate through all connections scraped
+    controller_logger.info('')
+    controller_logger.info('Adding/updating collected data in database...')
+    for name in conns.keys():
+        alreadyExists = False
+        conDict = conns[name]
+
+        # These get defaulted in the controllers, and can't be re-defaulted without lots of if statements
+        link = conDict.get('link')
+        position = conDict.get('position')
+        location = conDict.get('location')
+        # mutual = conDict.get('mutual')
+
+        # First look for connections to update
+        for prevCon in prev:
+            if prevCon.url == link:
+                alreadyExists = True
+
+                if link != prevCon.url:
+                    prevCon.url = link
+
+                if position != prevCon.position:
+                    prevCon.position = position
+
+                if location != prevCon.location:
+                    prevCon.location = location
+
+                # TODO: Implement mutual connections in database, if necessary
+
+                break
+
+        if alreadyExists:
+            session.commit()
+            continue
+
+        # Now we know it is a new connection
+
+        session.add(
+            LinkedInConnection(
+                name=name,
+                account=account,
+                url=link,
+                location=location,
+                position=position
+            )
+        )
+
+        session.commit()
+
+    # Now make sure all connections were added successfully
+    for name in conns.keys():
+        conDict = conns[name]
+        link = conDict['link']
+        # Only need to check if the new row was made. Filtering by link because it is unique
+        entry = session.query(LinkedInConnection).filter(LinkedInConnection.url == link)[0]
+
+        if not entry:
+            # Should only happen if there is an error adding a new connection
+            controller_logger.error(f'{name} could not be added to the database.')
+
+        elif conDict['location'] != entry.location or conDict['position'] != entry.position:
+            # For updated connections
+            controller_logger.error(f'{name} could not be updated.')
+
+    # Then return with nothing since the fetchValues function will be called again
+    controller_logger.info('Done')
+    controller_logger.info('')

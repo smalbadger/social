@@ -6,26 +6,14 @@ from typing import List, Iterable
 from abc import ABC as AbstractBaseClass
 from abc import abstractmethod
 
-from PySide2.QtCore import QObject, QRunnable
+from PySide2.QtCore import QRunnable
 
 from selenium.webdriver import Remote
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
 from site_controllers.exceptions import *
-
-
-class Beacon(QObject):
-    """
-    Since the controllers can't inherit QObject, we instantiate a Beacon to handle signals,
-    and then add them back as attributes to the controllers.
-    """
-
-    def __init__(self, controller):
-        QObject.__init__(self)
-
-        for sigName, sigInst in vars(self).items():
-            setattr(controller, sigName, sigInst)
+from common.beacon import Beacon
 
 
 class Controller(AbstractBaseClass):
@@ -66,10 +54,37 @@ class Controller(AbstractBaseClass):
         self._username = username
         self._email = email
         self._password = password
+        self._criticalLoginInfo = ()
 
         self.initLogger()
         self.options = list(options)
+        print(self.options.arguments)
         self.browser = browser
+
+    def checkForValidConfiguration(self):
+        """
+        Determines if the controller configuration is Valid
+
+        :raises InvalidOptionsException: if invalid options are provided
+        """
+        if self.isManualLoginNeeded() and "headless" in self.options.arguments:
+            missingCredentials = ', '.join(self.getMissingCriticalLoginInfo())
+            raise InvalidOptionsException("The controller cannot be started in headless mode because the following "
+                                          f"credentials were not provided: {missingCredentials}")
+        # TODO: Add more checks as necessary
+
+    def isManualLoginNeeded(self):
+        manual = False
+        for field in self._criticalLoginInfo:
+            manual = manual or not self.__getattribute__(f"_{field}")
+        return manual
+
+    def getMissingCriticalLoginInfo(self):
+        missingFields = []
+        for field in self._criticalLoginInfo:
+            if not self.__getattribute__(f"_{field}"):
+                missingFields.append(field)
+        return missingFields
 
     def start(self):
         """Starts the controller"""
@@ -84,7 +99,7 @@ class Controller(AbstractBaseClass):
             self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
 
         self.browser.get(self._initialURL)
-        self.login(manual=False)
+        self.login(manual=self.isManualLoginNeeded())
 
     def stop(self):
         """Stops the controller by closing the browser"""
@@ -101,7 +116,7 @@ class Controller(AbstractBaseClass):
     #############################################################
 
     @abstractmethod
-    def login(self):
+    def login(self, manual=False):
         """Process taken to login"""
         pass
 
@@ -212,6 +227,10 @@ class Controller(AbstractBaseClass):
         returned.
         """
         return element.get_attribute('innerHTML').replace('<!---->', '').strip()
+
+    def setInnerText(self, element, innerText):
+        """Sets the innerText of an element"""
+        self.browser.execute_script(f"arguments[0].innerText = '{innerText}'", element)
 
     #############################################################
     #  Logging Shortcuts
