@@ -314,7 +314,6 @@ class LinkedInController(Controller):
         self.info("Verifying the message was sent")
         now = datetime.now()
         msg, timestamp = self.getLastMessageWithConnection(person, assumeConversationIsOpened=True)
-        print(equalTo(msg, message, normalize_whitespace=True), timestamp - now > timedelta(minutes=1))
         if not msg or not equalTo(msg, message, normalize_whitespace=True) or timestamp - now > timedelta(minutes=1):
             self.critical(f"The last message was '{msg}' and it was sent at {timestamp}")
             raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
@@ -329,7 +328,6 @@ class LinkedInController(Controller):
             firstName = connection.split(' ')[0]
             # Tested: doesn't matter if either of the params below isn't put in the template
             msg = usingTemplate.format(firstName=firstName, fullName=connection)
-            # print(msg)
             self.sendMessageTo(connection, msg)
 
     @authentication_required

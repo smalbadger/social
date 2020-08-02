@@ -118,13 +118,14 @@ class InstanceWidget(QWidget):
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
-        prog.show()
+        prog.exec_()
 
     def fetchTemplates(self, refreshing=False):
         """
         Gets templates associated to account
         """
 
+        self.ui.templatesBox.blockSignals(True)
         self.ui.templatesBox.clear()
 
         if refreshing:
@@ -139,7 +140,6 @@ class InstanceWidget(QWidget):
         def populate(templates):
             self.numTemplates = 0
             self.ui.templatesBox.clear()
-            self.ui.templatesBox.blockSignals(True)
 
             for template in templates:
                 # TODO: Replace with actual template name when implemented in database
@@ -162,7 +162,7 @@ class InstanceWidget(QWidget):
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
-        prog.show()
+        prog.exec_()
 
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
@@ -173,6 +173,11 @@ class InstanceWidget(QWidget):
         startStopButton = self.ui.autoMessageButton
 
         def onComplete():
+            """Called on completion of the Messenger task"""
+            startStopButton.setChecked(False)
+            if not self.messagingController:
+                return
+
             startStopButton.setText("Closing, please wait...")
             startStopButton.setEnabled(False)
 
@@ -186,9 +191,6 @@ class InstanceWidget(QWidget):
 
             startStopButton.setText("Send Message to Selected Connections")
             startStopButton.setEnabled(True)
-
-        def teardown():  # This will naturally call onComplete, otherwise it is called twice
-            startStopButton.setChecked(False)
 
         if start:
             template = self.ui.messageTemplateEdit.toPlainText()
@@ -208,7 +210,7 @@ class InstanceWidget(QWidget):
                                                                   browser=self.browser, options=self.opts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
-                                               self.selectedConnections, teardown_func=teardown)
+                                               self.selectedConnections, teardown_func=onComplete)
             QThreadPool.globalInstance().start(self.messenger)
 
             startStopButton.setText("Stop")
@@ -234,10 +236,58 @@ class InstanceWidget(QWidget):
         self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
         self.ui.newTemplateButton.clicked.connect(self.createNewTemplate)
         self.ui.templatesBox.currentIndexChanged.connect(self.loadTemplateAtIndex)
+        self.ui.deleteTemplateButton.clicked.connect(lambda: self.deleteCurrentTemplate())  # lambda needed to fix bug
         self.ui.messageTemplateEdit.textChanged.connect(self.updateStatusOfMessengerButton)
         self.ui.allConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
+
+    def deleteCurrentTemplate(self, prompt=True):
+        """
+        Deletes the current template locally and then from the database
+        """
+
+        if prompt:
+            ans = QMessageBox.question(self.window(), 'Confirm',
+                                       "Are you sure you want to delete this template? This can't be undone.")
+        else:
+            ans = QMessageBox.Yes
+
+        if ans == QMessageBox.Yes:
+            def deleteTemplate():
+                controller_logger.info("")
+                box = self.ui.templatesBox
+
+                template = box.currentData()
+                ind = box.currentIndex()
+                name = box.currentText()
+
+                # Local deletion
+                controller_logger.info(f"Deleting {name} locally...")
+                box.blockSignals(True)
+                box.removeItem(ind)
+                self.numTemplates -= 1
+                self.currentTempIndex = self.numTemplates - 1
+                self.loadTemplateAtIndex(self.currentTempIndex, skipSave=True)
+                box.setCurrentIndex(self.currentTempIndex)
+                box.blockSignals(False)
+
+                # Server deletion
+                controller_logger.info(f"Deleting {name} from server...")
+                session.delete(template)
+                session.commit()
+
+                controller_logger.info(f"Successfully deleted {name}.")
+
+            prog = QProgressDialog('Deleting Template...', 'Hide', 0, 0, parent=self.window())
+            prog.setModal(True)
+            prog.setWindowTitle('Deleting...')
+
+            task = Task(deleteTemplate)
+            task.finished.connect(prog.close)
+            QThreadPool.globalInstance().start(task)
+
+            prog.exec_()
 
     def addTemplate(self, name: str, data):
         """
@@ -250,24 +300,35 @@ class InstanceWidget(QWidget):
         Saves the current template to the database.
         """
 
-        if prompt:
-            ans = QMessageBox.question(self.window(), 'Save', 'Save current template?')
+        template = self.ui.templatesBox.itemData(self.currentTempIndex)
+        newMsg = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
+        if template:
+            curMsg = template.message_template.encode('latin1')
         else:
-            ans = QMessageBox.Yes
+            curMsg = newMsg  # No need to save if there is nothing currently loaded
 
-        if ans == QMessageBox.Yes:
-            template = self.ui.templatesBox.itemData(self.currentTempIndex)
-            template.message_template = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
+        # Only save if the text has been changed
+        if curMsg != newMsg:
 
-            prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
-            prog.setModal(True)
-            prog.setWindowTitle('Saving...')
+            if prompt:
+                ans = QMessageBox.question(self.window(), 'Save', 'Save current template?')
+            else:
+                ans = QMessageBox.Yes
 
-            task = Task(session.commit)
-            task.finished.connect(prog.close)
-            QThreadPool.globalInstance().start(task)
+            if ans == QMessageBox.Yes:
+                template.message_template = newMsg
 
-            prog.show()
+                prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
+                prog.setModal(True)
+                prog.setWindowTitle('Saving...')
+
+                task = Task(session.commit)
+                task.finished.connect(prog.close)
+                QThreadPool.globalInstance().start(task)
+
+                prog.exec_()
+                controller_logger.info("")
+                controller_logger.info(f"Saving {self.ui.templatesBox.itemText(self.currentTempIndex)}")
 
         self.currentTempIndex = self.ui.templatesBox.currentIndex()
 
@@ -280,7 +341,7 @@ class InstanceWidget(QWidget):
         session.add(
             LinkedInMessageTemplate(
                 account_id=self.account.id,
-                message_template="",
+                message_template=" ",
                 crc=-1
             )
         )  # Defaulting crc to -1
@@ -331,7 +392,12 @@ class InstanceWidget(QWidget):
     def synchronizeAccount(self, checked):
         """Synchronizes account using options given in GUI"""
 
+        syncBtn = self.ui.syncButton
         def onComplete():
+            """Called on completion of the Synchronizer task"""
+            syncBtn.setChecked(False)
+            if not self.syncController:
+                return
             self.ui.syncButton.setText('Closing...')
             self.ui.syncButton.setEnabled(False)
 
@@ -345,9 +411,6 @@ class InstanceWidget(QWidget):
 
             self.ui.syncButton.setText('Synchronize Database')
             self.ui.syncButton.setEnabled(True)
-
-        def teardown():  # This will naturally call onComplete, otherwise it is called twice
-            self.ui.syncButton.setChecked(False)
 
         if checked:
             acl = self.ui.allConnectionsList
@@ -367,7 +430,7 @@ class InstanceWidget(QWidget):
                                                              browser=self.browser, options=syncBrowserOpts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 
-            self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
+            self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=onComplete)
             self.syncController.connectionsScraped.connect(self.scrapedConnectionsHandler)
 
             QThreadPool.globalInstance().start(self.synchronizer)
@@ -387,7 +450,7 @@ class InstanceWidget(QWidget):
         prog = QProgressDialog('Processing Collected Data...', 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle("Processing...")
-        prog.show()
+        prog.exec_()
 
         task = Task(lambda: processScrapedConnections(conns, self.account))
         task.finished.connect(prog.close)
