@@ -98,6 +98,7 @@ class InstanceWidget(QWidget):
         Gets templates associated to account
         """
 
+        self.ui.templatesBox.blockSignals(True)
         self.ui.templatesBox.clear()
 
         if refreshing:
@@ -112,7 +113,6 @@ class InstanceWidget(QWidget):
         def populate(templates):
             self.numTemplates = 0
             self.ui.templatesBox.clear()
-            self.ui.templatesBox.blockSignals(True)
 
             for template in templates:
                 # TODO: Replace with actual template name when implemented in database
@@ -207,6 +207,54 @@ class InstanceWidget(QWidget):
         self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
         self.ui.newTemplateButton.clicked.connect(self.createNewTemplate)
         self.ui.templatesBox.currentIndexChanged.connect(self.loadTemplateAtIndex)
+        self.ui.deleteTemplateButton.clicked.connect(lambda: self.deleteCurrentTemplate())  # lambda needed to fix bug
+
+    def deleteCurrentTemplate(self, prompt=True):
+        """
+        Deletes the current template locally and then from the database
+        """
+
+        if prompt:
+            ans = QMessageBox.question(self.window(), 'Confirm',
+                                       "Are you sure you want to delete this template? This can't be undone.")
+        else:
+            ans = QMessageBox.Yes
+
+        if ans == QMessageBox.Yes:
+            def deleteTemplate():
+                controller_logger.info("")
+                box = self.ui.templatesBox
+
+                template = box.currentData()
+                ind = box.currentIndex()
+                name = box.currentText()
+
+                # Local deletion
+                controller_logger.info(f"Deleting {name} locally...")
+                box.blockSignals(True)
+                box.removeItem(ind)
+                self.numTemplates -= 1
+                self.currentTempIndex = self.numTemplates - 1
+                self.loadTemplateAtIndex(self.currentTempIndex, skipSave=True)
+                box.setCurrentIndex(self.currentTempIndex)
+                box.blockSignals(False)
+
+                # Server deletion
+                controller_logger.info(f"Deleting {name} from server...")
+                session.delete(template)
+                session.commit()
+
+                controller_logger.info(f"Successfully deleted {name}.")
+
+            prog = QProgressDialog('Deleting Template...', 'Hide', 0, 0, parent=self.window())
+            prog.setModal(True)
+            prog.setWindowTitle('Deleting...')
+
+            task = Task(deleteTemplate)
+            task.finished.connect(prog.close)
+            QThreadPool.globalInstance().start(task)
+
+            prog.show()
 
     def addTemplate(self, name: str, data):
         """
@@ -219,24 +267,32 @@ class InstanceWidget(QWidget):
         Saves the current template to the database.
         """
 
-        if prompt:
-            ans = QMessageBox.question(self.window(), 'Save', 'Save current template?')
-        else:
-            ans = QMessageBox.Yes
+        template = self.ui.templatesBox.itemData(self.currentTempIndex)
+        newMsg = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
+        curMsg = template.message_template.encode('latin1')
 
-        if ans == QMessageBox.Yes:
-            template = self.ui.templatesBox.itemData(self.currentTempIndex)
-            template.message_template = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
+        # Only save if the text has been changed
+        if curMsg != newMsg:
 
-            prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
-            prog.setModal(True)
-            prog.setWindowTitle('Saving...')
+            if prompt:
+                ans = QMessageBox.question(self.window(), 'Save', 'Save current template?')
+            else:
+                ans = QMessageBox.Yes
 
-            task = Task(session.commit)
-            task.finished.connect(prog.close)
-            QThreadPool.globalInstance().start(task)
+            if ans == QMessageBox.Yes:
+                template.message_template = newMsg
 
-            prog.show()
+                prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
+                prog.setModal(True)
+                prog.setWindowTitle('Saving...')
+
+                task = Task(session.commit)
+                task.finished.connect(prog.close)
+                QThreadPool.globalInstance().start(task)
+
+                prog.show()
+                controller_logger.info("")
+                controller_logger.info(f"Saving {self.ui.templatesBox.itemText(self.currentTempIndex)}")
 
         self.currentTempIndex = self.ui.templatesBox.currentIndex()
 
@@ -249,7 +305,7 @@ class InstanceWidget(QWidget):
         session.add(
             LinkedInMessageTemplate(
                 account_id=self.account.id,
-                message_template="",
+                message_template=" ",
                 crc=-1
             )
         )  # Defaulting crc to -1

@@ -169,7 +169,7 @@
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="saveTemplateButton_2">
+            <widget class="QPushButton" name="deleteTemplateButton">
              <property name="enabled">
               <bool>true</bool>
              </property>
