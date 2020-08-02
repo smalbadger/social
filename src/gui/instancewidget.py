@@ -241,6 +241,12 @@ class InstanceWidget(QWidget):
         self.ui.allConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
+        self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
+
+    def openFilterDialog(self):
+        """
+        Opens the dialog that asks for filter criteria
+        """
 
     def deleteCurrentTemplate(self, prompt=True):
         """
