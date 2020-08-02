@@ -33,7 +33,7 @@ class InstanceWidget(QWidget):
         # Account info
         self.email = self.account.email
         self.pwd = self.account.password
-        self.profilename = self.account.username
+        self.profile_name = self.account.profile_name
 
         # Browser
         self.opts = [f'{UserAgent().random}']
