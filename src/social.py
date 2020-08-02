@@ -34,10 +34,6 @@ def stylize(qApp):
     qApp.setStyleSheet("QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }")
 
 if __name__ == "__main__":
-    # print(message)
-    # print(LEVELS)
-    # exit()
-
     # add the driver to the PATH variable
     os.environ["PATH"] += os.pathsep + os.path.abspath(os.path.join("..", "drivers", "windows"))
 

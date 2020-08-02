@@ -28,22 +28,6 @@ def authentication_required(func):
 
     return check
 
-
-def print_page_on_exception(func):
-    """If an exception occurs, print the page HTML"""
-
-    @wraps(func)
-    def check(*args, **kwargs):
-        controller = args[0]
-
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            print(controller.browser.page_source)
-            raise e
-
-    return check
-
 def log_exceptions(func, controller):
     """Log all exceptions"""
 
