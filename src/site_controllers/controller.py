@@ -58,7 +58,6 @@ class Controller(AbstractBaseClass):
 
         self.initLogger()
         self.options = list(options)
-        print(self.options.arguments)
         self.browser = browser
 
     def checkForValidConfiguration(self):

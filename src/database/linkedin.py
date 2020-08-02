@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker, relationship
 
 from database.credentials import username, password, host, port
 
-engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social', pool_recycle=3600)
+engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social', pool_recycle=3600, connect_args={'connect_timeout': 10})
 session = sessionmaker(bind=engine)()
 
 Base = declarative_base()
@@ -100,10 +100,3 @@ class ResponseMeanings(Base):
     # -- ORM --------------------------
     id = Column(Integer, primary_key=True, autoincrement=True)
     meaning = Column(String, unique=True)
-
-if __name__ == '__main__':
-    clients = session.query(Client).all()
-    for c in clients:
-        print(c.linkedin_account.profile_name)
-        for connection in c.linkedin_account.connections:
-            print("\t" + connection.name)
