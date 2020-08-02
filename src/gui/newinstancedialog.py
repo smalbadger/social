@@ -27,6 +27,9 @@ class NewInstanceDialog(QDialog):
         self.ui.clientBox.activated.connect(self.populatePlatforms)
         self.ui.platformBox.setEnabled(False)
 
+        self.ui.clientBox.activated.connect(self.ui.errorLabel.hide)
+        self.ui.platformBox.activated.connect(self.ui.errorLabel.hide)
+
         self.populateClients()
 
     def newClient(self):
@@ -73,20 +76,25 @@ class NewInstanceDialog(QDialog):
         Runs checks before accepting, then creates a new instance if successful
         """
 
+        self.ui.errorLabel.hide()
+        errors = []
+
         client = self.ui.clientBox.currentData()
         platform = self.ui.platformBox.currentData()
         platformName = self.ui.platformBox.currentText()
 
-        # At this point, platform has already been wrapped by the class decorator, so we need:
-        platform = platform.innerCls
-
-        self.ui.errorLabel.hide()
-        errors = []
-
         if not client:
             errors.append("Select a client")
         if not platform:
-            errors.append("Select a platform")
+            errors.append("Select a platform or select a client that has available accounts")
+
+        if errors:
+            self.ui.errorLabel.setText("\n".join(errors))
+            self.ui.errorLabel.show()
+            return
+
+        # At this point, platform has already been wrapped by the class decorator, so we need:
+        platform = platform.innerCls
 
         for inst in self.mainWindow.instances.values():
             if inst.client.id == client.id and inst.platformName == platformName:
