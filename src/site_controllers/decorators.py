@@ -81,9 +81,6 @@ def log_all_exceptions(Cls):
             instance of the decorated class). If it manages to fetch the attribute from self.oInstance, and
             the attribute is an instance method then `log_exceptions` is applied.
             """
-            print(self)
-            if self == NewCls.innerCls:
-                return super(NewCls.innerCls, self).__getattribute__(s)
 
             try:
                 x = super(NewCls, self).__getattribute__(s)
