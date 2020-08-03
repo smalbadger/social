@@ -487,16 +487,6 @@
                   </property>
                  </widget>
                 </item>
-                <item>
-                 <widget class="QCheckBox" name="closeBrowserBox">
-                  <property name="text">
-                   <string>Automatically close browser after completing task (Can be changed during execution)</string>
-                  </property>
-                  <property name="checked">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
                </layout>
               </item>
               <item>

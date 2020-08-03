@@ -48,6 +48,9 @@ class LinkedInAccount(Base):
 
     def getPassword(self):
         """Get the decrypted password"""
+        if not self.password:
+            return ""
+
         nonce = self.password[0:16]
         ciphertext = self.password[16:]
         cipher = AES.new(AES_key, AES.MODE_EAX, nonce=nonce)

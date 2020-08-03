@@ -73,6 +73,7 @@ class InstanceWidget(QWidget):
         self.connectSignalsToFunctions()
         self.ui.errorLabel.hide()
         controller_logger.info(f'{self.platformName} instance created for {self.client.name}')
+        self.updateStatusOfMessengerButton()
 
     def updateStatusOfMessengerButton(self):
         """Enable/disable the auto message button by looking at the selected connections list and the template editor"""
@@ -206,8 +207,11 @@ class InstanceWidget(QWidget):
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             # Controller stuff
+            messengerBrowserOpts = self.opts[:]
+            if self.ui.headlessBoxGeneral.isChecked():
+                messengerBrowserOpts.append("headless")
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                                  browser=self.browser, options=self.opts)
+                                                                  browser=self.browser, options=messengerBrowserOpts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                self.selectedConnections, teardown_func=onComplete)
@@ -230,7 +234,6 @@ class InstanceWidget(QWidget):
         self.ui.autoMessageButton.toggled.connect(self.autoMessage)
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
-        self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
         self.ui.syncButton.toggled.connect(self.synchronizeAccount)
         self.ui.selectAllBox.toggled.connect(self.selectAll)
         self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
@@ -423,7 +426,7 @@ class InstanceWidget(QWidget):
 
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
-            syncBrowserOpts = self.opts
+            syncBrowserOpts = self.opts[:]
             if self.ui.headlessBoxSync.isChecked():
                 syncBrowserOpts.append("headless")
             self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
@@ -469,17 +472,6 @@ class InstanceWidget(QWidget):
             ind = self.ui.selectedConnectionsList.row(connection)
             self.ui.selectedConnectionsList.takeItem(ind)
             self.selectedConnections.remove(connection.text())
-
-    def checkGeneralHeadless(self, checked):
-        """Handles changing the headless mode on the controller's browser"""
-
-        if checked:
-            self.ui.closeBrowserBox.setChecked(True)
-            self.ui.closeBrowserBox.setEnabled(False)
-            self.messagingController.options.headless = True
-        else:
-            self.ui.closeBrowserBox.setEnabled(True)
-            self.messagingController.options.headless = False
 
 
 #######################################
