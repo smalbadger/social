@@ -1,4 +1,4 @@
-from PySide2.QtWidgets import QDialog, QProgressDialog, QMessageBox
+from PySide2.QtWidgets import QDialog, QProgressDialog, QDialogButtonBox
 from PySide2.QtCore import QThreadPool, Signal
 from gui.ui.ui_filterdialog import Ui_Dialog
 from common.threading import Task
@@ -17,6 +17,8 @@ class FilterDialog(QDialog):
 
         self.account = curAccount
         self.fillLocations()
+
+        self.connectSignals()
 
     def fillLocations(self):
 
@@ -40,6 +42,34 @@ class FilterDialog(QDialog):
 
         prog.exec_()
 
+    def connectSignals(self):
+
+        # Enabling/disabling associated field
+        self.ui.useLocation.toggled.connect(self.ui.location.setEnabled)
+        self.ui.useMaxMessages.toggled.connect(self.ui.numMessages.setEnabled)
+
+        # Enabling/disabling ok button
+        def slot(): self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(self.atLeastOneChecked())
+        self.ui.useLocation.toggled.connect(slot)
+        self.ui.useMaxMessages.toggled.connect(slot)
+
+        slot()
+
+    def atLeastOneChecked(self):
+        return self.ui.useLocation.isChecked() \
+               or self.ui.useMaxMessages.isChecked()
+
     def accept(self):
-        self.filterAccepted.emit(self.ui.location.currentText(), self.ui.numMessages.value())
+        if self.ui.useLocation.isChecked():
+            location = self.ui.location.currentText()
+        else:
+            location = None
+
+        if self.ui.useMaxMessages.isChecked():
+            maxMessages = self.ui.numMessages.value()
+        else:
+            maxMessages = 10
+
+        self.filterAccepted.emit(location, maxMessages)
+
         QDialog.accept(self)
