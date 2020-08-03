@@ -146,7 +146,7 @@ class InstanceWidget(QWidget):
                 self.numTemplates += 1
                 self.addTemplate(f'Template {self.numTemplates}', template)
 
-            if self.numTemplates is not 0:
+            if self.numTemplates != 0:
                 # Loads the last template
                 self.currentTempIndex = self.numTemplates-1
                 self.ui.templatesBox.setCurrentIndex(self.currentTempIndex)
