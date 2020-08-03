@@ -98,6 +98,7 @@ class InstanceWidget(QWidget):
         prog = QProgressDialog('Fetching Connections...', 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle('Fetching Connections...')
+        prog.show()
 
         def populate(connections):
             self.ui.allConnectionsList.clear()
@@ -136,6 +137,7 @@ class InstanceWidget(QWidget):
         prog = QProgressDialog(msg, 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle(msg)
+        prog.show()
 
         def populate(templates):
             self.numTemplates = 0
@@ -282,6 +284,7 @@ class InstanceWidget(QWidget):
             prog = QProgressDialog('Deleting Template...', 'Hide', 0, 0, parent=self.window())
             prog.setModal(True)
             prog.setWindowTitle('Deleting...')
+            prog.show()
 
             task = Task(deleteTemplate)
             task.finished.connect(prog.close)
@@ -321,6 +324,7 @@ class InstanceWidget(QWidget):
                 prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
                 prog.setModal(True)
                 prog.setWindowTitle('Saving...')
+                prog.show()
 
                 task = Task(session.commit)
                 task.finished.connect(prog.close)
@@ -450,6 +454,7 @@ class InstanceWidget(QWidget):
         prog = QProgressDialog('Processing Collected Data...', 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle("Processing...")
+        prog.show()
 
         task = Task(lambda: processScrapedConnections(conns, self.account))
         task.finished.connect(prog.close)
