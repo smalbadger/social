@@ -259,7 +259,7 @@ class InstanceWidget(QWidget):
                 prog.close()
 
                 QMessageBox.information(self.window(), 'Connections Filtered.',
-                                        f'Found {len(filteredConnections)} matching connections.')
+                                        f'Found {len(filteredConnections)} matching connection(s).')
 
             prog = QProgressDialog('Filtering Connections...', 'Hide', 0, 0, parent=self.window())
             prog.setModal(True)
