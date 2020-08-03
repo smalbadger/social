@@ -4,6 +4,7 @@ from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessag
 from PySide2.QtCore import QThreadPool
 
 from gui.logwidget import LogWidget
+from gui.filterdialog import FilterDialog
 from gui.ui.ui_instancewidget import Ui_mainWidget
 
 from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
@@ -248,6 +249,57 @@ class InstanceWidget(QWidget):
         Opens the dialog that asks for filter criteria
         """
 
+        def filt(location, numMessages):
+
+            def populate(filteredConnections):
+                self.ui.selectedConnectionsList.clear()
+                self.selectedConnections = filteredConnections
+                self.ui.selectedConnectionsList.addItems(self.selectedConnections)
+
+                prog.close()
+
+                QMessageBox.information(self.window(), 'Connections Filtered.',
+                                        f'Found {len(filteredConnections)} matching connections.')
+
+            prog = QProgressDialog('Filtering Connections...', 'Hide', 0, 0, parent=self.window())
+            prog.setModal(True)
+            prog.setWindowTitle('Filtering...')
+
+            task = Task(lambda: self.filterConnectionsBy(location=location, maxMessages=numMessages))
+            task.finished.connect(populate)
+            QThreadPool.globalInstance().start(task)
+
+            prog.exec_()
+
+        fd = FilterDialog(self.account, parent=self.window())
+        fd.filterAccepted.connect(filt)
+        fd.exec_()
+
+    def filterConnectionsBy(self, location=None, maxMessages=10):
+
+        result = self.allConnections
+
+        if location:
+            result = dict(filter(lambda tup: tup[1].location == location, result.items()))
+
+        # This one is complicated:
+        #  Query database for messages sent to connection from the instance's account,
+        #  get the length of the returned list, and compare it to maxMessages
+        result = dict(
+            filter(lambda tup:
+                   len(
+                       list(
+                           session.query(LinkedInMessage).filter(
+                               LinkedInMessage.account_id == self.account.id,
+                               LinkedInMessage.recipient_connection_id == tup[1].id
+                           )
+                       )
+                   ) < maxMessages, result.items()
+            )
+        )
+
+        return list(result.keys())
+
     def deleteCurrentTemplate(self, prompt=True):
         """
         Deletes the current template locally and then from the database
@@ -366,12 +418,7 @@ class InstanceWidget(QWidget):
         if not skipSave:
             self.saveCurrentTemplate(prompt=True)
 
-        try:
-            text = self.ui.templatesBox.itemData(index).message_template.decode('unicode_escape')
-        except AttributeError:
-            # One-liners with no special characters don't need to be decoded
-            text = self.ui.templatesBox.itemData(index).message_template
-
+        text = self.ui.templatesBox.itemData(index).message_template.encode('latin1').decode('unicode_escape')
         self.ui.messageTemplateEdit.setPlainText(text)
 
     def selectAll(self, checked):
