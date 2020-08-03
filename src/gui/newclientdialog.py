@@ -71,6 +71,7 @@ class NewClientDialog(QDialog):
 
         prog = QProgressDialog("Creating new client. please wait...", "Hide", 0, 0, parent=self)
         prog.setModal(True)
+        prog.show()
 
         def addToDB():
             session.add_all(dbEntries)
