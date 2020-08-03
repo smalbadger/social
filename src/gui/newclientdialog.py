@@ -52,7 +52,8 @@ class NewClientDialog(QDialog):
             #     errors.append("Need LinkedIn Password")
             else:
                 accounts += 1
-                linkedinAccount = LinkedInAccount(email=e, username=u, password=p, tester=isTester)
+                linkedinAccount = LinkedInAccount(email=e, profile_name=u, tester=isTester)
+                linkedinAccount.setPassword(p)
                 self.client.linkedin_account = linkedinAccount
                 dbEntries.append(linkedinAccount)
 

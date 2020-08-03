@@ -1,10 +1,11 @@
 import datetime
+from Cryptodome.Cipher import AES
 from sqlalchemy import create_engine
-from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
-from database.credentials import username, password, host, port
+from database.credentials import username, password, host, port, AES_key
 
 engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social', pool_recycle=3600, connect_args={'connect_timeout': 10})
 session = sessionmaker(bind=engine)()
@@ -33,8 +34,8 @@ class LinkedInAccount(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True)
-    username = Column(String)
-    password = Column(String)
+    profile_name = Column(String)
+    password = Column(LargeBinary)
     flagged_as_bot_date = Column(DateTime, default=None)
     flagged_as_bot = Column(Integer, default=0)
     tester = Column(Boolean, default=False)
@@ -44,6 +45,21 @@ class LinkedInAccount(Base):
     connections = relationship("LinkedInConnection", back_populates="account")
     messages = relationship("LinkedInMessage", back_populates="account")
     message_templates = relationship("LinkedInMessageTemplate", back_populates="account")
+
+    def getPassword(self):
+        """Get the decrypted password"""
+        nonce = self.password[0:16]
+        ciphertext = self.password[16:]
+        cipher = AES.new(AES_key, AES.MODE_EAX, nonce=nonce)
+        plaintext = cipher.decrypt(ciphertext).decode("utf-8")
+        return plaintext
+
+    def setPassword(self, password):
+        """Encrypt the password and store it"""
+        cipher = AES.new(AES_key, AES.MODE_EAX)
+        nonce = cipher.nonce
+        ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
+        self.password = nonce + ciphertext
 
 class LinkedInConnection(Base):
     """LinkedIn Connections belonging to our clients (connections mutual to multiple clients will be duplicated)"""
