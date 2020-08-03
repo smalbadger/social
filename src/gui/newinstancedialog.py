@@ -46,6 +46,7 @@ class NewInstanceDialog(QDialog):
         """Fetches all clients from the database and populates the client combo box with them"""
         prog = QProgressDialog("Fetching clients, please wait...", "Hide", 0, 0, parent=self)
         prog.setModal(True)
+        prog.show()
 
         def populate(clients):
             for client in clients:
