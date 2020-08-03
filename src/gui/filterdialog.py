@@ -31,10 +31,6 @@ class FilterDialog(QDialog):
 
             prog.close()
 
-            if not loc:
-                QMessageBox.warning(parent=self.parent())
-                self.close()
-
         task = Task(lambda: session.query(LinkedInConnection.location)
                     .filter(LinkedInConnection.account_id == self.account.id)
                     .distinct())
