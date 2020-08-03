@@ -326,9 +326,9 @@ class InstanceWidget(QWidget):
                 task.finished.connect(prog.close)
                 QThreadPool.globalInstance().start(task)
 
-                prog.exec_()
                 controller_logger.info("")
                 controller_logger.info(f"Saving {self.ui.templatesBox.itemText(self.currentTempIndex)}")
+                prog.exec_()
 
         self.currentTempIndex = self.ui.templatesBox.currentIndex()
 
@@ -450,12 +450,12 @@ class InstanceWidget(QWidget):
         prog = QProgressDialog('Processing Collected Data...', 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle("Processing...")
-        prog.exec_()
 
         task = Task(lambda: processScrapedConnections(conns, self.account))
         task.finished.connect(prog.close)
         task.finished.connect(lambda: self.fetchValues(skipTemplates=True))
         QThreadPool.globalInstance().start(task)
+        prog.exec_()
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""
