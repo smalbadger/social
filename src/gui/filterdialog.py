@@ -63,11 +63,11 @@ class FilterDialog(QDialog):
             # Counting how many people are in each area
             locDict = {}
             for loc in locs:
-                name = locDict.get(loc[0], None)
-                if name:
+                name = loc[0]  # loc is a (name, ) tuple, so we just get the name out of it from the 0th position
+                if name in locDict.keys():
                     locDict[name] += 1
                 else:
-                    locDict[loc[0]] = 1
+                    locDict[name] = 1
 
             # Add locations to map
             for loc, num in locDict.items():
