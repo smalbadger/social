@@ -1,12 +1,15 @@
 import os
-import time
-import pygit2
-import pip
-import subprocess
+import sys
+from subprocess import check_output
+# import pygit2
+# import pip
+# import subprocess
 
 temp_req_file = "temp_requirements.txt"
-perm_req_file = "../requirements.txt"
-conda_env_file = "../env.yml"
+# perm_pip_req_file = "../pip-requirements.txt"
+perm_con_req_file = "../conda-requirements.txt"
+con_req_rev = '../conda-fresh.txt'
+pip_packages = ['fake-useragent']  # Keep this list as short as possible
 
 # Mapping of dependencies to download and install from Facade Technologies github
 # These are generally repositories that needed to be forked and modified to work with Facile.
@@ -16,18 +19,48 @@ requirements_from_source = {
 
 if __name__ == "__main__":
 
-    print('Clearing environment')
-    os.system('conda install --revision 0 -y')
-    print()
-
-    print('Waiting (just to be safe...)')
-    time.sleep(3)
-    print()
-
-    print('Rebuilding environment')
-    os.system(f'conda env update -f {conda_env_file}')
-
     # -- Get current list of installed packages. -----------------------------------------------------------------------
+    os.system(f"conda list --export > {temp_req_file}")
+
+    with open(temp_req_file) as f:
+        cur_reqs = set([line.split('=')[0] for line in f.readlines()[3:]])
+    os.remove(temp_req_file)
+
+    # -- Get list of minimum and needed requirements -------------------------------------------------------------------
+
+    with open(perm_con_req_file) as f:
+        needed_reqs = set([line.split('=')[0] for line in f.readlines()[3:]])
+
+    # -- Determine which requirements we have, need to get rid of, or need to install. ---------------------------------
+    # TODO: Find way to filter unnecessary packages from pip freeze
+    unnecessary_packages = [
+        p for p in cur_reqs - needed_reqs if p not in requirements_from_source or p not in pip_packages
+    ]
+    needed_packages = [p for p in needed_reqs - cur_reqs if p not in pip_packages]
+
+    # -- Uninstall unnecessary packages --------------------------------------------------------------------------------
+    unnecessary_packages.remove('\x1b[0m')  # Idk why but this shows up
+
+    for package in unnecessary_packages:
+        print(f"Uninstalling {package}")
+        os.system(f"conda remove {package} --yes 1>nul 2>&1")
+
+    # -- Install all required dependencies (if not installing from source) ---------------------------------------------
+    tot = len(needed_packages)
+    for package in needed_packages:
+        # stripped_package = package.replace("="," ").replace(">", " ").replace("<", " ").split()[0].lower()
+        # if stripped_package not in requirements_from_source:
+        print(f"({needed_packages.index(package)+1}/{tot}) Installing {package.split('=')[0]}")
+        os.system(f"conda install -c conda-forge {package} --yes 1>nul 2>&1")
+
+    pkgs = [pk.split(b'==')[0].decode('latin1') for pk in check_output(['pip', 'freeze']).split(b'\r\n')]
+
+    for package in pip_packages:
+        if package not in pkgs:
+            print(f'Installing {package} with pip')
+            os.system(f'pip install --no-deps {package} 1>nul 2>&1')
+
+    # # -- Get current list of installed packages. -----------------------------------------------------------------------
     # os.system(f"pip freeze > {temp_req_file}")
     #
     # with open(temp_req_file) as f:
@@ -35,21 +68,19 @@ if __name__ == "__main__":
     # os.remove(temp_req_file)
     #
     # # -- Get list of necessary requirements ----------------------------------------------------------------------------
-    # with open(perm_req_file) as f:
+    # with open(perm_pip_req_file) as f:
     #     needed_reqs = set(f.readlines()[3:])
     #
     # # -- Determine which requirements we have, need to get rid of, or need to install. ---------------------------------
     # # TODO: Find way to filter unnecessary packages from pip freeze
-    # unnecessary_packages = []  # p for p in cur_reqs - needed_reqs if p not in requirements_from_source]
+    # unnecessary_packages = [p for p in cur_reqs - needed_reqs if p not in requirements_from_source]
     # have_packages = cur_reqs.intersection(needed_reqs)
     # needed_packages = list(needed_reqs - cur_reqs)
-    # print(cur_reqs)
-    # exit()
     #
     # # -- Uninstall unnecessary packages --------------------------------------------------------------------------------
     # for package in unnecessary_packages:
     #     print(f"Uninstalling {package}")
-    #     os.system(f"conda remove {package} 1>nul 2>&1")
+    #     os.system(f"pip uninstall {package} -y 1>nul 2>&1")
     #
     # # -- Install all required dependencies (if not installing from source) ---------------------------------------------
     # for package in needed_packages:
@@ -95,5 +126,22 @@ if __name__ == "__main__":
     # for x, l in report.items():
     #     l = '\t'.join(l).rstrip() if l else None
     #     print("\n{x}:\n\t{l}".format(x=x, l=l))
+
+    # print('Clearing environment')
+    # os.system('conda install --revision 0 -y')
+    # print()
+    #
+    # print('Waiting (just to be safe...)')
+    # time.sleep(3)
+    # print()
+    #
+    # print('Rebuilding environment')
+    # os.system('conda update anaconda')
+    # print()
+    #
+    # print('Waiting (just to be safe...)')
+    # time.sleep(3)
+    # print()
+    # os.system(f'conda env update -f {conda_env_file}')
 
     print()  # extra whitespace to look good
