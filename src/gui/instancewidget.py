@@ -254,7 +254,7 @@ class InstanceWidget(QWidget):
         Opens the dialog that asks for filter criteria
         """
 
-        def filt(location, numMessages):
+        def filt(locations, numMessages):
 
             def populate(filteredConnections):
                 self.ui.selectedConnectionsList.clear()
@@ -270,22 +270,25 @@ class InstanceWidget(QWidget):
             prog.setModal(True)
             prog.setWindowTitle('Filtering...')
 
-            task = Task(lambda: self.filterConnectionsBy(location=location, maxMessages=numMessages))
+            task = Task(lambda: self.filterConnectionsBy(locations=locations, maxMessages=numMessages))
             task.finished.connect(populate)
             QThreadPool.globalInstance().start(task)
 
             prog.exec_()
 
-        fd = FilterDialog(self.account, parent=self.window())
+        fd = FilterDialog(self.account, parent=self)
         fd.filterAccepted.connect(filt)
         fd.exec_()
 
-    def filterConnectionsBy(self, location=None, maxMessages=10):
+    def filterConnectionsBy(self, locations=None, maxMessages=10):
+        if not locations:
+            locations = []
+            result = self.allConnections
+        else:
+            result = {}
 
-        result = self.allConnections
-
-        if location:
-            result = dict(filter(lambda tup: tup[1].location == location, result.items()))
+        for location in locations:
+            result.update(dict(filter(lambda tup: tup[1].location == location, self.allConnections.items())))
 
         # This one is complicated:
         #  Query database for messages sent to connection from the instance's account,
