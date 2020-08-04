@@ -282,6 +282,8 @@ class InstanceWidget(QWidget):
         else:
             result = {}
 
+        print(locations)
+
         for location in locations:
             result.update(dict(filter(lambda tup: tup[1].location == location, self.allConnections.items())))
 

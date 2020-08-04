@@ -29,6 +29,8 @@ class FilterDialog(QDialog):
         self.mapwidget = None
         self.radius = self.ui.radiusSlider.value() * self.maxRadius / 100
         self.nameToPoint = {}
+        self.background = None
+        self.ax = None
 
         self.account = curAccount
         self.loadMap()
@@ -42,7 +44,9 @@ class FilterDialog(QDialog):
         # Creating the map
         fig = Figure(figsize=(10, 2.25), frameon=False)
         self.mapwidget = FigureCanvas(fig)  # the widget we'll add to the dialog
+
         ax = fig.add_subplot(1, 1, 1, projection=crs.PlateCarree(), frame_on=False)  # adds the map
+        self.ax = ax
         ax.stock_img()  # adds coloring to map
         ax.add_wms('http://vmap0.tiles.osgeo.org/wms/vmap0', ['basic'])  # Adds details
         for spine in ax.spines.values():  # Removes black axes borders
@@ -85,17 +89,20 @@ class FilterDialog(QDialog):
 
                 if event.button == 1:  # a left click
                     if not self.point:
+                        self.background = self.mapwidget.copy_from_bbox(ax.bbox)
                         self.ui.radiusSlider.setEnabled(True)
                         self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
-                        self.point = ax.scatter(event.xdata, event.ydata, color='#0381ab')
+                        self.point = Circle((event.xdata, event.ydata), 2, color='#0381ab')
                         self.circle = Circle((event.xdata, event.ydata), self.radius, color='#05abe3', alpha=0.5)
                         ax.add_artist(self.circle)
+                        ax.add_artist(self.point)
+                        self.mapwidget.draw()
                     else:
-                        self.point.remove()
-                        self.point = ax.scatter(event.xdata, event.ydata, color='#0381ab')
-                        self.circle.center = event.xdata, event.ydata
-
-                    self.mapwidget.draw()
+                        self.mapwidget.restore_region(self.background)
+                        self.circle.center = self.point.center = event.xdata, event.ydata
+                        self.ax.draw_artist(self.point)
+                        self.ax.draw_artist(self.circle)
+                        self.mapwidget.blit(self.ax.bbox)
 
             self.mapwidget.mpl_connect('button_press_event', onclick)
             self.ui.locationLayout.addWidget(self.mapwidget, 0)
@@ -130,9 +137,12 @@ class FilterDialog(QDialog):
 
         # Tying slider to circle radius
         def adapt(val):
+            self.mapwidget.restore_region(self.background)
             self.radius = val * self.maxRadius / 100
             self.circle.radius = self.radius
-            self.mapwidget.draw()
+            self.ax.draw_artist(self.point)
+            self.ax.draw_artist(self.circle)
+            self.mapwidget.blit(self.ax.bbox)
 
         self.ui.radiusSlider.valueChanged.connect(adapt)
 
