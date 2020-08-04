@@ -6,12 +6,8 @@ import sys
 ui_folder = os.path.abspath("../src/gui/ui/")
 
 if __name__ == "__main__":
-    if os.path.exists(os.path.abspath("../venv/")):
-        python = os.path.abspath("../venv/Scripts/python.exe")
-        uic = os.path.abspath("../venv/Scripts/pyside2-uic.exe")
-    else:
-        python = None
-        uic = 'pyside2-uic'
+    python = sys.executable
+    uic = python[:-len('python.exe')] + os.path.join('Library', 'bin', 'pyside2-uic')
 
     print("Removing existing compiled UI files...")
     for file in os.listdir(ui_folder):

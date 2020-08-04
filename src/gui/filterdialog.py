@@ -15,7 +15,7 @@ from common.threading import Task
 
 class FilterDialog(QDialog):
 
-    filterAccepted = Signal(list, int)
+    filterAccepted = Signal(tuple, tuple)
 
     def __init__(self, curAccount, parent):
         QDialog.__init__(self, parent=parent)
@@ -170,6 +170,10 @@ class FilterDialog(QDialog):
             maxMessages = self.ui.numMessages.value()
         else:
             maxMessages = 10
+
+        # Making the tuples
+        locations = (self.ui.useLocation.isChecked(), locations)
+        maxMessages = (self.ui.useMaxMessages.isChecked(), maxMessages)
 
         self.filterAccepted.emit(locations, maxMessages)
 

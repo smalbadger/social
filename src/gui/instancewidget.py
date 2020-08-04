@@ -275,33 +275,34 @@ class InstanceWidget(QWidget):
         fd.filterAccepted.connect(filt)
         fd.exec_()
 
-    def filterConnectionsBy(self, locations=None, maxMessages=10):
-        if not locations:
-            locations = []
-            result = self.allConnections
+    def filterConnectionsBy(self, locations=(False, None), maxMessages=(False, None)):
+        """
+        All args are (useCriteria, value) tuples
+        """
+
+        if locations[0]:
+            result = {}  # We add each connection with location in the location list
+            for location in locations[1]:
+                result.update(dict(filter(lambda tup: tup[1].location == location, self.allConnections.items())))
         else:
-            result = {}
+            result = self.allConnections
 
-        print(locations)
-
-        for location in locations:
-            result.update(dict(filter(lambda tup: tup[1].location == location, self.allConnections.items())))
-
-        # This one is complicated:
-        #  Query database for messages sent to connection from the instance's account,
-        #  get the length of the returned list, and compare it to maxMessages
-        result = dict(
-            filter(lambda tup:
-                   len(
-                       list(
-                           session.query(LinkedInMessage).filter(
-                               LinkedInMessage.account_id == self.account.id,
-                               LinkedInMessage.recipient_connection_id == tup[1].id
+        if maxMessages[0]:
+            # This one is complicated:
+            #  Query database for messages sent to connection from the instance's account,
+            #  get the length of the returned list, and compare it to maxMessages
+            result = dict(
+                filter(lambda tup:
+                       len(
+                           list(
+                               session.query(LinkedInMessage).filter(
+                                   LinkedInMessage.account_id == self.account.id,
+                                   LinkedInMessage.recipient_connection_id == tup[1].id
+                               )
                            )
-                       )
-                   ) < maxMessages, result.items()
+                       ) < maxMessages[1], result.items()
+                )
             )
-        )
 
         return list(result.keys())
 
