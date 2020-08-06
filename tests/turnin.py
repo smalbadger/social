@@ -85,8 +85,6 @@ class LoginForm(unittest.TestCase):
         print(comb3)
         print(comb4)
 
-    def test_database(self):
-        pass
 
 if __name__ == '__main__':
     unittest.main()

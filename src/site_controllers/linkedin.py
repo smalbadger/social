@@ -72,7 +72,6 @@ class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
 
-@log_all_exceptions
 class LinkedInController(Controller):
     """
     The controller for LinkedIn
@@ -81,6 +80,7 @@ class LinkedInController(Controller):
     Beacon.connectionsScraped = Signal(dict)
     CRITICAL_LOGIN_INFO = ("email", "password")
 
+    @log_exceptions
     def __init__(self, *args, **kwargs):
         """Initializes LinkedIn Controller"""
 
@@ -88,10 +88,11 @@ class LinkedInController(Controller):
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
         self.mainWindow = None
         self.mutualWindow = None
-        self._criticalLoginInfo = LinkedInController.innerCls.CRITICAL_LOGIN_INFO
+        self._criticalLoginInfo = LinkedInController.CRITICAL_LOGIN_INFO
         self.checkForValidConfiguration()
         self.info(f"Created LinkedIn controller for {self._profile_name}")
 
+    @log_exceptions
     def initLogger(self):
         """Creates a logger for this user's linkedin controller only"""
         alphaNumericName = onlyAplhaNumeric(self._profile_name, '_')
@@ -112,15 +113,18 @@ class LinkedInController(Controller):
         self._logger.addHandler(stdout)
         self._logger.setLevel(logging.DEBUG)
 
+    @log_exceptions
     def getLoggerName(self):
         """Gets the name of the logger that this controller is using"""
         return self._loggerName
 
+    @log_exceptions
     @ensure_browser_is_running
     def auth_check(self):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
 
+    @log_exceptions
     @ensure_browser_is_running
     def login(self, manual=False):
         """
@@ -234,6 +238,7 @@ class LinkedInController(Controller):
         if not self.auth_check():
             raise AuthenticationException("For some reason, we couldn't leave the login page.")
 
+    @log_exceptions
     @authentication_required
     def maximizeConnectionPopup(self):
         """opens the connection popup"""
@@ -244,6 +249,7 @@ class LinkedInController(Controller):
                 self.info("maximizing the connection list")
                 possibility.click()
 
+    @log_exceptions
     @authentication_required
     def searchForConnectionInPopup(self, person: str):
         """Only search for a person in the popup connections bar."""
@@ -261,6 +267,7 @@ class LinkedInController(Controller):
         searchbox.send_keys(person)
         searchbox.send_keys(Keys.RETURN)
 
+    @log_exceptions
     @authentication_required
     def selectConnectionFromPopup(self, person: str):
         """Select a person from the popup connection bar assuming they're already shown."""
@@ -275,12 +282,14 @@ class LinkedInController(Controller):
         self.info("Clicking on connection to open messaging box")
         target_account.click()
 
+    @log_exceptions
     @authentication_required
     def openConversationWith(self, person: str):
         """Searches messages for the name entered, and gets the first person from the list"""
         self.searchForConnectionInPopup(person)
         self.selectConnectionFromPopup(person)
 
+    @log_exceptions
     @authentication_required
     def closeAllChatWindows(self):
         """Closes all open chat windows"""
@@ -289,6 +298,7 @@ class LinkedInController(Controller):
         self.info("Clearing all open message dialogs to avoid mis-identification")
         self.browser.refresh()
 
+    @log_exceptions
     @authentication_required
     def sendMessageTo(self, person: str, message: str):
         """Sends a message to the person."""
@@ -323,6 +333,7 @@ class LinkedInController(Controller):
             raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
         self.info("The message was sent successfully")
 
+    @log_exceptions
     @authentication_required
     def messageAll(self, connections: list, usingTemplate, checkPastMessages=True):
         """Messages all connections with the template usingTemplate (a query object)"""
@@ -342,6 +353,7 @@ class LinkedInController(Controller):
                 msg = usingTemplate.message_template.format(firstName=firstName, fullName=fullName)
                 self.sendMessageTo(fullName, msg)
 
+    @log_exceptions
     @authentication_required
     def getLastMessageWithConnection(self, person, assumeConversationIsOpened=False):
         """Gets the last message sent to a specific person"""
@@ -370,6 +382,7 @@ class LinkedInController(Controller):
 
         return msg, datetime
 
+    @log_exceptions
     @authentication_required
     def getConversationHistory(self, person: str, numMessages = 1_000_000, assumeConversationIsOpened=False):
         """
@@ -439,6 +452,7 @@ class LinkedInController(Controller):
         wanted_history = history[-numMessages:]
         return wanted_history
 
+    @log_exceptions
     @authentication_required
     def acceptAllConnections(self) -> list:
         """Accepts all connections and returns them as a list of (name, profileLink) tuples"""
@@ -479,6 +493,8 @@ class LinkedInController(Controller):
 
         return accepted
 
+    @log_exceptions
+    @authentication_required
     def getNewConnections(self, known: list = None, getMutualInfoFor: list = None,
                           withLocation=True, withPosition=True, updateConnections=None) -> dict:
         """
@@ -520,6 +536,8 @@ class LinkedInController(Controller):
 
         return connections
 
+    @log_exceptions
+    @authentication_required
     def scrapeConnections(self, baseURL,  known: list = None, getMutualInfoFor: list = None,
                           location=True, position=True, updateConnections=None):
         """
@@ -574,6 +592,8 @@ class LinkedInController(Controller):
         self.connectionsScraped.emit(connections)
         return connections
 
+    @log_exceptions
+    @authentication_required
     def getMutualConnectionsWith(self, connection):
         """
         Gets mutual connections between user and connection. connection variable is a web element, not a name
@@ -631,6 +651,8 @@ class LinkedInController(Controller):
         self.info(f'Found {len(names)} mutual connection(s)')
         return names
 
+    @log_exceptions
+    @authentication_required
     def getConnectionInfo(self, connection, pos=True, loc=True):
         """
         Gets info about a connection. The connection variable is a web element, not a name

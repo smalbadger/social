@@ -46,6 +46,7 @@ class NewInstanceDialog(QDialog):
         """Fetches all clients from the database and populates the client combo box with them"""
         prog = QProgressDialog("Fetching clients, please wait...", "Hide", 0, 0, parent=self)
         prog.setModal(True)
+        prog.show()
 
         def populate(clients):
             for client in clients:
@@ -92,9 +93,6 @@ class NewInstanceDialog(QDialog):
             self.ui.errorLabel.setText("\n".join(errors))
             self.ui.errorLabel.show()
             return
-
-        # At this point, platform has already been wrapped by the class decorator, so we need:
-        platform = platform.innerCls
 
         for inst in self.mainWindow.instances.values():
             if inst.client.id == client.id and inst.platformName == platformName:
