@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 
 qrc = os.path.abspath("../icons.qrc")
 out = os.path.abspath("../src/gui/rc/icons_rc.py")
@@ -11,18 +12,12 @@ if __name__ == "__main__":
     if not os.path.exists(d):
         os.makedirs(d)
 
-    if os.path.exists(os.path.abspath("../venv/")):
-        python = os.path.abspath("../venv/Scripts/python.exe")
-        rcc = os.path.abspath("../venv/Scripts/pyside2-rcc.exe")
+    python = sys.executable
+    rcc = python[:-len('python.exe')] + os.path.join('Library', 'bin', 'pyside2-rcc.exe')
 
-        with open(out, 'w') as fout:
-            proc = subprocess.Popen([python, rcc, qrc], stdout=fout)
-            return_code = proc.wait()
-
-    else:
-        with open(out, 'w') as fout:
-            proc = subprocess.Popen(["pyside2-rcc", qrc], stdout=fout)
-            return_code = proc.wait()
+    with open(out, 'w') as fout:
+        proc = subprocess.Popen([rcc, qrc], stdout=fout)
+        return_code = proc.wait()
 
     print("Reworking Resource Files...")
     # read in all lines from the rc file

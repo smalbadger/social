@@ -3,7 +3,7 @@ import os
 import shutil
 import logging.config
 from datetime import datetime
-import benedict
+import yaml
 
 LOG_FILES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
 initial_timestamp = datetime.now().strftime("%Y-%m-%d~%Hh-%Mm-%Ss")
@@ -94,7 +94,7 @@ root:
   handlers: [null_handler]
 """
 
-logging.config.dictConfig(benedict.load_yaml_str(logging_config_YAML))
+logging.config.dictConfig(yaml.safe_load(logging_config_YAML))
 
 ########################################################################################################################
 # LOGGERS:                                                                                                             #

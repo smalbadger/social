@@ -254,7 +254,7 @@ class InstanceWidget(QWidget):
         Opens the dialog that asks for filter criteria
         """
 
-        def filt(location, numMessages):
+        def filt(locations, numMessages):
 
             def populate(filteredConnections):
                 self.ui.selectedConnectionsList.clear()
@@ -270,38 +270,44 @@ class InstanceWidget(QWidget):
             prog.setModal(True)
             prog.setWindowTitle('Filtering...')
 
-            task = Task(lambda: self.filterConnectionsBy(location=location, maxMessages=numMessages))
+            task = Task(lambda: self.filterConnectionsBy(locations=locations, maxMessages=numMessages))
             task.finished.connect(populate)
             QThreadPool.globalInstance().start(task)
 
             prog.exec_()
 
-        fd = FilterDialog(self.account, parent=self.window())
+        fd = FilterDialog(self.account, parent=self)
         fd.filterAccepted.connect(filt)
         fd.exec_()
 
-    def filterConnectionsBy(self, location=None, maxMessages=10):
+    def filterConnectionsBy(self, locations=(False, None), maxMessages=(False, None)):
+        """
+        All args are (useCriteria, value) tuples
+        """
 
-        result = self.allConnections
+        if locations[0]:
+            result = {}  # We add each connection with location in the location list
+            for location in locations[1]:
+                result.update(dict(filter(lambda tup: tup[1].location == location, self.allConnections.items())))
+        else:
+            result = self.allConnections
 
-        if location:
-            result = dict(filter(lambda tup: tup[1].location == location, result.items()))
-
-        # This one is complicated:
-        #  Query database for messages sent to connection from the instance's account,
-        #  get the length of the returned list, and compare it to maxMessages
-        result = dict(
-            filter(lambda tup:
-                   len(
-                       list(
-                           session.query(LinkedInMessage).filter(
-                               LinkedInMessage.account_id == self.account.id,
-                               LinkedInMessage.recipient_connection_id == tup[1].id
+        if maxMessages[0]:
+            # This one is complicated:
+            #  Query database for messages sent to connection from the instance's account,
+            #  get the length of the returned list, and compare it to maxMessages
+            result = dict(
+                filter(lambda tup:
+                       len(
+                           list(
+                               session.query(LinkedInMessage).filter(
+                                   LinkedInMessage.account_id == self.account.id,
+                                   LinkedInMessage.recipient_connection_id == tup[1].id
+                               )
                            )
-                       )
-                   ) < maxMessages, result.items()
+                       ) < maxMessages[1], result.items()
+                )
             )
-        )
 
         return list(result.keys())
 
