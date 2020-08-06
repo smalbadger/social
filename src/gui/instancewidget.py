@@ -14,10 +14,6 @@ from common.threading import Task
 from database.linkedin import *
 
 
-gui_logger = None
-db_logger = None
-
-
 class InstanceWidget(QWidget):
 
     def __init__(self, client: Client, cConstructor):
@@ -59,9 +55,8 @@ class InstanceWidget(QWidget):
         self.lw.addLogger(f"gui.linkedin.{self.profilename}", "rgba(255, 100, 100, 0.2)")
         self.lw.addLogger(f"database.linkedin.{self.profilename}", "rgba(100, 100, 255, 0.2)")
 
-        global db_logger, gui_logger
-        db_logger = logging.getLogger(f"database.linkedin.{self.profilename}")
-        gui_logger = logging.getLogger(f"gui.linkedin.{self.profilename}")
+        self.db_logger = logging.getLogger(f"database.linkedin.{self.profilename}")
+        self.gui_logger = logging.getLogger(f"gui.linkedin.{self.profilename}")
 
         # Populate and initialize values
         self.numTemplates = 0
@@ -82,7 +77,7 @@ class InstanceWidget(QWidget):
         # Final stuff
         self.connectSignalsToFunctions()
         self.ui.errorLabel.hide()
-        gui_logger.info(f'{self.platformName} instance created for {self.client.name}')
+        self.gui_logger.info(f'{self.platformName} instance created for {self.client.name}')
         self.updateStatusOfMessengerButton()
 
     def updateStatusOfMessengerButton(self):
@@ -112,13 +107,13 @@ class InstanceWidget(QWidget):
         prog.show()
 
         def populate(connections):
-            gui_logger.info("Populating connections...")
+            self.gui_logger.info("Populating connections...")
             self.ui.allConnectionsList.clear()
             self.ui.selectedConnectionsList.clear()
             self.selectedConnections = []
 
             for con in connections:
-                gui_logger.debug(con.name)
+                self.gui_logger.debug(con.name)
                 self.ui.allConnectionsList.addItem(con.name)
                 self.allConnections[con.name] = con
 
@@ -127,7 +122,7 @@ class InstanceWidget(QWidget):
             if not skipTemplates:
                 self.fetchTemplates()
 
-        db_logger.info(msg)
+        self.db_logger.info(msg)
         task = Task(lambda: session.query(LinkedInConnection)
                     .filter(LinkedInConnection.account_id == self.account.id))
         task.finished.connect(populate)
@@ -157,10 +152,10 @@ class InstanceWidget(QWidget):
             self.numTemplates = 0
             self.ui.templatesBox.clear()
 
-            gui_logger.info("Populating templates...")
+            self.gui_logger.info("Populating templates...")
             for template in templates:
                 # TODO: Replace with actual template name when implemented in database
-                gui_logger.debug(template.message_template)
+                self.gui_logger.debug(template.message_template)
                 self.numTemplates += 1
                 self.addTemplate(f'Template {self.numTemplates}', template)
 
@@ -175,7 +170,7 @@ class InstanceWidget(QWidget):
             self.ui.templatesBox.blockSignals(False)
             prog.close()
 
-        db_logger.info(msg)
+        self.db_logger.info(msg)
         task = Task(lambda: session.query(LinkedInMessageTemplate)
                     .filter(LinkedInMessageTemplate.account_id == self.account.id))
         task.finished.connect(populate)
@@ -282,7 +277,7 @@ class InstanceWidget(QWidget):
             prog.setModal(True)
             prog.setWindowTitle(msg)
 
-            db_logger.info(msg)
+            self.db_logger.info(msg)
             task = Task(lambda: self.filterConnectionsBy(locations=locations, maxMessages=numMessages))
             task.finished.connect(populate)
             QThreadPool.globalInstance().start(task)
@@ -299,7 +294,7 @@ class InstanceWidget(QWidget):
         """
 
         if locations[0]:
-            db_logger.info("Filtering by location")
+            self.db_logger.info("Filtering by location")
             result = {}  # We add each connection with location in the location list
             for location in locations[1]:
                 result.update(dict(filter(lambda tup: tup[1].location == location, self.allConnections.items())))
@@ -307,7 +302,7 @@ class InstanceWidget(QWidget):
             result = self.allConnections
 
         if maxMessages[0]:
-            db_logger.info("Filtering by max messages")
+            self.db_logger.info("Filtering by max messages")
             # This one is complicated:
             #  Query database for messages sent to connection from the instance's account,
             #  get the length of the returned list, and compare it to maxMessages
@@ -338,7 +333,7 @@ class InstanceWidget(QWidget):
             ans = QMessageBox.Yes
 
         if ans == QMessageBox.Yes:
-            gui_logger.info("Removing current template")
+            self.gui_logger.info("Removing current template")
             def deleteTemplate():
                 box = self.ui.templatesBox
 
@@ -347,7 +342,7 @@ class InstanceWidget(QWidget):
                 name = box.currentText()
 
                 # Local deletion
-                gui_logger.info(f"Deleting {name} locally...")
+                self.gui_logger.info(f"Deleting {name} locally...")
                 box.blockSignals(True)
                 box.removeItem(ind)
                 self.numTemplates -= 1
@@ -357,11 +352,11 @@ class InstanceWidget(QWidget):
                 box.blockSignals(False)
 
                 # Server deletion
-                db_logger.info(f"Deleting {name} from server...")
+                self.db_logger.info(f"Deleting {name} from server...")
                 session.delete(template)
                 session.commit()
 
-                gui_logger.info(f"Successfully deleted {name}.")
+                self.gui_logger.info(f"Successfully deleted {name}.")
 
             prog = QProgressDialog('Deleting Template...', 'Hide', 0, 0, parent=self.window())
             prog.setModal(True)
@@ -378,7 +373,7 @@ class InstanceWidget(QWidget):
         """
         Adds a template to the template box. Naturally triggers the loadTemplateAtIndex function
         """
-        gui_logger.info("Creating new template")
+        self.gui_logger.info("Creating new template")
         self.ui.templatesBox.addItem(name, userData=data)
 
     def saveCurrentTemplate(self, prompt=False):
@@ -413,7 +408,7 @@ class InstanceWidget(QWidget):
                 task.finished.connect(prog.close)
                 QThreadPool.globalInstance().start(task)
 
-                db_logger.info(f"Saving {self.ui.templatesBox.itemText(self.currentTempIndex)}")
+                self.db_logger.info(f"Saving {self.ui.templatesBox.itemText(self.currentTempIndex)}")
                 prog.exec_()
 
         self.currentTempIndex = self.ui.templatesBox.currentIndex()
@@ -533,7 +528,7 @@ class InstanceWidget(QWidget):
         prog.setWindowTitle("Processing...")
         prog.show()
 
-        task = Task(lambda: processScrapedConnections(conns, self.account))
+        task = Task(lambda: processScrapedConnections(conns, self.account, self.db_logger))
         task.finished.connect(prog.close)
         task.finished.connect(lambda: self.fetchValues(skipTemplates=True))
         QThreadPool.globalInstance().start(task)
@@ -557,7 +552,7 @@ class InstanceWidget(QWidget):
 # Database stuff (Call these in Tasks)
 #######################################
 
-def processScrapedConnections(conns: dict, account):
+def processScrapedConnections(conns: dict, account, db_logger):
     """
     - Pulls connections from DB, finds the ones that correlate to entries in conns, and updates them.
     - If there are new connections, adds them to the database.
