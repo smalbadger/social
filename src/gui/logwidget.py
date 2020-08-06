@@ -13,7 +13,19 @@ class LogWidget(logging.Handler):
         self.signals = LogWidget.Signals()
         self.signals.appendText.connect(self.widget.append)
 
+        self.colorMap = {
+            # -- Levels -- #
+            "DEBUG": "gray",
+            "INFO": "green",
+            "WARNING": "orange",
+            "ERROR": "red",
+            "CRITICAL": "darkred",
+
+            # -- Loggers are also mapped to colors in the addLogger method -- #
+        }
+
     def emit(self, record):
+        print(vars(record))
         msg = self.format(record)
 
         if record.levelname == "DEBUG":
@@ -28,6 +40,11 @@ class LogWidget(logging.Handler):
             msg = self.processMsg(msg, "darkred", "black")
 
         self.signals.appendText.emit(msg)
+
+    def addLogger(self, loggerName, backgroundColor):
+        logger = logging.getLogger(loggerName)
+        logger.addHandler(self)
+        self.colorMap[logger] = backgroundColor
 
     def processMsg(self, msg, textColor, backgroundColor="transparent"):
         text = f'<span style=" font-size:8pt; font-weight:400; color:{textColor}; background-color:{backgroundColor};" >{msg}</span>'
