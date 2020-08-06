@@ -31,7 +31,10 @@ class SocialView(QMainWindow):
         lw = LogWidget(self.ui.generalLogTextEdit_2)
         lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         lw.setLevel(logging.DEBUG)
-        logging.getLogger("controller").addHandler(lw)
+        lw.addLogger("controller", "rgba(100, 100, 0, 0.2)")
+        lw.addLogger("database", "rgba(0, 100, 0, 0.2)")
+        lw.addLogger("email", "rgba(0, 0, 100, 0.2)")
+        lw.addLogger("gui", "rgba(0, 100, 100, 0.2)")
 
         # Variables
         self.controller = None
