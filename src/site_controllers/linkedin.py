@@ -24,6 +24,8 @@ from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
 
+from database.linkedin import session, LinkedInMessage
+
 
 #########################################################
 # Element Identification Strings
@@ -164,7 +166,9 @@ class LinkedInController(Controller):
 
             if self._password:
                 self.info(f"Entering password: {'*'*len(self._password)}")
-                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
+                print(self._password)
+                exit()
+                # send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
 
             # If manual is True, we require the user to press the login button (allowing them to change the credentials too)
             if manual:
@@ -320,15 +324,23 @@ class LinkedInController(Controller):
         self.info("The message was sent successfully")
 
     @authentication_required
-    def messageAll(self, connections: list, usingTemplate: str):
-        """Messages all connections with the template usingTemplate"""
+    def messageAll(self, connections: list, usingTemplate, checkPastMessages=True):
+        """Messages all connections with the template usingTemplate (a query object)"""
         # TODO: Check for past messages sent by this bot
 
-        for connection in connections:
-            firstName = connection.split(' ')[0]
-            # Tested: doesn't matter if either of the params below isn't put in the template
-            msg = usingTemplate.format(firstName=firstName, fullName=connection)
-            self.sendMessageTo(connection, msg)
+        for connection in connections:  # each connection is a query object
+            fullName = connection.name
+            firstName = fullName.split(' ')[0]
+
+            # Checking database to see if template was already sent to user
+            q = session.query(LinkedInMessage).filter(
+                LinkedInMessage.recipient_connection_id == connection.id,
+                LinkedInMessage.template_id == usingTemplate.id
+            )
+
+            if checkPastMessages and not q[0]:
+                msg = usingTemplate.message_template.format(firstName=firstName, fullName=fullName)
+                self.sendMessageTo(fullName, msg)
 
     @authentication_required
     def getLastMessageWithConnection(self, person, assumeConversationIsOpened=False):

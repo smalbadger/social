@@ -33,7 +33,7 @@ class InstanceWidget(QWidget):
 
         # Account info
         self.email = self.account.email
-        self.pwd = self.account.password
+        self.pwd = self.account.get
         self.profilename = self.account.profile_name
 
         # Browser
@@ -194,9 +194,10 @@ class InstanceWidget(QWidget):
             startStopButton.setEnabled(True)
 
         if start:
-            template = self.ui.messageTemplateEdit.toPlainText()
+            self.saveCurrentTemplate()
+            template = self.ui.templatesBox.currentData()
 
-            if fromHTML(template) != template:
+            if fromHTML(template.message_template) != template.message_template:
                 self.ui.errorLabel.setText("Error: Template cannot use HTML reserved expressions.")
                 self.ui.errorLabel.show()
                 startStopButton.setChecked(False)
@@ -206,12 +207,15 @@ class InstanceWidget(QWidget):
             self.ui.errorLabel.hide()
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
+            # Getting query items from selected list
+            connections = [self.allConnections[name] for name in self.selectedConnections]
+
             # Controller stuff
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
                                                                   browser=self.browser, options=self.opts)
             logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
             self.messenger = LinkedInMessenger(self.messagingController, template,
-                                               self.selectedConnections, teardown_func=onComplete)
+                                               connections, teardown_func=onComplete)
             QThreadPool.globalInstance().start(self.messenger)
 
             startStopButton.setText("Stop")
