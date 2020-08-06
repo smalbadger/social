@@ -39,7 +39,7 @@ if __name__ == "__main__":
     needed_packages = [p for p in needed_reqs - cur_reqs if p not in pip_packages]
 
     # -- Uninstall unnecessary packages --------------------------------------------------------------------------------
-    unnecessary_packages.remove('\x1b[0m')  # Idk why but this shows up
+    unnecessary_packages.remove('\x1b[0m')  # This is an escape character that always shows up
 
     for package in unnecessary_packages:
         print(f"Uninstalling {package}")
