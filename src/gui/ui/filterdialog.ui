@@ -95,37 +95,53 @@
          <number>0</number>
         </property>
         <item row="0" column="0">
-         <layout class="QHBoxLayout" name="locationLayout">
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QListWidget" name="locationsList"/>
+          </item>
           <item>
            <layout class="QVBoxLayout" name="verticalLayout">
             <item>
-             <widget class="QSlider" name="radiusSlider">
-              <property name="enabled">
-               <bool>false</bool>
+             <widget class="QPushButton" name="addLFButton">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
               </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>100</number>
-              </property>
-              <property name="singleStep">
-               <number>5</number>
-              </property>
-              <property name="sliderPosition">
-               <number>20</number>
-              </property>
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
+              <property name="text">
+               <string>+</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLabel" name="label">
+             <widget class="QPushButton" name="deleteLFButton">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
-               <string>Radius  </string>
+               <string>-</string>
               </property>
              </widget>
+            </item>
+            <item>
+             <spacer name="verticalSpacer">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
             </item>
            </layout>
           </item>
