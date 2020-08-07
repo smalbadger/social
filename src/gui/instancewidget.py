@@ -64,15 +64,15 @@ class InstanceWidget(QWidget):
         self.fetchValues()
 
         # If critical login info is not available, disable headless mode.
-        headlessEnabled = True
-        for field in cConstructor.CRITICAL_LOGIN_INFO:
-            if not self.account.__getattribute__(field):
-                headlessEnabled = False
-                break
-        self.ui.headlessBoxSync.setChecked(headlessEnabled)
-        self.ui.headlessBoxSync.setEnabled(headlessEnabled)
-        self.ui.headlessBoxGeneral.setChecked(headlessEnabled)
-        self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
+        # headlessEnabled = True
+        # for field in cConstructor.CRITICAL_LOGIN_INFO:
+        #     if not self.account.__getattribute__(field):
+        #         headlessEnabled = False
+        #         break
+        # self.ui.headlessBoxSync.setChecked(headlessEnabled)
+        # self.ui.headlessBoxSync.setEnabled(headlessEnabled)
+        # self.ui.headlessBoxGeneral.setChecked(headlessEnabled)
+        # self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
 
         # Final stuff
         self.connectSignalsToFunctions()
@@ -225,7 +225,8 @@ class InstanceWidget(QWidget):
             if self.ui.headlessBoxGeneral.isChecked():
                 messengerBrowserOpts.append("headless")
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                                  browser=self.browser, options=messengerBrowserOpts)
+                                                                  id=self.account.id, browser=self.browser,
+                                                                  options=messengerBrowserOpts)
             self.lw.addLogger(self.messagingController.getLoggerName(), "rgba(100, 100, 0, 0.2)")
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                connections, teardown_func=onComplete)

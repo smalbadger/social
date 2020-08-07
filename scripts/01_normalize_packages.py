@@ -1,9 +1,10 @@
 import os
 import sys
+import time
 from subprocess import check_output
-# import pygit2
-# import pip
-# import subprocess
+import pygit2
+import pip
+import subprocess
 
 temp_req_file = "temp_requirements.txt"
 # perm_pip_req_file = "../pip-requirements.txt"
@@ -14,6 +15,7 @@ pip_packages = ['fake-useragent']  # Keep this list as short as possible
 # Mapping of dependencies to download and install from Facade Technologies github
 # These are generally repositories that needed to be forked and modified to work with Facile.
 requirements_from_source = {
+    "qtmodern": ("https://github.com/facade-technologies-inc/qtmodern.git", "master"),
 }
 
 
@@ -89,31 +91,31 @@ if __name__ == "__main__":
     #         os.system(f"conda install --no-deps {package} 1>nul 2>&1")
     #
     # # -- Clone/Pull any dependencies which are not hosted on PyPi) -----------------------------------------------------
-    # for package, repo in requirements_from_source.items():
-    #     url, branchName = repo
-    #     repo_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../", package))
-    #
-    #     # if the repo already exists, switch to the target branch and pull
-    #     if os.path.exists(repo_path):
-    #         print('')
-    #         print(f"Pulling: {package} @ branch: {branchName}")
-    #         repoObj = pygit2.Repository(os.path.join(repo_path, ".git"))
-    #         branch = repoObj.lookup_branch(branchName)
-    #         ref = repoObj.lookup_reference(branch.name)
-    #         repoObj.checkout(ref)
-    #
-    #         freeze_loc = os.getcwd()
-    #         os.chdir(repo_path)
-    #         output = subprocess.check_output(["git", "pull"])
-    #         os.chdir(freeze_loc)
-    #
-    #     else:
-    #         print(f"Cloning: {package} @ branch: {branchName}")
-    #         pygit2.clone_repository(url, repo_path, checkout_branch=branchName)
-    #
-    #     print(f"Installing from source: {package}")
-    #     pip.main(["install", repo_path])
-    #     print('')
+    for package, repo in requirements_from_source.items():
+        url, branchName = repo
+        repo_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../", package))
+
+        # if the repo already exists, switch to the target branch and pull
+        if os.path.exists(repo_path):
+            print('')
+            print(f"Pulling: {package} @ branch: {branchName}")
+            repoObj = pygit2.Repository(os.path.join(repo_path, ".git"))
+            branch = repoObj.lookup_branch(branchName)
+            ref = repoObj.lookup_reference(branch.name)
+            repoObj.checkout(ref)
+
+            freeze_loc = os.getcwd()
+            os.chdir(repo_path)
+            output = subprocess.check_output(["git", "pull"])
+            os.chdir(freeze_loc)
+
+        else:
+            print(f"Cloning: {package} @ branch: {branchName}")
+            pygit2.clone_repository(url, repo_path, checkout_branch=branchName)
+
+        print(f"Installing from source: {package}")
+        os.system(f'pip install --no-deps "{repo_path}" 1>nul 2>&1')
+        print('')
     #
     # # -- Print a report of what was done -------------------------------------------------------------------------------
     # report = {

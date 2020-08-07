@@ -278,9 +278,13 @@ class MapDialog(QDialog):
         totConns = 0
         for lc in locations:
             totConns += self.locDict[lc]
-        locStr = self.reverse(self.point.center[::-1], zoom=10, timeout=1000).raw['display_name']
 
-        info = {'name': f'{totConns} connections within {self.ui.radiusBox.value()} miles of {locStr}',
+        try:
+            locStr = self.reverse(self.point.center[::-1], zoom=10, timeout=1000).raw['display_name']
+        except TypeError:
+            locStr = 'an unnamed location'
+
+        info = {'name': f'{totConns} connections within {self.ui.radiusBox.value()} miles of {locStr}.',
                 'locations': locations}
 
         self.foundLocations.emit(info)

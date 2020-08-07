@@ -84,6 +84,7 @@ class LinkedInController(Controller):
     def __init__(self, *args, **kwargs):
         """Initializes LinkedIn Controller"""
 
+        self.accountid = kwargs.pop('id')
         Controller.__init__(self, *args, **kwargs)
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
         self.mainWindow = None
@@ -170,9 +171,7 @@ class LinkedInController(Controller):
 
             if self._password:
                 self.info(f"Entering password: {'*'*len(self._password)}")
-                print(self._password)
-                exit()
-                # send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
+                send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
 
             # If manual is True, we require the user to press the login button (allowing them to change the credentials too)
             if manual:
@@ -300,8 +299,9 @@ class LinkedInController(Controller):
 
     @log_exceptions
     @authentication_required
-    def sendMessageTo(self, person: str, message: str):
+    def sendMessageTo(self, personObj, message: str, tmpltID: int):
         """Sends a message to the person."""
+        person = personObj.name
 
         msg_details = f"""Sending message:
 
@@ -333,6 +333,17 @@ class LinkedInController(Controller):
             raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
         self.info("The message was sent successfully")
 
+        self.info("Updating database")
+        session.add(
+            LinkedInMessage(
+                account_id=self.accountid,
+                template_id=tmpltID,
+                recipient_connection_id=personObj.id
+            )
+        )
+        session.commit()
+        self.info('')
+
     @log_exceptions
     @authentication_required
     def messageAll(self, connections: list, usingTemplate, checkPastMessages=True):
@@ -344,14 +355,19 @@ class LinkedInController(Controller):
             firstName = fullName.split(' ')[0]
 
             # Checking database to see if template was already sent to user
-            q = session.query(LinkedInMessage).filter(
-                LinkedInMessage.recipient_connection_id == connection.id,
-                LinkedInMessage.template_id == usingTemplate.id
-            )
+            if checkPastMessages:
+                alreadySent = session.query(LinkedInMessage).filter(
+                    LinkedInMessage.recipient_connection_id == connection.id,
+                    LinkedInMessage.template_id == usingTemplate.id
+                ).count()
+            else:
+                alreadySent = 0
 
-            if checkPastMessages and not q[0]:
+            if alreadySent == 0:
                 msg = usingTemplate.message_template.format(firstName=firstName, fullName=fullName)
-                self.sendMessageTo(fullName, msg)
+                self.sendMessageTo(connection, msg, usingTemplate.id)
+            else:
+                self.info(f"Skipping {fullName} because the message has already been sent to them.")
 
     @log_exceptions
     @authentication_required
