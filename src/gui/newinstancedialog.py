@@ -94,9 +94,6 @@ class NewInstanceDialog(QDialog):
             self.ui.errorLabel.show()
             return
 
-        # At this point, platform has already been wrapped by the class decorator, so we need:
-        platform = platform.innerCls
-
         for inst in self.mainWindow.instances.values():
             if inst.client.id == client.id and inst.platformName == platformName:
                 errors.append(f"Error: A {platformName} instance is already running for {client.name}")
