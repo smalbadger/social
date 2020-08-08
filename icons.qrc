@@ -2,7 +2,13 @@
 <RCC>
     <qresource prefix="/icon">
         
+        <file alias="../resources/icons/checkmark.png">resources/icons/checkmark.png</file>
+
+        <file alias="../resources/icons/error.png">resources/icons/error.png</file>
+
         <file alias="../resources/icons/filter.png">resources/icons/filter.png</file>
+
+        <file alias="../resources/icons/warning.png">resources/icons/warning.png</file>
 
         <file alias="../resources/logos/linkedin.png">resources/logos/linkedin.png</file>
 

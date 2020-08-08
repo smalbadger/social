@@ -7,8 +7,9 @@ def onlyAplhaNumeric(s, substitute):
 
 def equalTo(s1, s2, normalize_whitespace=True, normalize_html_chars=True):
     if normalize_whitespace:
-        s1 = s1.replace("\s+", " ").strip()
-        s2 = s2.replace("\s+", " ").strip()
+
+        s1 = "".join(s1.replace(r"\n"," ").split())
+        s2 = "".join(s2.replace(r"\n"," ").split())
 
     if normalize_html_chars:
         s1 = fromHTML(s1).replace(u'\xa0', u' ')

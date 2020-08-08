@@ -31,8 +31,8 @@ class LoginForm(unittest.TestCase):
         ou.start()
         mary.start()
 
-        ou.sendMessageTo(mary_name, "What's up Mary-Ann?")
-        mary.sendMessageTo(ou_name, "Nothing much, just living the dream! How are your kids?")
+        ou.sendMessageTo(mary_name, "What's \nup \nMary-Ann?")
+        mary.sendMessageTo(ou_name, "Nothing much, \njust living the dream! \n\n\nHow are your kids?")
         ou.sendMessageTo(mary_name, "They're great! And how about your wife?")
         mary.sendMessageTo(ou_name, "Well....")
         mary.sendMessageTo(ou_name, "She cheated on me with my sister.")
