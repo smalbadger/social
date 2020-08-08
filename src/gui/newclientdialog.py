@@ -3,7 +3,8 @@ from PySide2.QtCore import QThreadPool, Signal
 
 from gui.ui.ui_newclientdialog import Ui_Dialog
 
-from database.linkedin import session, Client, LinkedInAccount
+from database.general import session, Client
+from database.linkedin import LinkedInAccount
 from common.threading import Task
 
 

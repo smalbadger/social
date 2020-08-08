@@ -9,9 +9,12 @@ from gui.ui.ui_instancewidget import Ui_mainWidget
 
 from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
+
 from common.strings import fromHTML, toHTML
 from common.threading import Task
+
 from database.linkedin import *
+from database.general import session, Client
 
 
 class InstanceWidget(QWidget):
@@ -64,15 +67,15 @@ class InstanceWidget(QWidget):
         self.fetchValues()
 
         # If critical login info is not available, disable headless mode.
-        # headlessEnabled = True
-        # for field in cConstructor.CRITICAL_LOGIN_INFO:
-        #     if not self.account.__getattribute__(field):
-        #         headlessEnabled = False
-        #         break
-        # self.ui.headlessBoxSync.setChecked(headlessEnabled)
-        # self.ui.headlessBoxSync.setEnabled(headlessEnabled)
-        # self.ui.headlessBoxGeneral.setChecked(headlessEnabled)
-        # self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
+        headlessEnabled = True
+        for field in cConstructor.CRITICAL_LOGIN_INFO:
+            if not self.account.__getattribute__(field):
+                headlessEnabled = False
+                break
+        self.ui.headlessBoxSync.setChecked(False)
+        self.ui.headlessBoxSync.setEnabled(headlessEnabled)
+        self.ui.headlessBoxGeneral.setChecked(False)
+        self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
 
         # Final stuff
         self.connectSignalsToFunctions()

@@ -1,31 +1,9 @@
 import datetime
 from Cryptodome.Cipher import AES
-from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey, LargeBinary
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-
-from database.credentials import username, password, host, port, AES_key
-
-engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social', pool_recycle=3600, connect_args={'connect_timeout': 10})
-session = sessionmaker(bind=engine)()
-
-Base = declarative_base()
-
-class Client(Base):
-    """Someone that is paying us money to automate some of their accounts"""
-
-    __tablename__ = "clients"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    linkedin_account_id = Column(Integer, ForeignKey("linkedin_accounts.id"))
-    name = Column(String)
-    email = Column(String)
-    phone = Column(String)
-    tester = Column(Boolean, default=False)
-
-    # -- ORM --------------------------
-    linkedin_account = relationship("LinkedInAccount", uselist=False, back_populates="client")
+from sqlalchemy.orm import relationship
+from database.credentials import AES_key
+from database.general import Base
 
 class LinkedInAccount(Base):
     """A LinkedIn account belonging to one of our clients."""

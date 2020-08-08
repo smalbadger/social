@@ -1,6 +1,7 @@
 from PySide2.QtWidgets import QDialog, QDialogButtonBox, QProgressDialog
 from PySide2.QtCore import Signal, QThreadPool
-from database.linkedin import session, LinkedInConnection
+from database.general import session
+from database.linkedin import LinkedInConnection
 from common.threading import Task
 
 from gui.ui.ui_filterdialog import Ui_Dialog

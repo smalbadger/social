@@ -6,7 +6,7 @@ from gui.instancewidget import InstanceWidget
 from gui.newclientdialog import NewClientDialog
 
 from common.threading import Task
-from database.linkedin import session, Client
+from database.general import session, Client
 from site_controllers.linkedin import LinkedInController
 
 

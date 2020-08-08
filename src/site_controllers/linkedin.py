@@ -24,7 +24,8 @@ from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
 
-from database.linkedin import session, LinkedInMessage
+from database.general import session
+from database.linkedin import LinkedInMessage
 
 
 #########################################################
@@ -125,6 +126,7 @@ class LinkedInController(Controller):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
 
+    @finish_executing
     @log_exceptions
     @ensure_browser_is_running
     def login(self, manual=False):
@@ -297,6 +299,7 @@ class LinkedInController(Controller):
         self.info("Clearing all open message dialogs to avoid mis-identification")
         self.browser.refresh()
 
+    @finish_executing
     @log_exceptions
     @authentication_required
     def sendMessageTo(self, personObj, message: str, tmpltID: int):
@@ -468,6 +471,7 @@ class LinkedInController(Controller):
         wanted_history = history[-numMessages:]
         return wanted_history
 
+    @finish_executing
     @log_exceptions
     @authentication_required
     def acceptAllConnections(self) -> list:
