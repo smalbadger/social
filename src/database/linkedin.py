@@ -107,7 +107,7 @@ class LinkedInMessageTemplate(Base):
 
     def fill(self, connection):
         """Replaces the placeholders in the template with connection info and returns a string"""
-        templateText = self.message_template
+        templateText = self.message_template.encode('latin1').decode('unicode_escape')
 
         # all of the placeholders in the array (value), depend on the key attribute not being blank or null.
         connection_conditions = {
@@ -117,14 +117,14 @@ class LinkedInMessageTemplate(Base):
 
         # to replace the placeholders, call the following lambda functions.
         placeholders_functions = {
-            "{FIRST_NAME}": lambda c: " ".join(c.name.split()[:-1]),
+            "{FIRST_NAME}": lambda c: c.name.split()[0],
             "{LAST_NAME}":  lambda c: c.name.split()[-1],
             "{FULL_NAME}":  lambda c: c.name,
             "{LOCATION}":   lambda c: c.location,
-            "{CITY}":       lambda c: self.invalidPlaceholder,
-            "{STATE}":      lambda c: self.invalidPlaceholder,
-            "{COUNTRY}":    lambda c: self.invalidPlaceholder,
-            "{ZIP_CODE}":   lambda c: self.invalidPlaceholder,
+            "{CITY}":       lambda c: self.invalidPlaceholder, # TODO: Extract city from location
+            "{STATE}":      lambda c: self.invalidPlaceholder, # TODO: Extract state from location
+            "{COUNTRY}":    lambda c: self.invalidPlaceholder, # TODO: Extract country from location
+            "{ZIP_CODE}":   lambda c: self.invalidPlaceholder, # TODO: Extract zip code from location
         }
 
         for attr in connection_conditions:
