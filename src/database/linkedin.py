@@ -117,9 +117,9 @@ class LinkedInMessageTemplate(Base):
 
         # to replace the placeholders, call the following lambda functions.
         placeholders_functions = {
-            "{FIRST_NAME}": lambda c: c.name.split()[0],
-            "{LAST_NAME}":  lambda c: c.name.split()[-1],
-            "{FULL_NAME}":  lambda c: c.name,
+            "{FIRST_NAME}": lambda c: c.name.strip().split()[0],
+            "{LAST_NAME}":  lambda c: c.name.strip().split()[-1],
+            "{FULL_NAME}":  lambda c: c.name.strip(),
             "{LOCATION}":   lambda c: c.location,
             "{CITY}":       lambda c: self.invalidPlaceholder, # TODO: Extract city from location
             "{STATE}":      lambda c: self.invalidPlaceholder, # TODO: Extract state from location
