@@ -108,14 +108,31 @@ class LinkedInMessageTemplate(Base):
     def fill(self, connection):
         """Replaces the placeholders in the template with connection info and returns a string"""
         templateText = self.message_template
-        templateText = templateText.replace("{FIRST_NAME}", " ".join(connection.name.split()[:-1]))
-        templateText = templateText.replace("{LAST_NAME}", connection.name.split()[-1])
-        templateText = templateText.replace("{FULL_NAME}", connection.name)
-        templateText = templateText.replace("{LOCATION}", connection.location)
-        templateText = templateText.replace("{CITY}", self.invalidPlaceholder)
-        templateText = templateText.replace("{STATE}", self.invalidPlaceholder)
-        templateText = templateText.replace("{COUNTRY}", self.invalidPlaceholder)
-        templateText = templateText.replace("{ZIP_CODE}", self.invalidPlaceholder)
+
+        # all of the placeholders in the array (value), depend on the key attribute not being blank or null.
+        connection_conditions = {
+            "name": ["{FIRST_NAME}", "{LAST_NAME}", "{FULL_NAME}"],
+            "location": ["{LOCATION}", "{CITY}", "{STATE}", "{COUNTRY}", "{ZIP_CODE}"]
+        }
+
+        # to replace the placeholders, call the following lambda functions.
+        placeholders_functions = {
+            "{FIRST_NAME}": lambda c: " ".join(c.name.split()[:-1]),
+            "{LAST_NAME}":  lambda c: c.name.split()[-1],
+            "{FULL_NAME}":  lambda c: c.name,
+            "{LOCATION}":   lambda c: c.location,
+            "{CITY}":       lambda c: self.invalidPlaceholder,
+            "{STATE}":      lambda c: self.invalidPlaceholder,
+            "{COUNTRY}":    lambda c: self.invalidPlaceholder,
+            "{ZIP_CODE}":   lambda c: self.invalidPlaceholder,
+        }
+
+        for attr in connection_conditions:
+            for placeholder in connection_conditions[attr]:
+                if connection.__getattribute__(attr):
+                    templateText = templateText.replace(placeholder, placeholders_functions[placeholder](connection))
+                else:
+                    templateText = templateText.replace(placeholder, self.invalidPlaceholder)
 
         return templateText
 

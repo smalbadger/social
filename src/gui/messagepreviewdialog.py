@@ -70,7 +70,7 @@ class MessagePreviewDialog(QDialog):
             numInvalidMessages = self.invalidCount()
             QMessageBox.warning(self.window(), "Invalid Messages",
                                 f"This message is undeliverable to {numInvalidMessages} connections "
-                                f"because placeholders could not be properly replaced. These connections will not be"
+                                f"because some placeholders could not be properly replaced. The message will not be"
                                 f"sent to the connections where the message is invalid.")
 
     def populateMessagePreview(self):

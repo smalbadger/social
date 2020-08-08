@@ -318,7 +318,7 @@ class LinkedInController(Controller):
         msg_box = self.browser.find_element_by_class_name(EIS.message_editor)
         self.highlightElement(msg_box)
         self.info(f"Typing the message: {message}")
-        msg_box.send_keys(message)
+        msg_box.send_keys(message.replace(r"\n", Keys.RETURN))
         self.info("Finding the submit button")
         msg_send = self.browser.find_element_by_class_name(EIS.message_send)
         self.highlightElement(msg_send)
@@ -352,17 +352,17 @@ class LinkedInController(Controller):
                     LinkedInMessage.recipient_connection_id == connection.id,
                     LinkedInMessage.template_id == usingTemplate.id
                 )
-                for msg in previouslySentMessages:
-                    print(msg.text())
                 alreadySent = previouslySentMessages.count()
             else:
                 alreadySent = 0
 
-            if not alreadySent:
+            if alreadySent:
+                self.warning(f"Skipping {connection.name} because the message has already been sent to them.")
+            elif not usingTemplate.isValid(connection):
+                self.warning(f"Skipping {connection.name} because the message template was invalid for this connection.")
+            else:
                 msg = usingTemplate.fill(connection)
                 self.sendMessageTo(connection, msg, usingTemplate)
-            else:
-                self.warning(f"Skipping {connection.name} because the message has already been sent to them.")
 
     @log_exceptions
     @authentication_required
