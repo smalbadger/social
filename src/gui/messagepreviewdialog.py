@@ -76,7 +76,7 @@ class MessagePreviewDialog(QDialog):
     def populateMessagePreview(self):
         connection = self.ui.targetedConnectionsList.currentItem().data(Qt.UserRole)
         message = self.template.fill(connection)
-        self.ui.messagePreviewEdit.setText(message)
+        self.ui.messagePreviewEdit.setText(message.replace(r"\n", "\n"))
 
     def onChange(self, currentItem, previousItem):
 
