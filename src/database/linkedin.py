@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from database.credentials import AES_key
 from database.general import Base
 
+
 class LinkedInAccount(Base):
     """A LinkedIn account belonging to one of our clients."""
 
@@ -42,6 +43,7 @@ class LinkedInAccount(Base):
         ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
         self.password = nonce + ciphertext
 
+
 class LinkedInConnection(Base):
     """LinkedIn Connections belonging to our clients (connections mutual to multiple clients will be duplicated)"""
 
@@ -58,10 +60,13 @@ class LinkedInConnection(Base):
     account = relationship("LinkedInAccount", back_populates="connections")
     messages = relationship("LinkedInMessage", back_populates="recipient")
 
+
 class LinkedInMessageTemplate(Base):
     """Message templates for LinkedIn that will be blasted out to our connections"""
 
     __tablename__ = "linkedin_message_templates"
+
+    invalidPlaceholder = "INVALID-PLACEHOLDER"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
@@ -72,6 +77,46 @@ class LinkedInMessageTemplate(Base):
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", back_populates="message_templates")
     instances = relationship("LinkedInMessage", back_populates="template")
+
+    def createMessageTo(self, connection: LinkedInConnection):
+        """Creates and returns a LinkedInMessage object"""
+        return LinkedInMessage(account=self.account, template=self, recipient=connection)
+
+    def fill(self, connection):
+        """Replaces the placeholders in the template with connection info and returns a string"""
+        templateText = self.message_template.encode('latin1').decode('unicode_escape')
+
+        # all of the placeholders in the array (value), depend on the key attribute not being blank or null.
+        connection_conditions = {
+            "name": ["{FIRST_NAME}", "{LAST_NAME}", "{FULL_NAME}"],
+            "location": ["{LOCATION}", "{CITY}", "{STATE}", "{COUNTRY}", "{ZIP_CODE}"]
+        }
+
+        # to replace the placeholders, call the following lambda functions.
+        placeholders_functions = {
+            "{FIRST_NAME}": lambda c: c.name.strip().split()[0],
+            "{LAST_NAME}":  lambda c: c.name.strip().split()[-1],
+            "{FULL_NAME}":  lambda c: c.name.strip(),
+            "{LOCATION}":   lambda c: c.location,
+            "{CITY}":       lambda c: self.invalidPlaceholder, # TODO: Extract city from location
+            "{STATE}":      lambda c: self.invalidPlaceholder, # TODO: Extract state from location
+            "{COUNTRY}":    lambda c: self.invalidPlaceholder, # TODO: Extract country from location
+            "{ZIP_CODE}":   lambda c: self.invalidPlaceholder, # TODO: Extract zip code from location
+        }
+
+        for attr in connection_conditions:
+            for placeholder in connection_conditions[attr]:
+                if connection.__getattribute__(attr):
+                    templateText = templateText.replace(placeholder, placeholders_functions[placeholder](connection))
+                else:
+                    templateText = templateText.replace(placeholder, self.invalidPlaceholder)
+
+        return templateText
+
+    def isValid(self, connection):
+        text = self.fill(connection)
+        return not self.invalidPlaceholder in text
+
 
 class LinkedInMessage(Base):
     """Instances of the Message templates that we actually sent to connections."""
@@ -88,6 +133,15 @@ class LinkedInMessage(Base):
     template = relationship("LinkedInMessageTemplate", back_populates="instances")
     recipient = relationship("LinkedInConnection", back_populates="messages")
     account = relationship("LinkedInAccount", back_populates="messages")
+
+    def text(self):
+        """Replaces the placeholders in the template with connection info and returns a linkedin message"""
+        return self.template.fill(self.recipient)
+
+    def isValid(self):
+        """Determines is a template was filled properly"""
+        return self.template.isValid(self.recipient)
+
 
 class ResponseMeanings(Base):
     """Meaning of message responses"""
