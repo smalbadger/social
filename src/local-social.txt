@@ -1,5 +1,4 @@
-NOOICE
+True
 
 These lines below can be anything because we only check the first one
-Just change NOOICE to True and it'll work
-Make sure not to have spaces too
+Make sure not to have spaces after True
