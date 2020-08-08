@@ -299,7 +299,7 @@ class LinkedInController(Controller):
 
     @log_exceptions
     @authentication_required
-    def sendMessageTo(self, personObj, message: str, tmpltID: int):
+    def sendMessageTo(self, personObj, message: str, template):
         """Sends a message to the person."""
         person = personObj.name
 
@@ -334,13 +334,7 @@ class LinkedInController(Controller):
         self.info("The message was sent successfully")
 
         self.info("Updating database")
-        session.add(
-            LinkedInMessage(
-                account_id=self.accountid,
-                template_id=tmpltID,
-                recipient_connection_id=personObj.id
-            )
-        )
+        session.add(template.createMessageTo(personObj))
         session.commit()
         self.info('')
 
@@ -351,23 +345,24 @@ class LinkedInController(Controller):
         # TODO: Check for past messages sent by this bot
 
         for connection in connections:  # each connection is a query object
-            fullName = connection.name
-            firstName = fullName.split(' ')[0]
 
             # Checking database to see if template was already sent to user
             if checkPastMessages:
-                alreadySent = session.query(LinkedInMessage).filter(
+                previouslySentMessages = session.query(LinkedInMessage).filter(
                     LinkedInMessage.recipient_connection_id == connection.id,
                     LinkedInMessage.template_id == usingTemplate.id
-                ).count()
+                )
+                for msg in previouslySentMessages:
+                    print(msg.text())
+                alreadySent = previouslySentMessages.count()
             else:
                 alreadySent = 0
 
-            if alreadySent == 0:
-                msg = usingTemplate.message_template.format(firstName=firstName, fullName=fullName)
-                self.sendMessageTo(connection, msg, usingTemplate.id)
+            if not alreadySent:
+                msg = usingTemplate.fill(connection)
+                self.sendMessageTo(connection, msg, usingTemplate)
             else:
-                self.info(f"Skipping {fullName} because the message has already been sent to them.")
+                self.warning(f"Skipping {connection.name} because the message has already been sent to them.")
 
     @log_exceptions
     @authentication_required

@@ -1,11 +1,13 @@
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog
 from PySide2.QtCore import QThreadPool
 
 from gui.logwidget import LogWidget
 from gui.filterdialog import FilterDialog
 from gui.ui.ui_instancewidget import Ui_mainWidget
+from gui.templateeditwidget import TemplateEditWidget
+from gui.messagepreviewdialog import MessagePreviewDialog
 
 from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
@@ -21,6 +23,11 @@ class InstanceWidget(QWidget):
 
         self.ui = Ui_mainWidget()
         self.ui.setupUi(self)
+
+        newTemplateEdit = TemplateEditWidget()
+        self.ui.messageTemplateEdit.hide()
+        self.ui.templateLayout.replaceWidget(self.ui.messageTemplateEdit, newTemplateEdit)
+        self.ui.messageTemplateEdit = newTemplateEdit
 
         # Client info
         self.client = client
@@ -213,12 +220,18 @@ class InstanceWidget(QWidget):
                 startStopButton.setChecked(False)
                 return
 
+            # Getting query items from selected list
+            connections = [self.allConnections[name] for name in self.selectedConnections]
+
+            # Show a preview of the message and ask if the operator would like to proceed
+            preview = MessagePreviewDialog(self, connections, template)
+            preview.exec_()
+            if preview.result() == QDialog.Rejected:
+                return self.autoMessage(False)
+
             # GUI Stuff
             self.ui.errorLabel.hide()
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
-
-            # Getting query items from selected list
-            connections = [self.allConnections[name] for name in self.selectedConnections]
 
             # Controller stuff
             messengerBrowserOpts = self.opts[:]

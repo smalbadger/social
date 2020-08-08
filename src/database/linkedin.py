@@ -12,6 +12,7 @@ session = sessionmaker(bind=engine)()
 
 Base = declarative_base()
 
+
 class Client(Base):
     """Someone that is paying us money to automate some of their accounts"""
 
@@ -26,6 +27,7 @@ class Client(Base):
 
     # -- ORM --------------------------
     linkedin_account = relationship("LinkedInAccount", uselist=False, back_populates="client")
+
 
 class LinkedInAccount(Base):
     """A LinkedIn account belonging to one of our clients."""
@@ -64,6 +66,7 @@ class LinkedInAccount(Base):
         ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
         self.password = nonce + ciphertext
 
+
 class LinkedInConnection(Base):
     """LinkedIn Connections belonging to our clients (connections mutual to multiple clients will be duplicated)"""
 
@@ -80,10 +83,13 @@ class LinkedInConnection(Base):
     account = relationship("LinkedInAccount", back_populates="connections")
     messages = relationship("LinkedInMessage", back_populates="recipient")
 
+
 class LinkedInMessageTemplate(Base):
     """Message templates for LinkedIn that will be blasted out to our connections"""
 
     __tablename__ = "linkedin_message_templates"
+
+    invalidPlaceholder = "INVALID-PLACEHOLDER"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
@@ -94,6 +100,29 @@ class LinkedInMessageTemplate(Base):
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", back_populates="message_templates")
     instances = relationship("LinkedInMessage", back_populates="template")
+
+    def createMessageTo(self, connection: LinkedInConnection):
+        """Creates and returns a LinkedInMessage object"""
+        return LinkedInMessage(account=self.account, template=self, recipient=connection)
+
+    def fill(self, connection):
+        """Replaces the placeholders in the template with connection info and returns a string"""
+        templateText = self.message_template
+        templateText = templateText.replace("{FIRST_NAME}", " ".join(connection.name.split()[:-1]))
+        templateText = templateText.replace("{LAST_NAME}", connection.name.split()[-1])
+        templateText = templateText.replace("{FULL_NAME}", connection.name)
+        templateText = templateText.replace("{LOCATION}", connection.location)
+        templateText = templateText.replace("{CITY}", self.invalidPlaceholder)
+        templateText = templateText.replace("{STATE}", self.invalidPlaceholder)
+        templateText = templateText.replace("{COUNTRY}", self.invalidPlaceholder)
+        templateText = templateText.replace("{ZIP_CODE}", self.invalidPlaceholder)
+
+        return templateText
+
+    def isValid(self, connection):
+        text = self.fill(connection)
+        return not self.invalidPlaceholder in text
+
 
 class LinkedInMessage(Base):
     """Instances of the Message templates that we actually sent to connections."""
@@ -110,6 +139,15 @@ class LinkedInMessage(Base):
     template = relationship("LinkedInMessageTemplate", back_populates="instances")
     recipient = relationship("LinkedInConnection", back_populates="messages")
     account = relationship("LinkedInAccount", back_populates="messages")
+
+    def text(self):
+        """Replaces the placeholders in the template with connection info and returns a linkedin message"""
+        return self.template.fill(self.recipient)
+
+    def isValid(self):
+        """Determines is a template was filled properly"""
+        return self.template.isValid(self.recipient)
+
 
 class ResponseMeanings(Base):
     """Meaning of message responses"""

@@ -183,7 +183,7 @@
         </layout>
        </item>
        <item row="1" column="0">
-        <layout class="QVBoxLayout" name="verticalLayout">
+        <layout class="QVBoxLayout" name="templateLayout">
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_4">
            <item>
