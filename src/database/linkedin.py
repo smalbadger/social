@@ -70,6 +70,7 @@ class LinkedInMessageTemplate(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
+    name = Column(String, nullable=False)
     message_template = Column(String, unique=True)
     crc = Column(Integer)
     date_created = Column(DateTime, default=datetime.datetime.utcnow)
