@@ -35,6 +35,7 @@ class NewInstanceDialog(QDialog):
         self.ui.testAccountsBox.toggled.connect(self.updateDropdown)
 
         self.populateClients()
+        self.ui.testAccountsBox.setChecked(True)  # TODO: Remove when making an executable
         self.populatePlatforms()
 
     def updateDropdown(self, withTesters: bool):
