@@ -23,14 +23,30 @@ class NewInstanceDialog(QDialog):
         self.mainWindow = parent
         self.ui.errorLabel.hide()
 
+        self.clients = []
+        self.testers = []
+
         self.ui.newClientButton.clicked.connect(self.newClient)
         self.ui.clientBox.activated.connect(self.populatePlatforms)
         self.ui.platformBox.setEnabled(False)
 
         self.ui.clientBox.activated.connect(self.ui.errorLabel.hide)
         self.ui.platformBox.activated.connect(self.ui.errorLabel.hide)
+        self.ui.testAccountsBox.toggled.connect(self.updateDropdown)
 
         self.populateClients()
+        self.ui.testAccountsBox.setChecked(True)  # TODO: Remove when making an executable
+        self.populatePlatforms()
+
+    def updateDropdown(self, withTesters: bool):
+        self.ui.clientBox.clear()
+
+        targList = self.testers if withTesters else self.clients
+
+        for acct in targList:
+            self.populateClient(acct)
+
+        self.populatePlatforms()
 
     def newClient(self):
         """Gives the user a chance to create a new client and link accounts"""
@@ -51,12 +67,21 @@ class NewInstanceDialog(QDialog):
         def populate(clients):
             for client in clients:
                 self.populateClient(client)
-            prog.close()
+                self.clients.append(client)
 
-        task = Task(session.query(Client).all)
+            def nextStep(testers):
+                for tester in testers:
+                    self.testers.append(tester)
+                prog.close()
+
+            task = Task(lambda: session.query(Client).filter(Client.tester == True))
+            task.finished.connect(nextStep)
+            QThreadPool.globalInstance().start(task)
+
+        task = Task(lambda: session.query(Client).filter(Client.tester == False))
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
-        self.show()
+        prog.show()
         prog.exec_()
 
     def populatePlatforms(self):

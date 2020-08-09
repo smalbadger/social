@@ -1,6 +1,6 @@
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog
 from PySide2.QtCore import QThreadPool
 
 from gui.logwidget import LogWidget
@@ -167,7 +167,7 @@ class InstanceWidget(QWidget):
                 # TODO: Replace with actual template name when implemented in database
                 self.gui_logger.debug(str(template.id) + ': ' + template.message_template)
                 self.numTemplates += 1
-                self.addTemplate(f'Template {self.numTemplates}', template)
+                self.addTemplate(template.name.encode('latin1').decode('unicode_escape'), template)
 
             if self.numTemplates != 0:
                 # Loads the last template
@@ -440,19 +440,23 @@ class InstanceWidget(QWidget):
         Creates a new template, and asks if the current one should be saved
         """
 
-        # TODO: Implement QInputDialog to prompt for template name
-        session.add(
-            LinkedInMessageTemplate(
-                account_id=self.account.id,
-                message_template=" ",
-                crc=-1
-            )
-        )  # Defaulting crc to -1
+        name, ok = QInputDialog.getText(self.window(), 'Campaign Name',
+                                    'Please enter a name for your new campaign/message template.')
 
-        if not skipSave:
-            self.saveCurrentTemplate(prompt=True)
+        if name and ok:
+            session.add(
+                LinkedInMessageTemplate(
+                    account_id=self.account.id,
+                    name=name.encode('unicode_escape'),
+                    message_template=" ",
+                    crc=-1
+                )
+            )  # Defaulting crc to -1
 
-        self.fetchTemplates(refreshing=True)
+            if not skipSave:
+                self.saveCurrentTemplate(prompt=True)
+
+            self.fetchTemplates(refreshing=True)
 
     def loadTemplateAtIndex(self, index: int, skipSave=False):
         """
