@@ -1,15 +1,17 @@
 import datetime
+from Cryptodome.Cipher import AES
 from sqlalchemy import create_engine
-from sqlalchemy import Column, String, Boolean, DateTime, Date, Time, Integer, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, Date, Time, Integer, ForeignKey, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
-from database.credentials import username, password, host, port
+from database.credentials import username, password, host, port, AES_key
 
-engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social', pool_recycle=3600)
+engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social', pool_recycle=3600, connect_args={'connect_timeout': 10})
 session = sessionmaker(bind=engine)()
 
 Base = declarative_base()
+
 
 class Client(Base):
     """Someone that is paying us money to automate some of their accounts"""
@@ -26,6 +28,7 @@ class Client(Base):
     # -- ORM --------------------------
     linkedin_account = relationship("LinkedInAccount", uselist=False, back_populates="client")
 
+
 class LinkedInAccount(Base):
     """A LinkedIn account belonging to one of our clients."""
 
@@ -33,8 +36,8 @@ class LinkedInAccount(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True)
-    username = Column(String)
-    password = Column(String)
+    profile_name = Column(String)
+    password = Column(LargeBinary)
     flagged_as_bot_date = Column(DateTime, default=None)
     flagged_as_bot = Column(Integer, default=0)
     tester = Column(Boolean, default=False)
@@ -62,6 +65,25 @@ class LinkedInAccountDailyActivity(Base):
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", uselist=False, back_populates="daily_activity")
 
+    def getPassword(self):
+        """Get the decrypted password"""
+        if not self.password:
+            return ""
+
+        nonce = self.password[0:16]
+        ciphertext = self.password[16:]
+        cipher = AES.new(AES_key, AES.MODE_EAX, nonce=nonce)
+        plaintext = cipher.decrypt(ciphertext).decode("utf-8")
+        return plaintext
+
+    def setPassword(self, password):
+        """Encrypt the password and store it"""
+        cipher = AES.new(AES_key, AES.MODE_EAX)
+        nonce = cipher.nonce
+        ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
+        self.password = nonce + ciphertext
+
+
 class LinkedInConnection(Base):
     """LinkedIn Connections belonging to our clients (connections mutual to multiple clients will be duplicated)"""
 
@@ -78,10 +100,13 @@ class LinkedInConnection(Base):
     account = relationship("LinkedInAccount", uselist=False, back_populates="connections")
     messages = relationship("LinkedInMessage", uselist=True, back_populates="recipient")
 
+
 class LinkedInMessageTemplate(Base):
     """Message templates for LinkedIn that will be blasted out to our connections"""
 
     __tablename__ = "linkedin_message_templates"
+
+    invalidPlaceholder = "INVALID-PLACEHOLDER"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
@@ -92,6 +117,47 @@ class LinkedInMessageTemplate(Base):
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", uselist=False, back_populates="message_templates")
     instances = relationship("LinkedInMessage", uselist=True, back_populates="template")
+
+    def createMessageTo(self, connection: LinkedInConnection):
+        """Creates and returns a LinkedInMessage object"""
+        return LinkedInMessage(account=self.account, template=self, recipient=connection)
+
+    def fill(self, connection):
+        """Replaces the placeholders in the template with connection info and returns a string"""
+        templateText = self.message_template.encode('latin1').decode('unicode_escape')
+
+        # all of the placeholders in the array (value), depend on the key attribute not being blank or null.
+        connection_conditions = {
+            "name": ["{FIRST_NAME}", "{LAST_NAME}", "{FULL_NAME}"],
+            "location": ["{LOCATION}", "{CITY}", "{STATE}", "{COUNTRY}", "{ZIP_CODE}"]
+        }
+
+        # to replace the placeholders, call the following lambda functions.
+        placeholders_functions = {
+            "{FIRST_NAME}": lambda c: c.name.strip().split()[0],
+            "{LAST_NAME}":  lambda c: c.name.strip().split()[-1],
+            "{FULL_NAME}":  lambda c: c.name.strip(),
+            "{LOCATION}":   lambda c: c.location,
+            "{CITY}":       lambda c: self.invalidPlaceholder, # TODO: Extract city from location
+            "{STATE}":      lambda c: self.invalidPlaceholder, # TODO: Extract state from location
+            "{COUNTRY}":    lambda c: self.invalidPlaceholder, # TODO: Extract country from location
+            "{ZIP_CODE}":   lambda c: self.invalidPlaceholder, # TODO: Extract zip code from location
+        }
+
+        for attr in connection_conditions:
+            for placeholder in connection_conditions[attr]:
+                if connection.__getattribute__(attr):
+                    templateText = templateText.replace(placeholder, placeholders_functions[placeholder](connection))
+                else:
+                    templateText = templateText.replace(placeholder, self.invalidPlaceholder)
+
+        return templateText
+
+    def isValid(self, connection):
+        """Determines if a template was filled properly"""
+        text = self.fill(connection)
+        return not self.invalidPlaceholder in text
+
 
 class LinkedInMessage(Base):
     """Instances of the Message templates that we actually sent to connections."""
@@ -109,6 +175,15 @@ class LinkedInMessage(Base):
     recipient = relationship("LinkedInConnection", uselist=False, back_populates="messages")
     account = relationship("LinkedInAccount", uselist=False, back_populates="messages")
 
+    def text(self):
+        """Replaces the placeholders in the template with connection info and returns a linkedin message"""
+        return self.template.fill(self.recipient)
+
+    def isValid(self):
+        """Determines if a template was filled properly"""
+        return self.template.isValid(self.recipient)
+
+
 class ResponseMeanings(Base):
     """Meaning of message responses"""
 
@@ -116,10 +191,3 @@ class ResponseMeanings(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     meaning = Column(String, unique=True)
-
-if __name__ == '__main__':
-    clients = session.query(Client).all()
-    for c in clients:
-        print(c.linkedin_account.username)
-        for connection in c.linkedin_account.connections:
-            print("\t" + connection.name)

@@ -29,65 +29,59 @@ def authentication_required(func):
     return check
 
 
-def print_page_on_exception(func):
-    """If an exception occurs, print the page HTML"""
+def log_exceptions(func):
+    """Log all exceptions"""
 
     @wraps(func)
-    def check(*args, **kwargs):
-        controller = args[0]
+    def wrapper(*args, **kwargs):
 
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            print(controller.browser.page_source)
-            raise e
+            args[0].exception(e)
+            # raise e
 
-    return check
+    return wrapper
 
-def log_all_exceptions(Cls):
-    """Apply the log_exceptions decorator to every instance method"""
-
-
-    def log_exceptions(func, controller):
-        """Log all exceptions"""
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                controller.exception(e)
-                raise e
-
-        return wrapper
-
-
-    class NewCls(object):
-
-        innerCls = Cls
-
-        def __init__(self, *args, **kwargs):
-            self.oInstance = Cls(*args, **kwargs)
-
-        def __getattribute__(self, s):
-            """
-            this is called whenever any attribute of a NewCls object is accessed. This function first tries to
-            get the attribute off NewCls. If it fails then it tries to fetch the attribute from self.oInstance (an
-            instance of the decorated class). If it manages to fetch the attribute from self.oInstance, and
-            the attribute is an instance method then `log_exceptions` is applied.
-            """
-            try:
-                x = super(NewCls, self).__getattribute__(s)
-            except AttributeError:
-                pass
-            else:
-                return x
-
-            x = self.oInstance.__getattribute__(s)
-            if type(x) == type(self.__init__):  # it is an instance method
-                return log_exceptions(x, self.oInstance)  # this is equivalent of just decorating the method with log_exceptions
-            else:
-                return x
-
-    return NewCls
+# def log_all_exceptions(Cls):
+#     """
+#     Apply the log_exceptions decorator to every instance method
+#
+#     WARNING: This causes issues with accessing class variables! To access class variables of classes where this
+#              decorator is applied, the .innerCls attribute must be used. For instance:
+#              LinkedInController.innerCls.CRITICAL_LOGIN_INFO
+#     """
+#
+#
+#
+#     class NewCls(object):
+#
+#         innerCls = Cls
+#
+#         def __init__(self, *args, **kwargs):
+#             self.oInstance = Cls(*args, **kwargs)
+#
+#         def __getattribute__(self, s):
+#             """
+#             this is called whenever any attribute of a NewCls object is accessed. This function first tries to
+#             get the attribute off NewCls. If it fails then it tries to fetch the attribute from self.oInstance (an
+#             instance of the decorated class). If it manages to fetch the attribute from self.oInstance, and
+#             the attribute is an instance method then `log_exceptions` is applied.
+#             """
+#             print("wtf", flush=True)
+#             try:
+#                 x = super(NewCls, self).__getattribute__(s)
+#             except AttributeError:
+#                 pass
+#             else:
+#                 return x
+#
+#             x = self.oInstance.__getattribute__(s)
+#             if type(x) == type(self.__init__):  # it is an instance method
+#                 print("wrap", s)
+#                 return log_exceptions(x, self.oInstance)  # this is equivalent of just decorating the method with log_exceptions
+#             else:
+#                 return x
+#
+#
+#     return NewCls

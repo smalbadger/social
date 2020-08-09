@@ -1,16 +1,18 @@
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog
 from PySide2.QtCore import QThreadPool
 
 from gui.logwidget import LogWidget
+from gui.filterdialog import FilterDialog
 from gui.ui.ui_instancewidget import Ui_mainWidget
+from gui.templateeditwidget import TemplateEditWidget
+from gui.messagepreviewdialog import MessagePreviewDialog
 
 from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
 from common.strings import fromHTML, toHTML
 from common.threading import Task
-from common.logging import controller_logger
 from database.linkedin import *
 
 
@@ -22,6 +24,11 @@ class InstanceWidget(QWidget):
         self.ui = Ui_mainWidget()
         self.ui.setupUi(self)
 
+        newTemplateEdit = TemplateEditWidget()
+        self.ui.messageTemplateEdit.hide()
+        self.ui.templateLayout.replaceWidget(self.ui.messageTemplateEdit, newTemplateEdit)
+        self.ui.messageTemplateEdit = newTemplateEdit
+
         # Client info
         self.client = client
         self.platformName = cConstructor.__name__[:-len('Controller')]
@@ -32,8 +39,8 @@ class InstanceWidget(QWidget):
 
         # Account info
         self.email = self.account.email
-        self.pwd = self.account.password
-        self.profilename = self.account.username
+        self.pwd = self.account.getPassword()
+        self.profilename = self.account.profile_name
 
         # Browser
         self.opts = [f'{UserAgent().random}']
@@ -48,36 +55,72 @@ class InstanceWidget(QWidget):
         self.syncController = None
         self.synchronizer = None
 
-        # Logger
+        # Loggers and handlers
         self.lw = LogWidget(self.ui.instanceLogTextEdit)
         self.lw.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.lw.setLevel(logging.DEBUG)
+        self.lw.addLogger(f"gui.linkedin.{self.profilename}", "rgba(255, 100, 100, 0.2)")
+        self.lw.addLogger(f"database.linkedin.{self.profilename}", "rgba(100, 100, 255, 0.2)")
+
+        self.db_logger = logging.getLogger(f"database.linkedin.{self.profilename}")
+        self.gui_logger = logging.getLogger(f"gui.linkedin.{self.profilename}")
 
         # Populate and initialize values
         self.numTemplates = 0
         self.currentTempIndex = -1
         self.fetchValues()
 
+        # If critical login info is not available, disable headless mode.
+        # headlessEnabled = True
+        # for field in cConstructor.CRITICAL_LOGIN_INFO:
+        #     if not self.account.__getattribute__(field):
+        #         headlessEnabled = False
+        #         break
+        # self.ui.headlessBoxSync.setChecked(headlessEnabled)
+        # self.ui.headlessBoxSync.setEnabled(headlessEnabled)
+        # self.ui.headlessBoxGeneral.setChecked(headlessEnabled)
+        # self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
+
         # Final stuff
         self.connectSignalsToFunctions()
         self.ui.errorLabel.hide()
-        controller_logger.info(f'{self.platformName} instance created for {self.client.name}')
+        self.gui_logger.info(f'{self.platformName} instance created for {self.client.name}')
+        self.updateStatusOfMessengerButton()
+
+    def updateStatusOfMessengerButton(self):
+        """Enable/disable the auto message button by looking at the selected connections list and the template editor"""
+        enable = True
+
+        # There must be text in the template editor
+        if not self.ui.messageTemplateEdit.toPlainText().strip():
+            enable = False
+
+        # There must be connections in the selected connections list
+        elif not self.ui.selectedConnectionsList.count():
+            enable = False
+
+        # TODO: Add condition that the template must be saved before sending it?
+
+        self.ui.autoMessageButton.setEnabled(enable)
 
     def fetchValues(self, skipTemplates=False):
         """
         Initializes connections and then initializes templates
         """
-
-        prog = QProgressDialog('Fetching Connections...', 'Hide', 0, 0, parent=self.window())
+        msg = "Fetching connections from database..."
+        prog = QProgressDialog(msg, 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
-        prog.setWindowTitle('Fetching Connections...')
+        prog.setWindowTitle(msg)
+        prog.show()
 
         def populate(connections):
+            self.gui_logger.info("Populating connections...")
             self.ui.allConnectionsList.clear()
             self.ui.selectedConnectionsList.clear()
             self.selectedConnections = []
 
             for con in connections:
+                self.gui_logger.debug(con.name)
                 self.ui.allConnectionsList.addItem(con.name)
                 self.allConnections[con.name] = con
 
@@ -86,18 +129,20 @@ class InstanceWidget(QWidget):
             if not skipTemplates:
                 self.fetchTemplates()
 
+        self.db_logger.info(msg)
         task = Task(lambda: session.query(LinkedInConnection)
                     .filter(LinkedInConnection.account_id == self.account.id))
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
-        prog.show()
+        prog.exec_()
 
     def fetchTemplates(self, refreshing=False):
         """
         Gets templates associated to account
         """
 
+        self.ui.templatesBox.blockSignals(True)
         self.ui.templatesBox.clear()
 
         if refreshing:
@@ -108,18 +153,20 @@ class InstanceWidget(QWidget):
         prog = QProgressDialog(msg, 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle(msg)
+        prog.show()
 
         def populate(templates):
             self.numTemplates = 0
             self.ui.templatesBox.clear()
-            self.ui.templatesBox.blockSignals(True)
 
+            self.gui_logger.info("Populating templates...")
             for template in templates:
                 # TODO: Replace with actual template name when implemented in database
+                self.gui_logger.debug(template.message_template)
                 self.numTemplates += 1
                 self.addTemplate(f'Template {self.numTemplates}', template)
 
-            if self.numTemplates is not 0:
+            if self.numTemplates != 0:
                 # Loads the last template
                 self.currentTempIndex = self.numTemplates-1
                 self.ui.templatesBox.setCurrentIndex(self.currentTempIndex)
@@ -130,22 +177,25 @@ class InstanceWidget(QWidget):
             self.ui.templatesBox.blockSignals(False)
             prog.close()
 
+        self.db_logger.info(msg)
         task = Task(lambda: session.query(LinkedInMessageTemplate)
                     .filter(LinkedInMessageTemplate.account_id == self.account.id))
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
-        prog.show()
+        prog.exec_()
 
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
 
-        # TODO: When I start, then stop the messenger manually, I get a bunch of HTTP errors. This probably needs to be
-        #  fixed in the Controller class somehow so that we can safely stop at any point.
-
         startStopButton = self.ui.autoMessageButton
 
         def onComplete():
+            """Called on completion of the Messenger task"""
+            startStopButton.setChecked(False)
+            if not self.messagingController:
+                return
+
             startStopButton.setText("Closing, please wait...")
             startStopButton.setEnabled(False)
 
@@ -160,28 +210,39 @@ class InstanceWidget(QWidget):
             startStopButton.setText("Send Message to Selected Connections")
             startStopButton.setEnabled(True)
 
-        def teardown():  # This will naturally call onComplete, otherwise it is called twice
-            startStopButton.setChecked(False)
-
         if start:
-            template = self.ui.messageTemplateEdit.toPlainText()
+            self.saveCurrentTemplate()
+            template = self.ui.templatesBox.currentData()
 
-            if fromHTML(template) != template:
+            if fromHTML(template.message_template) != template.message_template:
                 self.ui.errorLabel.setText("Error: Template cannot use HTML reserved expressions.")
                 self.ui.errorLabel.show()
                 startStopButton.setChecked(False)
                 return
+
+            # Getting query items from selected list
+            connections = [self.allConnections[name] for name in self.selectedConnections]
+
+            # Show a preview of the message and ask if the operator would like to proceed
+            preview = MessagePreviewDialog(self, connections, template)
+            preview.exec_()
+            if preview.result() == QDialog.Rejected:
+                return self.autoMessage(False)
 
             # GUI Stuff
             self.ui.errorLabel.hide()
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             # Controller stuff
+            messengerBrowserOpts = self.opts[:]
+            if self.ui.headlessBoxGeneral.isChecked():
+                messengerBrowserOpts.append("headless")
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                                  browser=self.browser, options=self.opts)
-            logging.getLogger(self.messagingController.getLoggerName()).addHandler(self.lw)
+                                                                  id=self.account.id, browser=self.browser,
+                                                                  options=messengerBrowserOpts)
+            self.lw.addLogger(self.messagingController.getLoggerName(), "rgba(100, 100, 0, 0.2)")
             self.messenger = LinkedInMessenger(self.messagingController, template,
-                                               self.selectedConnections, teardown_func=teardown)
+                                               connections, teardown_func=onComplete)
             QThreadPool.globalInstance().start(self.messenger)
 
             startStopButton.setText("Stop")
@@ -201,17 +262,136 @@ class InstanceWidget(QWidget):
         self.ui.autoMessageButton.toggled.connect(self.autoMessage)
         self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
-        self.ui.headlessBoxGeneral.toggled.connect(self.checkGeneralHeadless)
         self.ui.syncButton.toggled.connect(self.synchronizeAccount)
         self.ui.selectAllBox.toggled.connect(self.selectAll)
         self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
         self.ui.newTemplateButton.clicked.connect(self.createNewTemplate)
         self.ui.templatesBox.currentIndexChanged.connect(self.loadTemplateAtIndex)
+        self.ui.deleteTemplateButton.clicked.connect(lambda: self.deleteCurrentTemplate())  # lambda needed to fix bug
+        self.ui.messageTemplateEdit.textChanged.connect(self.updateStatusOfMessengerButton)
+        self.ui.allConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
+        self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
+        self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
+        self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
+
+    def openFilterDialog(self):
+        """
+        Opens the dialog that asks for filter criteria
+        """
+        msg = "Filtering connections..."
+
+        def filt(locations, numMessages):
+            def populate(filteredConnections):
+                self.ui.selectedConnectionsList.clear()
+                self.selectedConnections = filteredConnections
+                self.ui.selectedConnectionsList.addItems(self.selectedConnections)
+
+                prog.close()
+
+                QMessageBox.information(self.window(), 'Connections Filtered.',
+                                        f'Found {len(filteredConnections)} matching connection(s).')
+
+            prog = QProgressDialog(msg, 'Hide', 0, 0, parent=self.window())
+            prog.setModal(True)
+            prog.setWindowTitle(msg)
+
+            self.db_logger.info(msg)
+            task = Task(lambda: self.filterConnectionsBy(locations=locations, maxMessages=numMessages))
+            task.finished.connect(populate)
+            QThreadPool.globalInstance().start(task)
+
+            prog.exec_()
+
+        fd = FilterDialog(self.account, parent=self)
+        fd.filterAccepted.connect(filt)
+        fd.exec_()
+
+    def filterConnectionsBy(self, locations=(False, None), maxMessages=(False, None)):
+        """
+        All args are (useCriteria, value) tuples
+        """
+
+        if locations[0]:
+            self.db_logger.info("Filtering by location")
+            result = {}  # We add each connection with location in the location list
+            for location in locations[1]:
+                result.update(dict(filter(lambda tup: tup[1].location == location, self.allConnections.items())))
+        else:
+            result = self.allConnections
+
+        if maxMessages[0]:
+            self.db_logger.info("Filtering by max messages")
+            # This one is complicated:
+            #  Query database for messages sent to connection from the instance's account,
+            #  get the length of the returned list, and compare it to maxMessages
+            result = dict(
+                filter(lambda tup:
+                       len(
+                           list(
+                               session.query(LinkedInMessage).filter(
+                                   LinkedInMessage.account_id == self.account.id,
+                                   LinkedInMessage.recipient_connection_id == tup[1].id
+                               )
+                           )
+                       ) < maxMessages[1], result.items()
+                )
+            )
+
+        return list(result.keys())
+
+    def deleteCurrentTemplate(self, prompt=True):
+        """
+        Deletes the current template locally and then from the database
+        """
+
+        if prompt:
+            ans = QMessageBox.question(self.window(), 'Confirm',
+                                       "Are you sure you want to delete this template? This can't be undone.")
+        else:
+            ans = QMessageBox.Yes
+
+        if ans == QMessageBox.Yes:
+            self.gui_logger.info("Removing current template")
+            def deleteTemplate():
+                box = self.ui.templatesBox
+
+                template = box.currentData()
+                ind = box.currentIndex()
+                name = box.currentText()
+
+                # Local deletion
+                self.gui_logger.info(f"Deleting {name} locally...")
+                box.blockSignals(True)
+                box.removeItem(ind)
+                self.numTemplates -= 1
+                self.currentTempIndex = self.numTemplates - 1
+                self.loadTemplateAtIndex(self.currentTempIndex, skipSave=True)
+                box.setCurrentIndex(self.currentTempIndex)
+                box.blockSignals(False)
+
+                # Server deletion
+                self.db_logger.info(f"Deleting {name} from server...")
+                session.delete(template)
+                session.commit()
+
+                self.gui_logger.info(f"Successfully deleted {name}.")
+
+            prog = QProgressDialog('Deleting Template...', 'Hide', 0, 0, parent=self.window())
+            prog.setModal(True)
+            prog.setWindowTitle('Deleting...')
+            prog.show()
+
+            task = Task(deleteTemplate)
+            task.finished.connect(prog.close)
+            QThreadPool.globalInstance().start(task)
+
+            prog.exec_()
 
     def addTemplate(self, name: str, data):
         """
         Adds a template to the template box. Naturally triggers the loadTemplateAtIndex function
         """
+        self.gui_logger.info("Creating new template")
         self.ui.templatesBox.addItem(name, userData=data)
 
     def saveCurrentTemplate(self, prompt=False):
@@ -219,24 +399,35 @@ class InstanceWidget(QWidget):
         Saves the current template to the database.
         """
 
-        if prompt:
-            ans = QMessageBox.question(self.window(), 'Save', 'Save current template?')
+        template = self.ui.templatesBox.itemData(self.currentTempIndex)
+        newMsg = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
+        if template:
+            curMsg = template.message_template.encode('latin1')
         else:
-            ans = QMessageBox.Yes
+            curMsg = newMsg  # No need to save if there is nothing currently loaded
 
-        if ans == QMessageBox.Yes:
-            template = self.ui.templatesBox.itemData(self.currentTempIndex)
-            template.message_template = self.ui.messageTemplateEdit.toPlainText().encode('unicode_escape')
+        # Only save if the text has been changed
+        if curMsg != newMsg:
 
-            prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
-            prog.setModal(True)
-            prog.setWindowTitle('Saving...')
+            if prompt:
+                ans = QMessageBox.question(self.window(), 'Save', 'Save current template?')
+            else:
+                ans = QMessageBox.Yes
 
-            task = Task(session.commit)
-            task.finished.connect(prog.close)
-            QThreadPool.globalInstance().start(task)
+            if ans == QMessageBox.Yes:
+                template.message_template = newMsg
 
-            prog.show()
+                prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
+                prog.setModal(True)
+                prog.setWindowTitle('Saving...')
+                prog.show()
+
+                task = Task(session.commit)
+                task.finished.connect(prog.close)
+                QThreadPool.globalInstance().start(task)
+
+                self.db_logger.info(f"Saving {self.ui.templatesBox.itemText(self.currentTempIndex)}")
+                prog.exec_()
 
         self.currentTempIndex = self.ui.templatesBox.currentIndex()
 
@@ -249,7 +440,7 @@ class InstanceWidget(QWidget):
         session.add(
             LinkedInMessageTemplate(
                 account_id=self.account.id,
-                message_template="",
+                message_template=" ",
                 crc=-1
             )
         )  # Defaulting crc to -1
@@ -268,12 +459,7 @@ class InstanceWidget(QWidget):
         if not skipSave:
             self.saveCurrentTemplate(prompt=True)
 
-        try:
-            text = self.ui.templatesBox.itemData(index).message_template.decode('unicode_escape')
-        except AttributeError:
-            # One-liners with no special characters don't need to be decoded
-            text = self.ui.templatesBox.itemData(index).message_template
-
+        text = self.ui.templatesBox.itemData(index).message_template.encode('latin1').decode('unicode_escape')
         self.ui.messageTemplateEdit.setPlainText(text)
 
     def selectAll(self, checked):
@@ -300,7 +486,12 @@ class InstanceWidget(QWidget):
     def synchronizeAccount(self, checked):
         """Synchronizes account using options given in GUI"""
 
+        syncBtn = self.ui.syncButton
         def onComplete():
+            """Called on completion of the Synchronizer task"""
+            syncBtn.setChecked(False)
+            if not self.syncController:
+                return
             self.ui.syncButton.setText('Closing...')
             self.ui.syncButton.setEnabled(False)
 
@@ -315,13 +506,9 @@ class InstanceWidget(QWidget):
             self.ui.syncButton.setText('Synchronize Database')
             self.ui.syncButton.setEnabled(True)
 
-        def teardown():  # This will naturally call onComplete, otherwise it is called twice
-            self.ui.syncButton.setChecked(False)
-
         if checked:
             acl = self.ui.allConnectionsList
             options = {
-                'headless': self.ui.headlessBoxSync.isChecked(),
                 'messages': self.ui.updateMessagesBox.isChecked(),
                 'connections': self.ui.updateConnectionsBox.isChecked(),
                 'known': [acl.item(i).text() for i in range(acl.count())],
@@ -330,11 +517,14 @@ class InstanceWidget(QWidget):
 
             self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
+            syncBrowserOpts = self.opts[:]
+            if self.ui.headlessBoxSync.isChecked():
+                syncBrowserOpts.append("headless")
             self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                             browser=self.browser, options=self.opts)
+                                                             browser=self.browser, options=syncBrowserOpts)
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 
-            self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=teardown)
+            self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=onComplete)
             self.syncController.connectionsScraped.connect(self.scrapedConnectionsHandler)
 
             QThreadPool.globalInstance().start(self.synchronizer)
@@ -356,10 +546,11 @@ class InstanceWidget(QWidget):
         prog.setWindowTitle("Processing...")
         prog.show()
 
-        task = Task(lambda: processScrapedConnections(conns, self.account))
+        task = Task(lambda: processScrapedConnections(conns, self.account, self.db_logger))
         task.finished.connect(prog.close)
         task.finished.connect(lambda: self.fetchValues(skipTemplates=True))
         QThreadPool.globalInstance().start(task)
+        prog.exec_()
 
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""
@@ -374,23 +565,12 @@ class InstanceWidget(QWidget):
             self.ui.selectedConnectionsList.takeItem(ind)
             self.selectedConnections.remove(connection.text())
 
-    def checkGeneralHeadless(self, checked):
-        """Handles changing the headless mode on the controller's browser"""
-
-        if checked:
-            self.ui.closeBrowserBox.setChecked(True)
-            self.ui.closeBrowserBox.setEnabled(False)
-            self.messagingController.options.headless = True
-        else:
-            self.ui.closeBrowserBox.setEnabled(True)
-            self.messagingController.options.headless = False
-
 
 #######################################
 # Database stuff (Call these in Tasks)
 #######################################
 
-def processScrapedConnections(conns: dict, account):
+def processScrapedConnections(conns: dict, account, db_logger):
     """
     - Pulls connections from DB, finds the ones that correlate to entries in conns, and updates them.
     - If there are new connections, adds them to the database.
@@ -402,8 +582,7 @@ def processScrapedConnections(conns: dict, account):
     prev = session.query(LinkedInConnection).filter(LinkedInConnection.account_id == account.id)
 
     # Iterate through all connections scraped
-    controller_logger.info('')
-    controller_logger.info('Adding/updating collected data in database...')
+    db_logger.info('Adding/updating collected data in database...')
     for name in conns.keys():
         alreadyExists = False
         conDict = conns[name]
@@ -459,12 +638,11 @@ def processScrapedConnections(conns: dict, account):
 
         if not entry:
             # Should only happen if there is an error adding a new connection
-            controller_logger.error(f'{name} could not be added to the database.')
+            db_logger.error(f'{name} could not be added to the database.')
 
         elif conDict['location'] != entry.location or conDict['position'] != entry.position:
             # For updated connections
-            controller_logger.error(f'{name} could not be updated.')
+            db_logger.error(f'{name} could not be updated.')
 
     # Then return with nothing since the fetchValues function will be called again
-    controller_logger.info('Done')
-    controller_logger.info('')
+    db_logger.info('Done')

@@ -29,12 +29,12 @@ class Controller(AbstractBaseClass):
     IMPLICIT_WAIT = 1
     HIGHLIGHT_ENABLED = True
 
-    def __init__(self, username: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
+    def __init__(self, profile_name: str, email: str, password: str, browser: str = "Chrome", options: Iterable[str] = ()):
         """
         Initializes controller
 
-        :param username: The username of the account to log into.
-        :type username: str
+        :param profile_name: The profile name of the account to log into.
+        :type profile_name: str
         :param email: The emails of the account to log into.
         :type email: str
         :param password: The password of the account to log into.
@@ -51,13 +51,39 @@ class Controller(AbstractBaseClass):
         # store private variables first
         self._logger = None
         self._initialURL = None
-        self._username = username
+        self._profile_name = profile_name
         self._email = email
         self._password = password
+        self._criticalLoginInfo = ()
 
         self.initLogger()
         self.options = list(options)
         self.browser = browser
+
+    def checkForValidConfiguration(self):
+        """
+        Determines if the controller configuration is Valid
+
+        :raises InvalidOptionsException: if invalid options are provided
+        """
+        if self.isManualLoginNeeded() and "headless" in self.options.arguments:
+            missingCredentials = ', '.join(self.getMissingCriticalLoginInfo())
+            raise InvalidOptionsException("The controller cannot be started in headless mode because the following "
+                                          f"credentials were not provided: {missingCredentials}")
+        # TODO: Add more checks as necessary
+
+    def isManualLoginNeeded(self):
+        manual = False
+        for field in self._criticalLoginInfo:
+            manual = manual or not self.__getattribute__(f"_{field}")
+        return manual
+
+    def getMissingCriticalLoginInfo(self):
+        missingFields = []
+        for field in self._criticalLoginInfo:
+            if not self.__getattribute__(f"_{field}"):
+                missingFields.append(field)
+        return missingFields
 
     def start(self):
         """Starts the controller"""
@@ -72,7 +98,7 @@ class Controller(AbstractBaseClass):
             self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
 
         self.browser.get(self._initialURL)
-        self.login(manual=not self._password)
+        self.login(manual=self.isManualLoginNeeded())
 
     def stop(self):
         """Stops the controller by closing the browser"""
@@ -89,7 +115,7 @@ class Controller(AbstractBaseClass):
     #############################################################
 
     @abstractmethod
-    def login(self):
+    def login(self, manual=False):
         """Process taken to login"""
         pass
 
@@ -200,6 +226,10 @@ class Controller(AbstractBaseClass):
         returned.
         """
         return element.get_attribute('innerHTML').replace('<!---->', '').strip()
+
+    def setInnerText(self, element, innerText):
+        """Sets the innerText of an element"""
+        self.browser.execute_script(f"arguments[0].innerText = '{innerText}'", element)
 
     #############################################################
     #  Logging Shortcuts
