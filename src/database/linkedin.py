@@ -73,6 +73,7 @@ class LinkedInMessageTemplate(Base):
     message_template = Column(String, unique=True)
     crc = Column(Integer)
     date_created = Column(DateTime, default=datetime.datetime.utcnow)
+    deleted = Column(Boolean, default=False)
 
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", back_populates="message_templates")
