@@ -29,7 +29,8 @@ def checkRun():
             def closeApp():
                 QThreadPool.globalInstance().clear()
                 View.closeAllBrowsers()
-                QApplication.instance().quit()
+                # QApplication.instance().quit()
+                exit(0)
 
             Waiting = True
             t = Task(waitForCurrentFunctionToFinish)

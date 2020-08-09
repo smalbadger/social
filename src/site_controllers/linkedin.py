@@ -23,6 +23,7 @@ from common.strings import onlyAplhaNumeric, equalTo, fromHTML
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
+from common.instance import Waiting
 
 from database.general import session
 from database.linkedin import LinkedInMessage
@@ -126,7 +127,7 @@ class LinkedInController(Controller):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
 
-    @finish_executing
+    @finish_executing  # TODO: Here for testing, remove later
     @log_exceptions
     @ensure_browser_is_running
     def login(self, manual=False):
@@ -466,7 +467,6 @@ class LinkedInController(Controller):
         wanted_history = history[-numMessages:]
         return wanted_history
 
-    @finish_executing
     @log_exceptions
     @authentication_required
     def acceptAllConnections(self) -> list:

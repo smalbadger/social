@@ -165,7 +165,7 @@ class InstanceWidget(QWidget):
             self.gui_logger.info("Populating templates...")
             for template in templates:
                 # TODO: Replace with actual template name when implemented in database
-                self.gui_logger.debug(template.message_template)
+                self.gui_logger.debug(str(template.id) + ': ' + template.message_template)
                 self.numTemplates += 1
                 self.addTemplate(f'Template {self.numTemplates}', template)
 
@@ -182,7 +182,8 @@ class InstanceWidget(QWidget):
 
         self.db_logger.info(msg)
         task = Task(lambda: session.query(LinkedInMessageTemplate)
-                    .filter(LinkedInMessageTemplate.account_id == self.account.id))
+                    .filter(LinkedInMessageTemplate.account_id == self.account.id,
+                            LinkedInMessageTemplate.deleted == False))
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
@@ -349,15 +350,15 @@ class InstanceWidget(QWidget):
 
         if prompt:
             ans = QMessageBox.question(self.window(), 'Confirm',
-                                       "Are you sure you want to delete this template? This can't be undone.")
+                                       "Are you sure you want to delete this template?")
         else:
             ans = QMessageBox.Yes
 
         if ans == QMessageBox.Yes:
             self.gui_logger.info("Removing current template")
-            def deleteTemplate():
-                box = self.ui.templatesBox
+            box = self.ui.templatesBox
 
+            def deleteTemplate():
                 template = box.currentData()
                 ind = box.currentIndex()
                 name = box.currentText()
@@ -367,14 +368,13 @@ class InstanceWidget(QWidget):
                 box.blockSignals(True)
                 box.removeItem(ind)
                 self.numTemplates -= 1
-                self.currentTempIndex = self.numTemplates - 1
-                self.loadTemplateAtIndex(self.currentTempIndex, skipSave=True)
+                self.currentTempIndex = min(ind, self.numTemplates - 1)
                 box.setCurrentIndex(self.currentTempIndex)
                 box.blockSignals(False)
 
                 # Server deletion
                 self.db_logger.info(f"Deleting {name} from server...")
-                session.delete(template)
+                template.deleted = True
                 session.commit()
 
                 self.gui_logger.info(f"Successfully deleted {name}.")
@@ -386,6 +386,7 @@ class InstanceWidget(QWidget):
 
             task = Task(deleteTemplate)
             task.finished.connect(prog.close)
+            task.finished.connect(lambda: self.loadTemplateAtIndex(box.currentIndex(), skipSave=True))
             QThreadPool.globalInstance().start(task)
 
             prog.exec_()
@@ -394,7 +395,7 @@ class InstanceWidget(QWidget):
         """
         Adds a template to the template box. Naturally triggers the loadTemplateAtIndex function
         """
-        self.gui_logger.info("Creating new template")
+        self.gui_logger.info(f"Adding {name}")
         self.ui.templatesBox.addItem(name, userData=data)
 
     def saveCurrentTemplate(self, prompt=False):
