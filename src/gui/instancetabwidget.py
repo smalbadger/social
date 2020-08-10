@@ -29,9 +29,9 @@ class InstanceTabWidget(QWidget):
 
         # TODO: Don't run this in a timer - it can really bog things down
         #  Ideally, we would have signals connect to the updateActivityInfo method.
-        self.actionCountTimer = QTimer(self)
-        self.actionCountTimer.timeout.connect(self.updateActivityInfo)
-        self.actionCountTimer.start(5000)
+        # self.actionCountTimer = QTimer(self)
+        # self.actionCountTimer.timeout.connect(self.updateActivityInfo)
+        # self.actionCountTimer.start(5000)
 
         self.updateActivityInfo()
 
