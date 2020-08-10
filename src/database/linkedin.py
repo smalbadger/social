@@ -1,4 +1,5 @@
 import datetime
+from datetime import date, timedelta
 from Cryptodome.Cipher import AES
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Boolean, DateTime, Date, Time, Integer, ForeignKey, LargeBinary
@@ -49,22 +50,6 @@ class LinkedInAccount(Base):
     message_templates = relationship("LinkedInMessageTemplate", uselist=True, back_populates="account")
     daily_activity = relationship("LinkedInAccountDailyActivity", uselist=True, back_populates="account")
 
-class LinkedInAccountDailyActivity(Base):
-    """Keeps track of a single LinkedIn account's daily activity."""
-
-    __tablename__ = "linkedin_accounts_daily_activity"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
-    date = Column(Date)
-    message_count = Column(Integer, default=0)
-    connection_request_count = Column(Integer, default=0)
-    activity_limit = Column(Integer, default=10)
-    last_activity = Column(DateTime, default=None)
-
-    # -- ORM --------------------------
-    account = relationship("LinkedInAccount", uselist=False, back_populates="daily_activity")
-
     def getPassword(self):
         """Get the decrypted password"""
         if not self.password:
@@ -82,6 +67,55 @@ class LinkedInAccountDailyActivity(Base):
         nonce = cipher.nonce
         ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
         self.password = nonce + ciphertext
+
+class LinkedInAccountDailyActivity(Base):
+    """Keeps track of a single LinkedIn account's daily activity."""
+
+    __tablename__ = "linkedin_accounts_daily_activity"
+
+    DEFAULT_ACTIVITY_LIMIT = 100
+    MAX_ACTIVITY_LIMIT = 200
+    MINIMUM_ACTIVITY_INERVAL = 60 # seconds
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
+    date = Column(Date)
+    message_count = Column(Integer, default=0)
+    connection_request_count = Column(Integer, default=0)
+    activity_limit = Column(Integer, default=DEFAULT_ACTIVITY_LIMIT)
+    last_activity = Column(DateTime, default=None)
+
+    # -- ORM --------------------------
+    account = relationship("LinkedInAccount", uselist=False, back_populates="daily_activity")
+
+    @staticmethod
+    def getToday(account: LinkedInAccount) -> 'LinkedInAccountDailyActivity':
+        """
+        Gets either the current day's activity record for any linkedin account.
+        If it exists already, just return the record that exists.
+        If not, create and return a new record with the limit automatically increased.
+        """
+        todaysActivity = session.query(LinkedInAccountDailyActivity).filter(
+            LinkedInAccountDailyActivity.account == account,
+            LinkedInAccountDailyActivity.date == date.today()
+        ).one_or_none()
+
+        if todaysActivity:
+            return todaysActivity
+
+        lastDaysActivity = session.query(LinkedInAccountDailyActivity).filter(
+            LinkedInAccountDailyActivity.account == account,
+            LinkedInAccountDailyActivity.date < date.today()
+        ).order_by(
+            LinkedInAccountDailyActivity.date
+        ).first()
+
+        if lastDaysActivity:
+            newLimit = min(lastDaysActivity.activity_limit + 25, LinkedInAccountDailyActivity.MAX_ACTIVITY_LIMIT)
+        else:
+            newLimit = LinkedInAccountDailyActivity.DEFAULT_ACTIVITY_LIMIT
+
+        return LinkedInAccountDailyActivity(account=account, date=date.today(), activity_limit=newLimit)
 
 
 class LinkedInConnection(Base):
