@@ -51,7 +51,7 @@ class InstanceTabWidget(QWidget):
             if usedActions < actionLimit:
                 styleSheet = f"QLabel {{color: {getColor(usedActions/actionLimit)}}}"
             else:
-                styleSheet = "QLabel {{color: rgb(255, 0, 0); background-color: rgb(0,0,0);}}"
+                styleSheet = "QLabel {color: rgb(255, 0, 0); background-color: rgb(0,0,0);}"
 
             self.ui.usedActions.setText(str(usedActions))
             self.ui.usedActions.setStyleSheet(styleSheet)
