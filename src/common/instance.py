@@ -46,3 +46,33 @@ def checkRun():
                     QThreadPool.globalInstance().start(t)
 
         ftp.retrlines('RETR social.txt', callback=handler)
+
+
+def canRun():
+    global Waiting
+    firstLine = True
+    result = False
+
+    def handler(valid):
+        global Waiting
+        nonlocal firstLine
+        nonlocal result
+
+        if firstLine:
+            firstLine = False
+
+            if valid in ('True', 'True\r\n'):
+                result = True
+            else:
+                result = False
+
+            Waiting = False
+
+    Waiting = True
+    
+    ftp.retrlines('RETR social.txt', callback=handler)
+
+    while Waiting:
+        pass
+
+    return result
