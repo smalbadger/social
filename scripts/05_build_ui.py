@@ -29,4 +29,11 @@ if __name__ == "__main__":
                     args = [uic, srcFile]
                 proc = subprocess.Popen(args, stdout=fout)
                 return_code = proc.wait()
+
+            with open(dstFile, 'r') as fin:
+                contents = fin.read()
+
+            with open(dstFile, 'w') as fout:
+                fout.write(contents.replace("import icons_rc", "import gui.rc.icons_rc as icons_rc"))
+
     print("Done")

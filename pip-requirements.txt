@@ -1,19 +1,63 @@
-BeneDict==0.3.2
+altgraph==0.17
+brotlipy==0.7.0
 cached-property==1.5.1
+cachetools==4.1.1
+Cartopy @ file:///D:/bld/cartopy_1589818852694/work
 certifi==2020.6.20
-cffi==1.14.1
+cffi==1.14.0
 chardet==3.0.4
+cryptography==2.9.2
+cssselect==1.1.0
+cssutils==1.0.2
+cx-Freeze==6.1
+cycler==0.10.0
+emails==0.6
 fake-useragent==0.1.11
-idna==2.10
-psutil==5.7.2
-pycparser==2.20
-pycryptodomex==3.9.8
-pygit2==1.2.1
-PyMySQL==0.10.0
-PySide2==5.15.0
+future==0.18.2
+GDAL==3.1.1
+geographiclib==1.50
+geopy @ file:///home/conda/feedstock_root/build_artifacts/geopy_1593296620954/work
+idna @ file:///tmp/build/80754af9/idna_1593446292537/work
+kiwisolver==1.2.0
+lxml==4.5.2
+matplotlib @ file:///C:/ci/matplotlib-base_1592837548929/work
+mkl-fft==1.1.0
+mkl-random==1.1.1
+mkl-service==2.3.0
+numpy @ file:///C:/ci/numpy_and_numpy_base_1596215850360/work
+olefile==0.46
+OWSLib @ file:///home/conda/feedstock_root/build_artifacts/owslib_1591376955812/work
+pefile==2019.4.18
+Pillow @ file:///C:/ci/pillow_1594298230227/work
+premailer==3.7.0
+psutil @ file:///D:/bld/psutil_1594827164091/work
+pycparser @ file:///tmp/build/80754af9/pycparser_1594388511720/work
+pycryptodomex @ file:///D:/bld/pycryptodomex_1593613066827/work
+pyenchant==3.1.1
+pyepsg==0.4.0
+pygit2 @ file:///D:/bld/pygit2_1588351020887/work
+pyinstaller==4.0
+pyinstaller-hooks-contrib==2020.7
+pykdtree==1.3.1
+PyMySQL @ file:///home/conda/feedstock_root/build_artifacts/pymysql_1595447440673/work
+pyOpenSSL @ file:///tmp/build/80754af9/pyopenssl_1594392929924/work
+pyparsing==2.4.7
+pyproj @ file:///D:/bld/pyproj_1588596180607/work
+pyshp==2.1.0
+PySocks==1.7.1
+pysrs==1.0.3
+python-dateutil==2.8.1
+pytz==2020.1
+pywin32-ctypes==0.2.0
 PyYAML==5.3.1
-requests==2.24.0
+qtmodern @ file:///C:/Users/smalb/facade-technologies-inc/qtmodern
+requests @ file:///home/conda/feedstock_root/build_artifacts/requests_1592425495151/work
+scipy @ file:///C:/ci/scipy_1592916963468/work
 selenium==3.141.0
-shiboken2==5.15.0
-SQLAlchemy==1.3.18
-urllib3==1.25.10
+Shapely==1.7.0
+six==1.15.0
+SQLAlchemy @ file:///D:/bld/sqlalchemy_1593116549410/work
+tornado==6.0.4
+urllib3 @ file:///home/conda/feedstock_root/build_artifacts/urllib3_1595434816409/work
+win-inet-pton==1.1.0
+wincertstore==0.2
