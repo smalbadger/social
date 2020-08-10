@@ -29,6 +29,6 @@ if __name__ == "__main__":
 
     t = QTimer(view)
     t.timeout.connect(inst.checkRun)
-    t.start(1000)  # Every 10 seconds
+    t.start(10000)  # Every 10 seconds
 
     sys.exit(app.exec_())
