@@ -86,7 +86,6 @@ class LinkedInController(Controller):
     def __init__(self, *args, **kwargs):
         """Initializes LinkedIn Controller"""
 
-        self.accountid = kwargs.pop('id')
         Controller.__init__(self, *args, **kwargs)
         self._initialURL = 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin'
         self.mainWindow = None
