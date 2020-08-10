@@ -1,23 +1,22 @@
 """
 Scrape the LinkedIn conversations
 """
+
 import os
 import sys
 from PySide2.QtWidgets import QApplication
 from PySide2.QtCore import QTimer
 
-
-sys.path.append(os.path.abspath("./gui/rc/"))
-
 from gui.mainwindow import SocialView
 import common.instance as inst
 import qtmodern.styles as styles
 
-#     qApp.setStyleSheet("QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }")
 
 if __name__ == "__main__":
+
     # add the driver to the PATH variable
     os.environ["PATH"] += os.pathsep + os.path.abspath(os.path.join("..", "drivers", "windows"))
+    os.environ["PATH"] += os.pathsep + os.path.abspath(os.path.join("drivers", "windows"))
 
     app = QApplication([])
     styles.darkClassic(app)
