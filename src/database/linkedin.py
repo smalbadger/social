@@ -1,33 +1,10 @@
 import datetime
 from datetime import date, datetime, timedelta
 from Cryptodome.Cipher import AES
-from sqlalchemy import create_engine
-from sqlalchemy import Column, String, Boolean, DateTime, Date, Time, Integer, ForeignKey, LargeBinary
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-
-from database.credentials import username, password, host, port, AES_key
-
-engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social', pool_recycle=3600, connect_args={'connect_timeout': 10})
-session = sessionmaker(bind=engine)()
-
-Base = declarative_base()
-
-
-class Client(Base):
-    """Someone that is paying us money to automate some of their accounts"""
-
-    __tablename__ = "clients"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    linkedin_account_id = Column(Integer, ForeignKey("linkedin_accounts.id"))
-    name = Column(String)
-    email = Column(String)
-    phone = Column(String)
-    tester = Column(Boolean, default=False)
-
-    # -- ORM --------------------------
-    linkedin_account = relationship("LinkedInAccount", uselist=False, back_populates="client")
+from sqlalchemy import Column, String, Boolean, Date, Time, DateTime, Integer, ForeignKey, LargeBinary
+from sqlalchemy.orm import relationship
+from database.credentials import AES_key
+from database.general import Base, session
 
 
 class LinkedInAccount(Base):
@@ -67,6 +44,12 @@ class LinkedInAccount(Base):
         nonce = cipher.nonce
         ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
         self.password = nonce + ciphertext
+
+    def setActivityLimitForToday(self, newLimit: int):
+        """Change the daily account limit for this account for today only"""
+        activityToday = LinkedInAccountDailyActivity.getToday(self)
+        activityToday.activity_limit = newLimit
+        session.flush()
 
     def dailyActivityLimitReached(self):
         """Determine if this account has reached its daily activity limit."""
@@ -152,9 +135,11 @@ class LinkedInMessageTemplate(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
+    name = Column(String, nullable=False)
     message_template = Column(String, unique=True)
     crc = Column(Integer)
     date_created = Column(DateTime, default=datetime.utcnow)
+    deleted = Column(Boolean, default=False)
 
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", uselist=False, back_populates="message_templates")

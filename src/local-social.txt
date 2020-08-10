@@ -1,0 +1,4 @@
+True
+
+These lines below can be anything because we only check the first one
+Make sure not to have spaces after True
