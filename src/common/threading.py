@@ -1,6 +1,7 @@
 from PySide2.QtCore import QRunnable, Signal
 from common.beacon import Beacon
 
+
 class Task(QRunnable):
     """Run a function in the QThreadPool and emit the value returned in the finished signal."""
 

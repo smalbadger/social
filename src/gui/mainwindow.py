@@ -8,7 +8,7 @@ from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
 from gui.logwidget import LogWidget
 
-from database.linkedin import session, Client
+from database.general import session, Client
 
 
 class SocialView(QMainWindow):
@@ -84,6 +84,17 @@ class SocialView(QMainWindow):
 
         layout.addWidget(instanceWidget)
         self.ui.instanceBox.setTitle(instanceTab.getName())
+
+    def closeAllBrowsers(self):
+        """
+        Closes all browsers of all instances
+        """
+
+        for inst in self.instances.values():
+            if inst.messagingController:
+                inst.messagingController.stop()
+            if inst.syncController:
+                inst.syncController.stop()
 
     #############################
     # Database stuff

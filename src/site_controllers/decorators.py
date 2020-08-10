@@ -1,5 +1,5 @@
 from functools import wraps
-
+import common.instance as inst
 
 def ensure_browser_is_running(func):
     """Makes the browser is started before a function is called"""
@@ -40,6 +40,20 @@ def log_exceptions(func):
         except Exception as e:
             args[0].exception(e)
             # raise e
+
+    return wrapper
+
+
+def finish_executing(func):
+    # Makes sure the function finishes before the application is force-quit.
+    # Use as little as possible, only on the functions that need to finish to keep data intact
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        inst.Lock = True
+        x = func(*args, **kwargs)
+        inst.Lock = False
+        return x
 
     return wrapper
 
