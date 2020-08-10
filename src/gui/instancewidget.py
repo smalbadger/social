@@ -297,6 +297,7 @@ class InstanceWidget(QWidget):
             prog = QProgressDialog(msg, 'Hide', 0, 0, parent=self.window())
             prog.setModal(True)
             prog.setWindowTitle(msg)
+            prog.show()
 
             self.db_logger.info(msg)
             task = Task(lambda: self.filterConnectionsBy(locations=locations, maxMessages=numMessages))

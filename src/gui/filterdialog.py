@@ -46,6 +46,7 @@ class FilterDialog(QDialog):
         prog = QProgressDialog('Opening map, please wait...', 'Hide', 0, 0, parent=self.window())
         prog.setModal(True)
         prog.setWindowTitle('Loading...')
+        prog.show()
 
         def openDialog(locations):
             md = MapDialog(self, [item[0] for item in list(locations)])
@@ -55,7 +56,6 @@ class FilterDialog(QDialog):
 
         task = Task(lambda: session.query(LinkedInConnection.location)
                     .filter(LinkedInConnection.account_id == self.account.id))
-        prog.show()
 
         task.finished.connect(openDialog)
         QThreadPool.globalInstance().start(task)
