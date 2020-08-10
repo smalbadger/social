@@ -1,8 +1,10 @@
 from PySide2.QtWidgets import QWidget, QApplication
 from PySide2.QtGui import QPixmap, QColor
-from PySide2.QtCore import Signal, QObject, QTimer
+from PySide2.QtCore import Signal, QObject, QTimer, QThreadPool
 from gui.ui.ui_instancetabwidget import Ui_Form
 from database.linkedin import LinkedInAccountDailyActivity
+
+from common.threading import Task
 
 
 class InstanceTabWidget(QWidget):
@@ -25,6 +27,8 @@ class InstanceTabWidget(QWidget):
         scrnProp = QApplication.desktop().height() / 2160
         self.ui.logoLabel.setPixmap(QPixmap(logoFile).scaled(80 * scrnProp, 80 * scrnProp))
 
+        # TODO: Don't run this in a timer - it can really bog things down
+        #  Ideally, we would have signals connect to the updateActivityInfo method.
         self.actionCountTimer = QTimer(self)
         self.actionCountTimer.timeout.connect(self.updateActivityInfo)
         self.actionCountTimer.start(5000)
@@ -40,18 +44,22 @@ class InstanceTabWidget(QWidget):
             color.setHsl(hue, 255, 127)
             return f"rgb({color.red()}, {color.green()}, {color.blue()});"
 
-        todayRecord = LinkedInAccountDailyActivity.getToday(self.client.linkedin_account)
-        usedActions = todayRecord.message_count + todayRecord.connection_request_count
-        actionLimit = todayRecord.activity_limit
+        def update(todayRecord):
+            usedActions = todayRecord.message_count + todayRecord.connection_request_count
+            actionLimit = todayRecord.activity_limit
 
-        if usedActions < actionLimit:
-            styleSheet = f"QLabel {{color: {getColor(usedActions/actionLimit)}}}"
-        else:
-            styleSheet = "QLabel {{color: rgb(255, 0, 0); background-color: rgb(0,0,0);}}"
+            if usedActions < actionLimit:
+                styleSheet = f"QLabel {{color: {getColor(usedActions/actionLimit)}}}"
+            else:
+                styleSheet = "QLabel {{color: rgb(255, 0, 0); background-color: rgb(0,0,0);}}"
 
-        self.ui.usedActions.setText(str(usedActions))
-        self.ui.usedActions.setStyleSheet(styleSheet)
-        self.ui.activityLimit.setText(str(actionLimit))
+            self.ui.usedActions.setText(str(usedActions))
+            self.ui.usedActions.setStyleSheet(styleSheet)
+            self.ui.activityLimit.setText(str(actionLimit))
+
+        task = Task(lambda: LinkedInAccountDailyActivity.getToday(self.client.linkedin_account))
+        task.finished.connect(update)
+        QThreadPool.globalInstance().start(task)
 
     def getName(self):
         return self.ui.nameLabel.text()

@@ -51,6 +51,10 @@ class LinkedInAccount(Base):
         activityToday.activity_limit = newLimit
         session.flush()
 
+    def getDailyActivityLimit(self):
+        """Get the linkedin account's daily activity limit"""
+        return LinkedInAccountDailyActivity.getToday(self).activity_limit
+
     def dailyActivityLimitReached(self):
         """Determine if this account has reached its daily activity limit."""
         activityToday = LinkedInAccountDailyActivity.getToday(self)

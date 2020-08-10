@@ -69,6 +69,7 @@ class InstanceWidget(QWidget):
         self.gui_logger = logging.getLogger(f"gui.linkedin.{self.profilename}")
 
         # Populate and initialize values
+        self.ui.dailyActionLimitSpinBox.setValue(self.client.linkedin_account.getDailyActivityLimit())
         self.numTemplates = 0
         self.currentTempIndex = -1
         self.fetchValues()
