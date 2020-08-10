@@ -235,7 +235,6 @@ class InstanceWidget(QWidget):
 
             # GUI Stuff
             self.ui.errorLabel.hide()
-            self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             # Controller stuff
             messengerBrowserOpts = self.opts[:]
@@ -468,8 +467,12 @@ class InstanceWidget(QWidget):
         if not skipSave:
             self.saveCurrentTemplate(prompt=True)
 
-        text = self.ui.templatesBox.itemData(index).message_template.encode('latin1').decode('unicode_escape')
-        self.ui.messageTemplateEdit.setPlainText(text)
+        template = self.ui.templatesBox.itemData(index)
+        if template:
+            text = template.message_template.encode('latin1').decode('unicode_escape')
+            self.ui.messageTemplateEdit.setPlainText(text)
+        else:
+            self.createNewTemplate(skipSave=True)
 
     def selectAll(self, checked):
         """Selects all connections to send them a message"""
@@ -523,8 +526,6 @@ class InstanceWidget(QWidget):
                 'known': [acl.item(i).text() for i in range(acl.count())],
                 'accept new': self.ui.newConnectionsBox.isChecked()
             }
-
-            self.ui.tabWidget.setCurrentIndex(2)  # Go to log tab
 
             syncBrowserOpts = self.opts[:]
             if self.ui.headlessBoxSync.isChecked():
