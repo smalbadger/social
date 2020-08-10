@@ -1,6 +1,5 @@
 import os
 import psutil
-import subprocess
 import time
 from typing import List, Iterable
 from abc import ABC as AbstractBaseClass

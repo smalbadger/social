@@ -4,7 +4,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from database.credentials import username, password, host, port
-from database.linkedin import Client, LinkedInMessage, LinkedInAccount, LinkedInConnection, LinkedInMessageTemplate
+from database.general import Client
+from database.linkedin import LinkedInMessage, LinkedInAccount, LinkedInConnection, LinkedInMessageTemplate
 from database.linkedin import session as newSession
 
 engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/linkedin', pool_recycle=3600)

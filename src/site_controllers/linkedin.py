@@ -6,6 +6,8 @@ from datetime import timedelta, datetime
 
 from PySide2.QtCore import Signal
 
+from sqlalchemy.orm import sessionmaker
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -23,10 +25,9 @@ from common.strings import onlyAplhaNumeric, equalTo, fromHTML
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
-from common.instance import Waiting
 
-from database.general import session
 from database.linkedin import LinkedInMessage, LinkedInConnection
+from database.general import engine
 
 
 #########################################################
@@ -303,7 +304,7 @@ class LinkedInController(Controller):
     @finish_executing
     @log_exceptions
     @authentication_required
-    def sendMessageTo(self, connection: LinkedInConnection, message: str, template):
+    def sendMessageTo(self, connection: LinkedInConnection, message: str, template, session):
         """Sends a message to the person."""
         person = connection.name
 
@@ -316,7 +317,7 @@ class LinkedInController(Controller):
 
         self.info(msg_details)
 
-        if connection.account.dailyActivityLimitReached():
+        if connection.account.dailyActivityLimitReached(session):
             self.critical(f"Daily activity limit reached! The above message was not sent.")
             return
 
@@ -344,13 +345,13 @@ class LinkedInController(Controller):
 
         self.info("Updating database")
         msg = template.createMessageTo(connection)
-        msg.recordAsDelivered()
+        msg.recordAsDelivered(session)
         session.add(msg)
         session.commit()
 
     @log_exceptions
     @authentication_required
-    def messageAll(self, connections: list, usingTemplate, checkPastMessages=True):
+    def messageAll(self, connections: list, usingTemplate, session, checkPastMessages=True):
         """Messages all connections with the template usingTemplate (a query object)"""
         # TODO: Check for past messages sent by this bot
 
@@ -372,7 +373,7 @@ class LinkedInController(Controller):
                 self.warning(f"Skipping {connection.name} because the message template was invalid for this connection.")
             else:
                 msg = usingTemplate.fill(connection)
-                self.sendMessageTo(connection, msg, usingTemplate)
+                self.sendMessageTo(connection, msg, usingTemplate, session)
 
     @log_exceptions
     @authentication_required
@@ -710,8 +711,9 @@ class LinkedInMessenger(Task):
     def run(self):
         self.setup()
 
+        session = sessionmaker(bind=engine)()
         self.controller.start()
-        self.controller.messageAll(self.connections, usingTemplate=self.msgTemplate)
+        self.controller.messageAll(self.connections, self.msgTemplate, session)
 
         self.teardown()
 

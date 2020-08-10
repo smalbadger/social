@@ -3,6 +3,8 @@ import logging
 from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog
 from PySide2.QtCore import QThreadPool, Signal
 
+from sqlalchemy.orm import sessionmaker
+
 from gui.logwidget import LogWidget
 from gui.filterdialog import FilterDialog
 from gui.ui.ui_instancewidget import Ui_mainWidget
@@ -16,7 +18,7 @@ from common.strings import fromHTML, toHTML
 from common.threading import Task
 
 from database.linkedin import *
-from database.general import session, Client
+from database.general import session, Client, engine
 
 
 class InstanceWidget(QWidget):
@@ -69,7 +71,8 @@ class InstanceWidget(QWidget):
         self.gui_logger = logging.getLogger(f"gui.linkedin.{self.profilename}")
 
         # Populate and initialize values
-        self.ui.dailyActionLimitSpinBox.setValue(self.client.linkedin_account.getDailyActivityLimit())
+        session = sessionmaker(bind=engine)()
+        self.ui.dailyActionLimitSpinBox.setValue(self.client.linkedin_account.getDailyActivityLimit(session))
         self.numTemplates = 0
         self.currentTempIndex = -1
         self.fetchValues()
@@ -278,7 +281,12 @@ class InstanceWidget(QWidget):
         self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
         self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
-        self.ui.dailyActionLimitSpinBox.valueChanged.connect(self.client.linkedin_account.setActivityLimitForToday)
+
+        def setActivityLimitForToday(limit):
+            session = sessionmaker(bind=engine)()
+            self.client.linkedin_account.setActivityLimitForToday(limit, session)
+
+        self.ui.dailyActionLimitSpinBox.valueChanged.connect(setActivityLimitForToday)
 
     def openFilterDialog(self):
         """

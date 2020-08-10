@@ -4,7 +4,7 @@ from Cryptodome.Cipher import AES
 from sqlalchemy import Column, String, Boolean, Date, Time, DateTime, Integer, ForeignKey, LargeBinary
 from sqlalchemy.orm import relationship
 from database.credentials import AES_key
-from database.general import Base, session
+from database.general import Base
 
 
 class LinkedInAccount(Base):
@@ -45,19 +45,19 @@ class LinkedInAccount(Base):
         ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
         self.password = nonce + ciphertext
 
-    def setActivityLimitForToday(self, newLimit: int):
+    def setActivityLimitForToday(self, newLimit: int, session):
         """Change the daily account limit for this account for today only"""
-        activityToday = LinkedInAccountDailyActivity.getToday(self)
+        activityToday = LinkedInAccountDailyActivity.getToday(self, session)
         activityToday.activity_limit = newLimit
         session.flush()
 
-    def getDailyActivityLimit(self):
+    def getDailyActivityLimit(self, session):
         """Get the linkedin account's daily activity limit"""
-        return LinkedInAccountDailyActivity.getToday(self).activity_limit
+        return LinkedInAccountDailyActivity.getToday(self, session).activity_limit
 
-    def dailyActivityLimitReached(self):
+    def dailyActivityLimitReached(self, session):
         """Determine if this account has reached its daily activity limit."""
-        activityToday = LinkedInAccountDailyActivity.getToday(self)
+        activityToday = LinkedInAccountDailyActivity.getToday(self, session)
         return activityToday.message_count + activityToday.connection_request_count >= activityToday.activity_limit
 
 class LinkedInAccountDailyActivity(Base):
@@ -81,7 +81,7 @@ class LinkedInAccountDailyActivity(Base):
     account = relationship("LinkedInAccount", uselist=False, back_populates="daily_activity")
 
     @staticmethod
-    def getToday(account: LinkedInAccount) -> 'LinkedInAccountDailyActivity':
+    def getToday(account: LinkedInAccount, session) -> 'LinkedInAccountDailyActivity':
         """
         Gets either the current day's activity record for any linkedin account.
         If it exists already, just return the record that exists.
@@ -215,9 +215,9 @@ class LinkedInMessage(Base):
         """Determines if a template was filled properly"""
         return self.template.isValid(self.recipient)
 
-    def recordAsDelivered(self):
+    def recordAsDelivered(self, session):
         """Increments the message count for the corresponding account"""
-        todaysActivity = LinkedInAccountDailyActivity.getToday(self.account)
+        todaysActivity = LinkedInAccountDailyActivity.getToday(self.account, session)
         todaysActivity.message_count += 1
         todaysActivity.last_activity = datetime.now()
         session.flush()

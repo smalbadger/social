@@ -1,8 +1,10 @@
 from PySide2.QtWidgets import QWidget, QApplication
 from PySide2.QtGui import QPixmap, QColor
 from PySide2.QtCore import Signal, QObject, QTimer, QThreadPool
+from sqlalchemy.orm import sessionmaker
 from gui.ui.ui_instancetabwidget import Ui_Form
 from database.linkedin import LinkedInAccountDailyActivity
+from database.general import engine
 
 from common.threading import Task
 
@@ -57,7 +59,8 @@ class InstanceTabWidget(QWidget):
             self.ui.usedActions.setStyleSheet(styleSheet)
             self.ui.activityLimit.setText(str(actionLimit))
 
-        task = Task(lambda: LinkedInAccountDailyActivity.getToday(self.client.linkedin_account))
+        session = sessionmaker(bind=engine)()
+        task = Task(lambda: LinkedInAccountDailyActivity.getToday(self.client.linkedin_account, session))
         task.finished.connect(update)
         QThreadPool.globalInstance().start(task)
 
