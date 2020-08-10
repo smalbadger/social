@@ -13,6 +13,8 @@ import qtmodern.styles as styles
 
 
 if __name__ == "__main__":
+    if not inst.canRun():
+        exit(0)
 
     # add the driver to the PATH variable
     os.environ["PATH"] += os.pathsep + os.path.abspath(os.path.join("..", "drivers", "windows"))
