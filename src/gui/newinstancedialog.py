@@ -50,9 +50,20 @@ class NewInstanceDialog(QDialog):
 
     def newClient(self):
         """Gives the user a chance to create a new client and link accounts"""
+
+        def newClient(client):
+            if client.tester:
+                self.ui.testAccountsBox.setChecked(True)
+                self.testers.append(client)
+                self.updateDropdown(withTesters=True)
+            else:
+                self.ui.testAccountsBox.setChecked(False)
+                self.clients.append(client)
+                self.updateDropdown(withTesters=False)
+
         newClientDialog = NewClientDialog()
         newClientDialog.exec_()
-        newClientDialog.clientCreated.connect(self.populateClient)
+        newClientDialog.clientCreated.connect(newClient)
 
     def populateClient(self, client):
         """Adds a single client to the client combo box"""
