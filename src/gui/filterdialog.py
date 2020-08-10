@@ -49,7 +49,7 @@ class FilterDialog(QDialog):
         prog.show()
 
         def openDialog(locations):
-            md = MapDialog(self, [item[0] for item in list(locations)])
+            md = MapDialog(self, [item[0] for item in list(locations) if item[0]])
             md.foundLocations.connect(self.addLocEntry)
             prog.close()
             md.exec_()
