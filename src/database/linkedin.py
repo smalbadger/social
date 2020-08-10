@@ -1,5 +1,5 @@
 import datetime
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from Cryptodome.Cipher import AES
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Boolean, DateTime, Date, Time, Integer, ForeignKey, LargeBinary
@@ -68,6 +68,11 @@ class LinkedInAccount(Base):
         ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
         self.password = nonce + ciphertext
 
+    def dailyActivityLimitReached(self):
+        """Determine if this account has reached its daily activity limit."""
+        activityToday = LinkedInAccountDailyActivity.getToday(self)
+        return activityToday.message_count + activityToday.connection_request_count >= activityToday.activity_limit
+
 class LinkedInAccountDailyActivity(Base):
     """Keeps track of a single LinkedIn account's daily activity."""
 
@@ -75,7 +80,7 @@ class LinkedInAccountDailyActivity(Base):
 
     DEFAULT_ACTIVITY_LIMIT = 100
     MAX_ACTIVITY_LIMIT = 200
-    MINIMUM_ACTIVITY_INERVAL = 60 # seconds
+    MINIMUM_ACTIVITY_INERVAL = 1 # seconds
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
@@ -83,7 +88,7 @@ class LinkedInAccountDailyActivity(Base):
     message_count = Column(Integer, default=0)
     connection_request_count = Column(Integer, default=0)
     activity_limit = Column(Integer, default=DEFAULT_ACTIVITY_LIMIT)
-    last_activity = Column(DateTime, default=None)
+    last_activity = Column(DateTime, default=datetime.utcnow)
 
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", uselist=False, back_populates="daily_activity")
@@ -115,7 +120,10 @@ class LinkedInAccountDailyActivity(Base):
         else:
             newLimit = LinkedInAccountDailyActivity.DEFAULT_ACTIVITY_LIMIT
 
-        return LinkedInAccountDailyActivity(account=account, date=date.today(), activity_limit=newLimit)
+        newActivity = LinkedInAccountDailyActivity(account=account, date=date.today(), activity_limit=newLimit, message_count=0, connection_request_count=0)
+        session.add(newActivity)
+        session.commit()
+        return newActivity
 
 
 class LinkedInConnection(Base):
@@ -146,7 +154,7 @@ class LinkedInMessageTemplate(Base):
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
     message_template = Column(String, unique=True)
     crc = Column(Integer)
-    date_created = Column(DateTime, default=datetime.datetime.utcnow)
+    date_created = Column(DateTime, default=datetime.utcnow)
 
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", uselist=False, back_populates="message_templates")
@@ -202,6 +210,7 @@ class LinkedInMessage(Base):
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
     template_id = Column(Integer, ForeignKey('linkedin_message_templates.id'))
     recipient_connection_id = Column(Integer, ForeignKey('linkedin_connections.id'))
+    time_sent = Column(DateTime, default=datetime.utcnow)
     response = Column(Integer, default=0)
 
     # -- ORM --------------------------
@@ -216,6 +225,13 @@ class LinkedInMessage(Base):
     def isValid(self):
         """Determines if a template was filled properly"""
         return self.template.isValid(self.recipient)
+
+    def recordAsDelivered(self):
+        """Increments the message count for the corresponding account"""
+        todaysActivity = LinkedInAccountDailyActivity.getToday(self.account)
+        todaysActivity.message_count += 1
+        todaysActivity.last_activity = datetime.now()
+        session.flush()
 
 
 class ResponseMeanings(Base):

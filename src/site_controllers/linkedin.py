@@ -24,7 +24,7 @@ from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
 
-from database.linkedin import session, LinkedInMessage
+from database.linkedin import session, LinkedInMessage, LinkedInConnection
 
 
 #########################################################
@@ -299,18 +299,23 @@ class LinkedInController(Controller):
 
     @log_exceptions
     @authentication_required
-    def sendMessageTo(self, personObj, message: str, template):
+    def sendMessageTo(self, connection: LinkedInConnection, message: str, template):
         """Sends a message to the person."""
-        person = personObj.name
+        person = connection.name
 
         msg_details = f"""Sending message:
 
-        To: {person}
-        From: {self._profile_name}
-        Content: {message}
-        """
+                To: {person}
+                From: {self._profile_name}
+                Content: {message}
+                """
 
         self.info(msg_details)
+
+        if connection.account.dailyActivityLimitReached():
+            self.critical(f"Daily activity limit reached! The above message was not sent.")
+            return
+
         self.closeAllChatWindows()
         self.openConversationWith(person)
 
@@ -334,9 +339,10 @@ class LinkedInController(Controller):
         self.info("The message was sent successfully")
 
         self.info("Updating database")
-        session.add(template.createMessageTo(personObj))
+        msg = template.createMessageTo(connection)
+        msg.recordAsDelivered()
+        session.add(msg)
         session.commit()
-        self.info('')
 
     @log_exceptions
     @authentication_required
