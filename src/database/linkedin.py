@@ -1,9 +1,10 @@
 import datetime
+from datetime import date, datetime, timedelta
 from Cryptodome.Cipher import AES
-from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey, LargeBinary
+from sqlalchemy import Column, String, Boolean, Date, Time, DateTime, Integer, ForeignKey, LargeBinary
 from sqlalchemy.orm import relationship
 from database.credentials import AES_key
-from database.general import Base
+from database.general import Base, session
 
 
 class LinkedInAccount(Base):
@@ -20,10 +21,11 @@ class LinkedInAccount(Base):
     tester = Column(Boolean, default=False)
 
     # -- ORM --------------------------
-    client = relationship("Client", back_populates="linkedin_account")
-    connections = relationship("LinkedInConnection", back_populates="account")
-    messages = relationship("LinkedInMessage", back_populates="account")
-    message_templates = relationship("LinkedInMessageTemplate", back_populates="account")
+    client = relationship("Client", uselist=False, back_populates="linkedin_account")
+    connections = relationship("LinkedInConnection", uselist=True, back_populates="account")
+    messages = relationship("LinkedInMessage", uselist=True, back_populates="account")
+    message_templates = relationship("LinkedInMessageTemplate", uselist=True, back_populates="account")
+    daily_activity = relationship("LinkedInAccountDailyActivity", uselist=True, back_populates="account")
 
     def getPassword(self):
         """Get the decrypted password"""
@@ -43,6 +45,73 @@ class LinkedInAccount(Base):
         ciphertext, tag = cipher.encrypt_and_digest(password.encode("utf-8"))
         self.password = nonce + ciphertext
 
+    def setActivityLimitForToday(self, newLimit: int):
+        """Change the daily account limit for this account for today only"""
+        activityToday = LinkedInAccountDailyActivity.getToday(self)
+        activityToday.activity_limit = newLimit
+        session.flush()
+
+    def getDailyActivityLimit(self):
+        """Get the linkedin account's daily activity limit"""
+        return LinkedInAccountDailyActivity.getToday(self).activity_limit
+
+    def dailyActivityLimitReached(self):
+        """Determine if this account has reached its daily activity limit."""
+        activityToday = LinkedInAccountDailyActivity.getToday(self)
+        return activityToday.message_count + activityToday.connection_request_count >= activityToday.activity_limit
+
+class LinkedInAccountDailyActivity(Base):
+    """Keeps track of a single LinkedIn account's daily activity."""
+
+    __tablename__ = "linkedin_accounts_daily_activity"
+
+    DEFAULT_ACTIVITY_LIMIT = 100
+    MAX_ACTIVITY_LIMIT = 200
+    MINIMUM_ACTIVITY_INERVAL = 1 # seconds
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
+    date = Column(Date)
+    message_count = Column(Integer, default=0)
+    connection_request_count = Column(Integer, default=0)
+    activity_limit = Column(Integer, default=DEFAULT_ACTIVITY_LIMIT)
+    last_activity = Column(DateTime, default=datetime.utcnow)
+
+    # -- ORM --------------------------
+    account = relationship("LinkedInAccount", uselist=False, back_populates="daily_activity")
+
+    @staticmethod
+    def getToday(account: LinkedInAccount) -> 'LinkedInAccountDailyActivity':
+        """
+        Gets either the current day's activity record for any linkedin account.
+        If it exists already, just return the record that exists.
+        If not, create and return a new record with the limit automatically increased.
+        """
+        todaysActivity = session.query(LinkedInAccountDailyActivity).filter(
+            LinkedInAccountDailyActivity.account == account,
+            LinkedInAccountDailyActivity.date == date.today()
+        ).one_or_none()
+
+        if todaysActivity:
+            return todaysActivity
+
+        lastDaysActivity = session.query(LinkedInAccountDailyActivity).filter(
+            LinkedInAccountDailyActivity.account == account,
+            LinkedInAccountDailyActivity.date < date.today()
+        ).order_by(
+            LinkedInAccountDailyActivity.date
+        ).first()
+
+        if lastDaysActivity:
+            newLimit = min(lastDaysActivity.activity_limit + 25, LinkedInAccountDailyActivity.MAX_ACTIVITY_LIMIT)
+        else:
+            newLimit = LinkedInAccountDailyActivity.DEFAULT_ACTIVITY_LIMIT
+
+        newActivity = LinkedInAccountDailyActivity(account=account, date=date.today(), activity_limit=newLimit, message_count=0, connection_request_count=0)
+        session.add(newActivity)
+        session.commit()
+        return newActivity
+
 
 class LinkedInConnection(Base):
     """LinkedIn Connections belonging to our clients (connections mutual to multiple clients will be duplicated)"""
@@ -57,8 +126,8 @@ class LinkedInConnection(Base):
     position = Column(String, default="")
 
     # -- ORM --------------------------
-    account = relationship("LinkedInAccount", back_populates="connections")
-    messages = relationship("LinkedInMessage", back_populates="recipient")
+    account = relationship("LinkedInAccount", uselist=False, back_populates="connections")
+    messages = relationship("LinkedInMessage", uselist=True, back_populates="recipient")
 
 
 class LinkedInMessageTemplate(Base):
@@ -73,12 +142,12 @@ class LinkedInMessageTemplate(Base):
     name = Column(String, nullable=False)
     message_template = Column(String, unique=True)
     crc = Column(Integer)
-    date_created = Column(DateTime, default=datetime.datetime.utcnow)
+    date_created = Column(DateTime, default=datetime.utcnow)
     deleted = Column(Boolean, default=False)
 
     # -- ORM --------------------------
-    account = relationship("LinkedInAccount", back_populates="message_templates")
-    instances = relationship("LinkedInMessage", back_populates="template")
+    account = relationship("LinkedInAccount", uselist=False, back_populates="message_templates")
+    instances = relationship("LinkedInMessage", uselist=True, back_populates="template")
 
     def createMessageTo(self, connection: LinkedInConnection):
         """Creates and returns a LinkedInMessage object"""
@@ -116,6 +185,7 @@ class LinkedInMessageTemplate(Base):
         return templateText
 
     def isValid(self, connection):
+        """Determines if a template was filled properly"""
         text = self.fill(connection)
         return not self.invalidPlaceholder in text
 
@@ -129,20 +199,28 @@ class LinkedInMessage(Base):
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
     template_id = Column(Integer, ForeignKey('linkedin_message_templates.id'))
     recipient_connection_id = Column(Integer, ForeignKey('linkedin_connections.id'))
+    time_sent = Column(DateTime, default=datetime.utcnow)
     response = Column(Integer, default=0)
 
     # -- ORM --------------------------
-    template = relationship("LinkedInMessageTemplate", back_populates="instances")
-    recipient = relationship("LinkedInConnection", back_populates="messages")
-    account = relationship("LinkedInAccount", back_populates="messages")
+    template = relationship("LinkedInMessageTemplate", uselist=False, back_populates="instances")
+    recipient = relationship("LinkedInConnection", uselist=False, back_populates="messages")
+    account = relationship("LinkedInAccount", uselist=False, back_populates="messages")
 
     def text(self):
         """Replaces the placeholders in the template with connection info and returns a linkedin message"""
         return self.template.fill(self.recipient)
 
     def isValid(self):
-        """Determines is a template was filled properly"""
+        """Determines if a template was filled properly"""
         return self.template.isValid(self.recipient)
+
+    def recordAsDelivered(self):
+        """Increments the message count for the corresponding account"""
+        todaysActivity = LinkedInAccountDailyActivity.getToday(self.account)
+        todaysActivity.message_count += 1
+        todaysActivity.last_activity = datetime.now()
+        session.flush()
 
 
 class ResponseMeanings(Base):
@@ -150,6 +228,5 @@ class ResponseMeanings(Base):
 
     __tablename__ = "response_meanings"
 
-    # -- ORM --------------------------
     id = Column(Integer, primary_key=True, autoincrement=True)
     meaning = Column(String, unique=True)

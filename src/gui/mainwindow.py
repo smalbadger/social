@@ -64,6 +64,7 @@ class SocialView(QMainWindow):
 
         newTab = InstanceTabWidget(instance.client, instance.platformName)
         self.instances[newTab] = instance
+        # instance.dailyLimitChanged.connect(newTab.updateActivityInfo)
 
         newTab.clicked.connect(lambda: self.selectInstance(newTab))
         self.instanceTabLayout.insertWidget(0, newTab)
