@@ -1,7 +1,7 @@
 import logging
 
 from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog
-from PySide2.QtCore import QThreadPool
+from PySide2.QtCore import QThreadPool, Signal
 
 from gui.logwidget import LogWidget
 from gui.filterdialog import FilterDialog
@@ -69,6 +69,7 @@ class InstanceWidget(QWidget):
         self.gui_logger = logging.getLogger(f"gui.linkedin.{self.profilename}")
 
         # Populate and initialize values
+        self.ui.dailyActionLimitSpinBox.setValue(self.client.linkedin_account.getDailyActivityLimit())
         self.numTemplates = 0
         self.currentTempIndex = -1
         self.fetchValues()
@@ -276,6 +277,7 @@ class InstanceWidget(QWidget):
         self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
         self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
+        self.ui.dailyActionLimitSpinBox.valueChanged.connect(self.client.linkedin_account.setActivityLimitForToday)
 
     def openFilterDialog(self):
         """
