@@ -42,19 +42,19 @@ class NewInstanceDialog(QDialog):
         self.ui.clientBox.clear()
 
         targList = self.testers if withTesters else self.clients
-        print(targList)
-        print(self.testers)
 
         for acct in targList:
             self.populateClient(acct)
 
-        self.populatePlatforms()
+        if targList:
+            self.populatePlatforms()
+        else:
+            self.ui.platformBox.clear()
 
     def newClient(self):
         """Gives the user a chance to create a new client and link accounts"""
 
         def addClient(client):
-            # client = Session
             if client.tester:
                 self.ui.testAccountsBox.setChecked(True)
                 self.testers.append(client)
@@ -64,9 +64,11 @@ class NewInstanceDialog(QDialog):
                 self.clients.append(client)
                 self.updateDropdown(withTesters=False)
 
+            self.ui.clientBox.setCurrentIndex(self.ui.clientBox.count()-1)
+
         newClientDialog = NewClientDialog()
-        newClientDialog.exec_()
         newClientDialog.clientCreated.connect(addClient)
+        newClientDialog.exec_()
 
     def populateClient(self, client):
         """Adds a single client to the client combo box"""
