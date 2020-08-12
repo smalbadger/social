@@ -49,7 +49,7 @@ class LinkedInAccount(Base):
         """Change the daily account limit for this account for today only"""
         activityToday = LinkedInAccountDailyActivity.getToday(self.id)
         activityToday.activity_limit = newLimit
-        Session.flush()
+        Session.commit()
 
     def getDailyActivityLimit(self):
         """Get the linkedin account's daily activity limit"""

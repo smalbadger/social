@@ -21,6 +21,8 @@ from database.general import Session, Client
 
 class InstanceWidget(QWidget):
 
+    dailyLimitChanged = Signal(int)
+
     def __init__(self, client: Client, cConstructor):
         QWidget.__init__(self)
 
@@ -277,7 +279,13 @@ class InstanceWidget(QWidget):
         self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
         self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
-        self.ui.dailyActionLimitSpinBox.valueChanged.connect(self.client.linkedin_account.setActivityLimitForToday)
+
+        # Wanted to connect to the focusOut signal, but that doesn't exist, so this is the next best thing.
+        def onDailyLimitUpdated(*args):
+            value = self.ui.dailyActionLimitSpinBox.value()
+            self.client.linkedin_account.setActivityLimitForToday(value)
+            self.dailyLimitChanged.emit(value)
+        self.ui.dailyActionLimitSpinBox.focusOutEvent = onDailyLimitUpdated
 
     def openFilterDialog(self):
         """
@@ -376,6 +384,7 @@ class InstanceWidget(QWidget):
 
                 # Server deletion
                 self.db_logger.info(f"Deleting {name} from server...")
+                template = Session.query(LinkedInMessageTemplate).get(template.id)
                 template.deleted = True
                 Session.commit()
 
@@ -446,14 +455,25 @@ class InstanceWidget(QWidget):
                                     'Please enter a name for your new campaign/message template.')
 
         if name and ok:
-            Session.add(
-                LinkedInMessageTemplate(
-                    account_id=self.account.id,
-                    name=name.encode('unicode_escape'),
-                    message_template=" ",
-                    crc=-1
-                )
-            )  # Defaulting crc to -1
+            prog = QProgressDialog('Processing...', 'Hide', 0, 0, parent=self.window())
+            prog.setModal(True)
+            prog.setWindowTitle(f"Creating Template {name} ...")
+            prog.show()
+
+            def createTemplate():
+                Session.add(
+                    LinkedInMessageTemplate(
+                        account_id=self.account.id,
+                        name=name.encode('unicode_escape'),
+                        message_template=" ",
+                        crc=-1
+                    )
+                )  # Defaulting crc to -1
+                Session.commit()
+                prog.close()
+                
+            QThreadPool.globalInstance().start(Task(createTemplate))
+            prog.exec_()
 
             if not skipSave:
                 self.saveCurrentTemplate(prompt=True)
