@@ -42,6 +42,8 @@ class NewInstanceDialog(QDialog):
         self.ui.clientBox.clear()
 
         targList = self.testers if withTesters else self.clients
+        print(targList)
+        print(self.testers)
 
         for acct in targList:
             self.populateClient(acct)
@@ -52,6 +54,7 @@ class NewInstanceDialog(QDialog):
         """Gives the user a chance to create a new client and link accounts"""
 
         def newClient(client):
+            # client = Session
             if client.tester:
                 self.ui.testAccountsBox.setChecked(True)
                 self.testers.append(client)
@@ -72,24 +75,24 @@ class NewInstanceDialog(QDialog):
     def populateClients(self):
         """Fetches all clients from the database and populates the client combo box with them"""
         prog = QProgressDialog("Fetching clients, please wait...", "Hide", 0, 0, parent=self)
+        prog.setWindowTitle('Fetching clients...')
         prog.setModal(True)
         prog.show()
 
         def populate(clients):
             for client in clients:
-                self.populateClient(client)
-                self.clients.append(client)
+                if not client.tester:
+                    self.clients.append(client)
+                    if not self.ui.testAccountsBox.isChecked():
+                        self.populateClient(client)
+                else:
+                    self.testers.append(client)
+                    if self.ui.testAccountsBox.isChecked():
+                        self.populateClient(client)
 
-            def nextStep(testers):
-                for tester in testers:
-                    self.testers.append(tester)
-                prog.close()
+            prog.close()
 
-            task = Task(lambda: session.query(Client).filter(Client.tester == True))
-            task.finished.connect(nextStep)
-            QThreadPool.globalInstance().start(task)
-
-        task = Task(lambda: session.query(Client).filter(Client.tester == False))
+        task = Task(lambda: session.query(Client).all())
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
         prog.show()
