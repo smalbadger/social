@@ -4,7 +4,7 @@ import html
 import logging
 from datetime import timedelta, datetime
 
-from PySide2.QtCore import Signal
+from PySide2.QtCore import Signal, QThreadPool
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -23,7 +23,7 @@ from common.strings import onlyAplhaNumeric, equalTo, fromHTML
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
-from common.instance import Waiting
+from common.threading import Task as ncTask
 
 from database.general import session
 from database.linkedin import LinkedInMessage, LinkedInConnection
@@ -204,12 +204,31 @@ class LinkedInController(Controller):
             # Determine if it's asking for a pin
             pin_inputs = self.browser.find_elements_by_id(EIS.pin_verification_input)
             if pin_inputs:
-                method = "pin"
+                entered = False
+
+                def enterPIN(pin):
+                    nonlocal entered
+                    self.info(f"Retrieved PIN: {pin}")
+                    pin_inputs[0].send_keys(pin + Keys.RETURN)
+                    entered = True
+
                 timeout = timedelta(minutes=1)
-                self.info("Detected pin validation method. Retrieving PIN from email.")
-                pin = PinValidator().get_pin(self._profile_name, self._email, timeout)
-                self.info(f"Retrieved PIN: {pin}")
-                pin_inputs[0].send_keys(pin + Keys.RETURN)
+                self.info("Detected pin validation method. Attempting to retrieve PIN from email.")
+
+                task = ncTask(lambda: PinValidator().get_pin(self._profile_name, self._email, timeout))
+                task.finished.connect(enterPIN)
+                QThreadPool.globalInstance().start(task)
+
+                start = datetime.now()
+                while True:
+                    pin_inputs = self.browser.find_elements_by_id(EIS.pin_verification_input)
+                    if not pin_inputs:
+                        self.info('PIN entered manually.')
+                        break
+                    elif entered:  # Entered automatically
+                        break
+                    elif datetime.now() - start > timeout:
+                        raise PINTimeoutException("PIN entering timed out.")
                 return
 
             # Determine if it's asking for a recaptcha

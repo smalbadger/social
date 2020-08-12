@@ -34,6 +34,10 @@ class CaptchaTimeoutException(SecurityVerificationException, TimeoutError):
     def __init__(self, msg):
         super().__init__(msg)
 
+class PINTimeoutException(SecurityVerificationException, TimeoutError):
+    def __init__(self, msg):
+        super().__init__(msg)
+
 class CaptchaBotDetectedException(SecurityVerificationException, BotDetectedException):
     def __init__(self, msg):
         super().__init__(msg)
