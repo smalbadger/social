@@ -16,7 +16,7 @@ from common.strings import fromHTML, toHTML
 from common.threading import Task
 
 from database.linkedin import *
-from database.general import session, Client
+from database.general import Session, Client
 
 
 class InstanceWidget(QWidget):
@@ -134,7 +134,7 @@ class InstanceWidget(QWidget):
                 self.fetchTemplates()
 
         self.db_logger.info(msg)
-        task = Task(lambda: session.query(LinkedInConnection)
+        task = Task(lambda: Session.query(LinkedInConnection)
                     .filter(LinkedInConnection.account_id == self.account.id))
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
@@ -182,7 +182,7 @@ class InstanceWidget(QWidget):
             prog.close()
 
         self.db_logger.info(msg)
-        task = Task(lambda: session.query(LinkedInMessageTemplate)
+        task = Task(lambda: Session.query(LinkedInMessageTemplate)
                     .filter(LinkedInMessageTemplate.account_id == self.account.id,
                             LinkedInMessageTemplate.deleted == False))
         task.finished.connect(populate)
@@ -334,7 +334,7 @@ class InstanceWidget(QWidget):
                 filter(lambda tup:
                        len(
                            list(
-                               session.query(LinkedInMessage).filter(
+                               Session.query(LinkedInMessage).filter(
                                    LinkedInMessage.account_id == self.account.id,
                                    LinkedInMessage.recipient_connection_id == tup[1].id
                                )
@@ -377,7 +377,7 @@ class InstanceWidget(QWidget):
                 # Server deletion
                 self.db_logger.info(f"Deleting {name} from server...")
                 template.deleted = True
-                session.commit()
+                Session.commit()
 
                 self.gui_logger.info(f"Successfully deleted {name}.")
 
@@ -428,7 +428,7 @@ class InstanceWidget(QWidget):
                 prog.setWindowTitle('Saving...')
                 prog.show()
 
-                task = Task(session.commit)
+                task = Task(Session.commit)
                 task.finished.connect(prog.close)
                 QThreadPool.globalInstance().start(task)
 
@@ -446,7 +446,7 @@ class InstanceWidget(QWidget):
                                     'Please enter a name for your new campaign/message template.')
 
         if name and ok:
-            session.add(
+            Session.add(
                 LinkedInMessageTemplate(
                     account_id=self.account.id,
                     name=name.encode('unicode_escape'),
@@ -591,7 +591,7 @@ def processScrapedConnections(conns: dict, account, db_logger):
     - Finally, UI gets updated with newly pulled list of connections.
     """
 
-    prev = session.query(LinkedInConnection).filter(LinkedInConnection.account_id == account.id)
+    prev = Session.query(LinkedInConnection).filter(LinkedInConnection.account_id == account.id)
 
     # Iterate through all connections scraped
     db_logger.info('Adding/updating collected data in database...')
@@ -624,12 +624,12 @@ def processScrapedConnections(conns: dict, account, db_logger):
                 break
 
         if alreadyExists:
-            session.commit()
+            Session.commit()
             continue
 
         # Now we know it is a new connection
 
-        session.add(
+        Session.add(
             LinkedInConnection(
                 name=name,
                 account=account,
@@ -639,14 +639,14 @@ def processScrapedConnections(conns: dict, account, db_logger):
             )
         )
 
-        session.commit()
+        Session.commit()
 
     # Now make sure all connections were added successfully
     for name in conns.keys():
         conDict = conns[name]
         link = conDict['link']
         # Only need to check if the new row was made. Filtering by link because it is unique
-        entry = session.query(LinkedInConnection).filter(LinkedInConnection.url == link)[0]
+        entry = Session.query(LinkedInConnection).filter(LinkedInConnection.url == link)[0]
 
         if not entry:
             # Should only happen if there is an error adding a new connection

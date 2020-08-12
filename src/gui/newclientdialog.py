@@ -3,7 +3,7 @@ from PySide2.QtCore import QThreadPool, Signal
 
 from gui.ui.ui_newclientdialog import Ui_Dialog
 
-from database.general import session, Client
+from database.general import Session, Client
 from database.linkedin import LinkedInAccount
 from common.threading import Task
 
@@ -75,8 +75,8 @@ class NewClientDialog(QDialog):
         prog.show()
 
         def addToDB():
-            session.add_all(dbEntries)
-            session.commit()
+            Session.add_all(dbEntries)
+            Session.commit()
             self.clientCreated.emit(self.client)
             prog.close()
 

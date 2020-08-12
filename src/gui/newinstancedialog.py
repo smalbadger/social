@@ -6,7 +6,7 @@ from gui.instancewidget import InstanceWidget
 from gui.newclientdialog import NewClientDialog
 
 from common.threading import Task
-from database.general import session, Client
+from database.general import Session, Client
 from site_controllers.linkedin import LinkedInController
 
 
@@ -85,11 +85,11 @@ class NewInstanceDialog(QDialog):
                     self.testers.append(tester)
                 prog.close()
 
-            task = Task(lambda: session.query(Client).filter(Client.tester == True))
+            task = Task(lambda: Session.query(Client).filter(Client.tester == True))
             task.finished.connect(nextStep)
             QThreadPool.globalInstance().start(task)
 
-        task = Task(lambda: session.query(Client).filter(Client.tester == False))
+        task = Task(lambda: Session.query(Client).filter(Client.tester == False))
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
         prog.show()

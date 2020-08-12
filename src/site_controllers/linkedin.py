@@ -25,7 +25,7 @@ from common.waits import random_uniform_wait, send_keys_at_irregular_speed, nece
 from common.beacon import Beacon
 from common.instance import Waiting
 
-from database.general import session
+from database.general import Session
 from database.linkedin import LinkedInMessage, LinkedInConnection
 
 
@@ -344,8 +344,8 @@ class LinkedInController(Controller):
         self.info("Updating database")
         msg = template.createMessageTo(connection)
         msg.recordAsDelivered()
-        session.add(msg)
-        session.commit()
+        Session.add(msg)
+        Session.commit()
 
     @log_exceptions
     @authentication_required
@@ -357,7 +357,7 @@ class LinkedInController(Controller):
 
             # Checking database to see if template was already sent to user
             if checkPastMessages:
-                previouslySentMessages = session.query(LinkedInMessage).filter(
+                previouslySentMessages = Session.query(LinkedInMessage).filter(
                     LinkedInMessage.recipient_connection_id == connection.id,
                     LinkedInMessage.template_id == usingTemplate.id
                 )

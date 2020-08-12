@@ -57,7 +57,7 @@ class InstanceTabWidget(QWidget):
             self.ui.usedActions.setStyleSheet(styleSheet)
             self.ui.activityLimit.setText(str(actionLimit))
 
-        task = Task(lambda: LinkedInAccountDailyActivity.getToday(self.client.linkedin_account))
+        task = Task(lambda: LinkedInAccountDailyActivity.getToday(self.client.linkedin_account.id))
         task.finished.connect(update)
         QThreadPool.globalInstance().start(task)
 
