@@ -658,7 +658,7 @@ def processScrapedConnections(conns: dict, account, db_logger):
         Session.add(
             LinkedInConnection(
                 name=name,
-                account=account,
+                account_id=account.id,
                 url=link,
                 location=location,
                 position=position

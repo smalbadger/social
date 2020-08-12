@@ -1,6 +1,9 @@
 from PySide2.QtWidgets import QDialog, QListWidgetItem, QDialogButtonBox, QMessageBox
 from PySide2.QtGui import Qt, QIcon
 
+from database.general import Session
+from database.linkedin import LinkedInConnection, LinkedInMessageTemplate
+
 from gui.ui.ui_messagepreviewdialog import Ui_Dialog
 from gui.templateeditwidget import TemplateEditWidget
 
@@ -18,9 +21,10 @@ class MessagePreviewDialog(QDialog):
         self.ui = Ui_Dialog()
         self.ui.setupUi(self)
 
-        self.targetedConnections = targetedConnections
+        connections = [conn.id for conn in targetedConnections]
+        self.targetedConnections = Session.query(LinkedInConnection).filter(LinkedInConnection.id.in_(connections))
         self.messageStatuses = {connection: None for connection in self.targetedConnections}
-        self.template = template
+        self.template = Session.query(LinkedInMessageTemplate).get(template.id)
 
         newTemplateEdit = TemplateEditWidget(spellCheckEnabled=False, placeholderEnabled=False)
         newTemplateEdit.setReadOnly(True)
@@ -32,7 +36,7 @@ class MessagePreviewDialog(QDialog):
 
         firstInvalidMessage = None
         firstMessage = None
-        for connection in targetedConnections:
+        for connection in self.targetedConnections:
             item = QListWidgetItem()
             item.setText(connection.name)
             item.setData(Qt.UserRole, connection)
