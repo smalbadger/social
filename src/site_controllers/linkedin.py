@@ -222,7 +222,7 @@ class LinkedInController(Controller):
                 start = datetime.now()
                 while True:
                     pin_inputs = self.browser.find_elements_by_id(EIS.pin_verification_input)
-                    if not pin_inputs:
+                    if not pin_inputs and not entered:
                         self.info('PIN entered manually.')
                         break
                     elif entered:  # Entered automatically
