@@ -2,13 +2,13 @@ from database.credentials import username, password, host, port
 
 from sqlalchemy import Column, String, Boolean, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 from sqlalchemy import create_engine
 
 engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social',
                        pool_recycle=3600,
                        connect_args={'connect_timeout': 10})
-session = sessionmaker(bind=engine)()
+Session = scoped_session(sessionmaker(bind=engine))
 
 Base = declarative_base()
 

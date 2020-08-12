@@ -6,7 +6,7 @@ from gui.instancewidget import InstanceWidget
 from gui.newclientdialog import NewClientDialog
 
 from common.threading import Task
-from database.general import session, Client
+from database.general import Session, Client
 from site_controllers.linkedin import LinkedInController
 
 
@@ -53,7 +53,7 @@ class NewInstanceDialog(QDialog):
     def newClient(self):
         """Gives the user a chance to create a new client and link accounts"""
 
-        def newClient(client):
+        def addClient(client):
             # client = Session
             if client.tester:
                 self.ui.testAccountsBox.setChecked(True)
@@ -66,7 +66,7 @@ class NewInstanceDialog(QDialog):
 
         newClientDialog = NewClientDialog()
         newClientDialog.exec_()
-        newClientDialog.clientCreated.connect(newClient)
+        newClientDialog.clientCreated.connect(addClient)
 
     def populateClient(self, client):
         """Adds a single client to the client combo box"""
@@ -92,7 +92,7 @@ class NewInstanceDialog(QDialog):
 
             prog.close()
 
-        task = Task(lambda: session.query(Client).all())
+        task = Task(lambda: Session.query(Client).all())
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
         prog.show()
