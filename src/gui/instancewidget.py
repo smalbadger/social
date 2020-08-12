@@ -22,6 +22,7 @@ from database.general import Session, Client
 class InstanceWidget(QWidget):
 
     dailyLimitChanged = Signal(int)
+    actionCountChanged = Signal(int)
 
     def __init__(self, client: Client, cConstructor):
         QWidget.__init__(self)
@@ -244,8 +245,9 @@ class InstanceWidget(QWidget):
             if self.ui.headlessBoxGeneral.isChecked():
                 messengerBrowserOpts.append("headless")
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                                  id=self.account.id, browser=self.browser,
+                                                                  browser=self.browser,
                                                                   options=messengerBrowserOpts)
+            self.messagingController.messageSent.connect(lambda cid, mid: self.actionCountChanged.emit(cid))
             self.lw.addLogger(self.messagingController.getLoggerName(), "rgba(100, 100, 0, 0.2)")
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                connections, teardown_func=onComplete)
@@ -430,14 +432,18 @@ class InstanceWidget(QWidget):
                 ans = QMessageBox.Yes
 
             if ans == QMessageBox.Yes:
-                template.message_template = newMsg
+
+                def save():
+                    templateObj = Session.query(LinkedInMessageTemplate).get(template.id)
+                    templateObj.message_template = newMsg
+                    Session.commit()
 
                 prog = QProgressDialog('Saving Template...', 'Hide', 0, 0, parent=self.window())
                 prog.setModal(True)
                 prog.setWindowTitle('Saving...')
                 prog.show()
 
-                task = Task(Session.commit)
+                task = Task(save)
                 task.finished.connect(prog.close)
                 QThreadPool.globalInstance().start(task)
 

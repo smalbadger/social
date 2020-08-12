@@ -161,6 +161,7 @@ class LinkedInMessageTemplate(Base):
 
     def fill(self, connection):
         """Replaces the placeholders in the template with connection info and returns a string"""
+
         templateText = self.message_template.encode('latin1').decode('unicode_escape')
 
         # all of the placeholders in the array (value), depend on the key attribute not being blank or null.

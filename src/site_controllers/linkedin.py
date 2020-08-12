@@ -26,7 +26,7 @@ from common.beacon import Beacon
 from common.instance import Waiting
 
 from database.general import Session
-from database.linkedin import LinkedInMessage, LinkedInConnection
+from database.linkedin import LinkedInMessage, LinkedInConnection, LinkedInMessageTemplate
 
 
 #########################################################
@@ -80,6 +80,8 @@ class LinkedInController(Controller):
     """
 
     Beacon.connectionsScraped = Signal(dict)
+    Beacon.messageSent = Signal(int, int) # connection id, message id
+
     CRITICAL_LOGIN_INFO = ("email", "password")
 
     @log_exceptions
@@ -344,6 +346,7 @@ class LinkedInController(Controller):
         self.info("Updating database")
         msg = template.createMessageTo(connection)
         msg.recordAsDelivered()
+        self.messageSent.emit(connection.id, msg.id)
         Session.add(msg)
         Session.commit()
 
@@ -703,14 +706,16 @@ class LinkedInMessenger(Task):
 
     def __init__(self, controller, msgTemplate, connections, setup_func=None, teardown_func=None):
         super().__init__(controller, setup = setup_func, teardown = teardown_func)
-        self.msgTemplate = msgTemplate
-        self.connections = connections
+        self.msgTemplate_id = msgTemplate.id
+        self.connections_ids = [connection.id for connection in connections]
 
     def run(self):
         self.setup()
 
+        msgTemplate = Session.query(LinkedInMessageTemplate).get(self.msgTemplate_id)
+        connections = Session.query(LinkedInConnection).filter(LinkedInConnection.id.in_(self.connections_ids)).all()
         self.controller.start()
-        self.controller.messageAll(self.connections, usingTemplate=self.msgTemplate)
+        self.controller.messageAll(connections, usingTemplate=msgTemplate)
 
         self.teardown()
 
