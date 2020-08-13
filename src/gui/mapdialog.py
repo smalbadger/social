@@ -12,7 +12,7 @@ from geopy.geocoders import Photon, Nominatim
 
 from gui.ui.ui_mapdialog import Ui_Dialog
 
-http = requests.session()
+http = requests.Session()
 
 
 class MapDialog(QDialog):
