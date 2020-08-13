@@ -6,15 +6,31 @@
 
         <file alias="../resources/icons/checkmark.png">resources/icons/checkmark.png</file>
 
+        <file alias="../resources/icons/cloud-sync.png">resources/icons/cloud-sync.png</file>
+
+        <file alias="../resources/icons/disclaimer.png">resources/icons/disclaimer.png</file>
+
         <file alias="../resources/icons/error.png">resources/icons/error.png</file>
 
         <file alias="../resources/icons/filter.png">resources/icons/filter.png</file>
+
+        <file alias="../resources/icons/log.png">resources/icons/log.png</file>
+
+        <file alias="../resources/icons/messaging.png">resources/icons/messaging.png</file>
+
+        <file alias="../resources/icons/settings.png">resources/icons/settings.png</file>
 
         <file alias="../resources/icons/social-network.png">resources/icons/social-network.png</file>
 
         <file alias="../resources/icons/warning.png">resources/icons/warning.png</file>
 
+        <file alias="../resources/logos/facebook.png">resources/logos/facebook.png</file>
+
+        <file alias="../resources/logos/instagram.png">resources/logos/instagram.png</file>
+
         <file alias="../resources/logos/linkedin.png">resources/logos/linkedin.png</file>
+
+        <file alias="../resources/logos/twitter.png">resources/logos/twitter.png</file>
 
     </qresource>
 </RCC>
