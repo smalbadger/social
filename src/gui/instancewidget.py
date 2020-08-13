@@ -220,6 +220,10 @@ class InstanceWidget(QWidget):
 
         if start:
             self.saveCurrentTemplate()
+
+            # NOTE: Since another thread saves different objects to the database, committing forces
+            #       us to go back to the database and get the freshest version of an object
+            Session.commit()
             template = self.ui.templatesBox.currentData()
 
             if fromHTML(template.message_template) != template.message_template:
