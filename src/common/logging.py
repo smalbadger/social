@@ -70,6 +70,12 @@ handlers:
     encoding: UTF-8
     formatter: precise
     filename: {os.path.join(LOG_FILES_DIR, f"{initial_timestamp}--Linkedin_Controllers.log")}
+  main_file:
+    class: logging.FileHandler
+    level: DEBUG
+    encoding: UTF-8
+    formatter: precise
+    filename: {os.path.join(LOG_FILES_DIR, f"{initial_timestamp}--main.log")}
 
 loggers:
   turnin:
@@ -91,7 +97,7 @@ loggers:
 
 root:
   level: DEBUG
-  handlers: [null_handler]
+  handlers: [main_file]
 """
 
 logging.config.dictConfig(yaml.safe_load(logging_config_YAML))
