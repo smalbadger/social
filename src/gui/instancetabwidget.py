@@ -27,12 +27,6 @@ class InstanceTabWidget(QWidget):
         scrnProp = QApplication.desktop().height() / 2160
         self.ui.logoLabel.setPixmap(QPixmap(logoFile).scaled(80 * scrnProp, 80 * scrnProp))
 
-        # TODO: Don't run this in a timer - it can really bog things down
-        #  Ideally, we would have signals connect to the updateActivityInfo method.
-        # self.actionCountTimer = QTimer(self)
-        # self.actionCountTimer.timeout.connect(self.updateActivityInfo)
-        # self.actionCountTimer.start(5000)
-
         self.updateActivityInfo()
 
     def updateActivityInfo(self):
@@ -57,7 +51,7 @@ class InstanceTabWidget(QWidget):
             self.ui.usedActions.setStyleSheet(styleSheet)
             self.ui.activityLimit.setText(str(actionLimit))
 
-        task = Task(lambda: LinkedInAccountDailyActivity.getToday(self.client.linkedin_account))
+        task = Task(lambda: LinkedInAccountDailyActivity.getToday(self.client.linkedin_account.id))
         task.finished.connect(update)
         QThreadPool.globalInstance().start(task)
 

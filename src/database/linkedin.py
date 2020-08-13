@@ -4,7 +4,7 @@ from Cryptodome.Cipher import AES
 from sqlalchemy import Column, String, Boolean, Date, Time, DateTime, Integer, ForeignKey, LargeBinary
 from sqlalchemy.orm import relationship
 from database.credentials import AES_key
-from database.general import Base, session
+from database.general import Base, Session
 
 
 class LinkedInAccount(Base):
@@ -47,17 +47,17 @@ class LinkedInAccount(Base):
 
     def setActivityLimitForToday(self, newLimit: int):
         """Change the daily account limit for this account for today only"""
-        activityToday = LinkedInAccountDailyActivity.getToday(self)
+        activityToday = LinkedInAccountDailyActivity.getToday(self.id)
         activityToday.activity_limit = newLimit
-        session.flush()
+        Session.commit()
 
     def getDailyActivityLimit(self):
         """Get the linkedin account's daily activity limit"""
-        return LinkedInAccountDailyActivity.getToday(self).activity_limit
+        return LinkedInAccountDailyActivity.getToday(self.id).activity_limit
 
     def dailyActivityLimitReached(self):
         """Determine if this account has reached its daily activity limit."""
-        activityToday = LinkedInAccountDailyActivity.getToday(self)
+        activityToday = LinkedInAccountDailyActivity.getToday(self.id)
         return activityToday.message_count + activityToday.connection_request_count >= activityToday.activity_limit
 
 class LinkedInAccountDailyActivity(Base):
@@ -81,13 +81,19 @@ class LinkedInAccountDailyActivity(Base):
     account = relationship("LinkedInAccount", uselist=False, back_populates="daily_activity")
 
     @staticmethod
-    def getToday(account: LinkedInAccount) -> 'LinkedInAccountDailyActivity':
+    def getToday(account_id: int) -> 'LinkedInAccountDailyActivity':
         """
         Gets either the current day's activity record for any linkedin account.
         If it exists already, just return the record that exists.
         If not, create and return a new record with the limit automatically increased.
         """
-        todaysActivity = session.query(LinkedInAccountDailyActivity).filter(
+        account = Session.query(LinkedInAccount).filter(
+            LinkedInAccount.id == account_id
+        ).one_or_none()
+
+        assert account
+
+        todaysActivity = Session.query(LinkedInAccountDailyActivity).filter(
             LinkedInAccountDailyActivity.account == account,
             LinkedInAccountDailyActivity.date == date.today()
         ).one_or_none()
@@ -95,7 +101,7 @@ class LinkedInAccountDailyActivity(Base):
         if todaysActivity:
             return todaysActivity
 
-        lastDaysActivity = session.query(LinkedInAccountDailyActivity).filter(
+        lastDaysActivity = Session.query(LinkedInAccountDailyActivity).filter(
             LinkedInAccountDailyActivity.account == account,
             LinkedInAccountDailyActivity.date < date.today()
         ).order_by(
@@ -108,8 +114,8 @@ class LinkedInAccountDailyActivity(Base):
             newLimit = LinkedInAccountDailyActivity.DEFAULT_ACTIVITY_LIMIT
 
         newActivity = LinkedInAccountDailyActivity(account=account, date=date.today(), activity_limit=newLimit, message_count=0, connection_request_count=0)
-        session.add(newActivity)
-        session.commit()
+        Session.add(newActivity)
+        Session.commit()
         return newActivity
 
 
@@ -155,6 +161,7 @@ class LinkedInMessageTemplate(Base):
 
     def fill(self, connection):
         """Replaces the placeholders in the template with connection info and returns a string"""
+
         templateText = self.message_template.encode('latin1').decode('unicode_escape')
 
         # all of the placeholders in the array (value), depend on the key attribute not being blank or null.
@@ -217,10 +224,10 @@ class LinkedInMessage(Base):
 
     def recordAsDelivered(self):
         """Increments the message count for the corresponding account"""
-        todaysActivity = LinkedInAccountDailyActivity.getToday(self.account)
+        todaysActivity = LinkedInAccountDailyActivity.getToday(self.account.id)
         todaysActivity.message_count += 1
         todaysActivity.last_activity = datetime.now()
-        session.flush()
+        Session.flush()
 
 
 class ResponseMeanings(Base):

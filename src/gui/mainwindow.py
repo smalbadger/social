@@ -8,7 +8,7 @@ from gui.newinstancedialog import NewInstanceDialog
 from gui.instancewidget import InstanceWidget
 from gui.logwidget import LogWidget
 
-from database.general import session, Client
+from database.general import Session, Client
 
 
 class SocialView(QMainWindow):
@@ -64,7 +64,8 @@ class SocialView(QMainWindow):
 
         newTab = InstanceTabWidget(instance.client, instance.platformName)
         self.instances[newTab] = instance
-        # instance.dailyLimitChanged.connect(newTab.updateActivityInfo)
+        instance.dailyLimitChanged.connect(newTab.updateActivityInfo)
+        instance.actionCountChanged.connect(newTab.updateActivityInfo)
 
         newTab.clicked.connect(lambda: self.selectInstance(newTab))
         self.instanceTabLayout.insertWidget(0, newTab)
@@ -101,4 +102,4 @@ class SocialView(QMainWindow):
     # Database stuff
     #############################
     def getClients(self) -> list:
-        return session.query(Client).all()
+        return Session.query(Client).all()

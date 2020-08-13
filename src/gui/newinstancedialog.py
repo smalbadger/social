@@ -6,7 +6,7 @@ from gui.instancewidget import InstanceWidget
 from gui.newclientdialog import NewClientDialog
 
 from common.threading import Task
-from database.general import session, Client
+from database.general import Session, Client
 from site_controllers.linkedin import LinkedInController
 
 
@@ -46,12 +46,15 @@ class NewInstanceDialog(QDialog):
         for acct in targList:
             self.populateClient(acct)
 
-        self.populatePlatforms()
+        if targList:
+            self.populatePlatforms()
+        else:
+            self.ui.platformBox.clear()
 
     def newClient(self):
         """Gives the user a chance to create a new client and link accounts"""
 
-        def newClient(client):
+        def addClient(client):
             if client.tester:
                 self.ui.testAccountsBox.setChecked(True)
                 self.testers.append(client)
@@ -61,9 +64,11 @@ class NewInstanceDialog(QDialog):
                 self.clients.append(client)
                 self.updateDropdown(withTesters=False)
 
+            self.ui.clientBox.setCurrentIndex(self.ui.clientBox.count()-1)
+
         newClientDialog = NewClientDialog()
+        newClientDialog.clientCreated.connect(addClient)
         newClientDialog.exec_()
-        newClientDialog.clientCreated.connect(newClient)
 
     def populateClient(self, client):
         """Adds a single client to the client combo box"""
@@ -72,24 +77,24 @@ class NewInstanceDialog(QDialog):
     def populateClients(self):
         """Fetches all clients from the database and populates the client combo box with them"""
         prog = QProgressDialog("Fetching clients, please wait...", "Hide", 0, 0, parent=self)
+        prog.setWindowTitle('Fetching clients...')
         prog.setModal(True)
         prog.show()
 
         def populate(clients):
             for client in clients:
-                self.populateClient(client)
-                self.clients.append(client)
+                if not client.tester:
+                    self.clients.append(client)
+                    if not self.ui.testAccountsBox.isChecked():
+                        self.populateClient(client)
+                else:
+                    self.testers.append(client)
+                    if self.ui.testAccountsBox.isChecked():
+                        self.populateClient(client)
 
-            def nextStep(testers):
-                for tester in testers:
-                    self.testers.append(tester)
-                prog.close()
+            prog.close()
 
-            task = Task(lambda: session.query(Client).filter(Client.tester == True))
-            task.finished.connect(nextStep)
-            QThreadPool.globalInstance().start(task)
-
-        task = Task(lambda: session.query(Client).filter(Client.tester == False))
+        task = Task(lambda: Session.query(Client).all())
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
         prog.show()

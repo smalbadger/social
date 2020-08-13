@@ -1,6 +1,6 @@
 from PySide2.QtWidgets import QDialog, QDialogButtonBox, QProgressDialog
 from PySide2.QtCore import Signal, QThreadPool
-from database.general import session
+from database.general import Session
 from database.linkedin import LinkedInConnection
 from common.threading import Task
 
@@ -54,7 +54,7 @@ class FilterDialog(QDialog):
             prog.close()
             md.exec_()
 
-        task = Task(lambda: session.query(LinkedInConnection.location)
+        task = Task(lambda: Session.query(LinkedInConnection.location)
                     .filter(LinkedInConnection.account_id == self.account.id))
 
         task.finished.connect(openDialog)

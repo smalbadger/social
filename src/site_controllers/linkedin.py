@@ -25,8 +25,8 @@ from common.waits import random_uniform_wait, send_keys_at_irregular_speed, nece
 from common.beacon import Beacon
 from common.threading import Task as ncTask
 
-from database.general import session
-from database.linkedin import LinkedInMessage, LinkedInConnection
+from database.general import Session
+from database.linkedin import LinkedInMessage, LinkedInConnection, LinkedInMessageTemplate
 
 
 #########################################################
@@ -80,6 +80,8 @@ class LinkedInController(Controller):
     """
 
     Beacon.connectionsScraped = Signal(dict)
+    Beacon.messageSent = Signal(int, int) # connection id, message id
+
     CRITICAL_LOGIN_INFO = ("email", "password")
 
     @log_exceptions
@@ -363,8 +365,9 @@ class LinkedInController(Controller):
         self.info("Updating database")
         msg = template.createMessageTo(connection)
         msg.recordAsDelivered()
-        session.add(msg)
-        session.commit()
+        self.messageSent.emit(connection.id, msg.id)
+        Session.add(msg)
+        Session.commit()
 
     @log_exceptions
     @authentication_required
@@ -376,7 +379,7 @@ class LinkedInController(Controller):
 
             # Checking database to see if template was already sent to user
             if checkPastMessages:
-                previouslySentMessages = session.query(LinkedInMessage).filter(
+                previouslySentMessages = Session.query(LinkedInMessage).filter(
                     LinkedInMessage.recipient_connection_id == connection.id,
                     LinkedInMessage.template_id == usingTemplate.id
                 )
@@ -722,14 +725,16 @@ class LinkedInMessenger(Task):
 
     def __init__(self, controller, msgTemplate, connections, setup_func=None, teardown_func=None):
         super().__init__(controller, setup = setup_func, teardown = teardown_func)
-        self.msgTemplate = msgTemplate
-        self.connections = connections
+        self.msgTemplate_id = msgTemplate.id
+        self.connections_ids = [connection.id for connection in connections]
 
     def run(self):
         self.setup()
 
+        msgTemplate = Session.query(LinkedInMessageTemplate).get(self.msgTemplate_id)
+        connections = Session.query(LinkedInConnection).filter(LinkedInConnection.id.in_(self.connections_ids)).all()
         self.controller.start()
-        self.controller.messageAll(self.connections, usingTemplate=self.msgTemplate)
+        self.controller.messageAll(connections, usingTemplate=msgTemplate)
 
         self.teardown()
 
