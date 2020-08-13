@@ -40,9 +40,19 @@
      <property name="currentIndex">
       <number>0</number>
      </property>
+     <property name="iconSize">
+      <size>
+       <width>48</width>
+       <height>48</height>
+      </size>
+     </property>
      <widget class="QWidget" name="messagingTab">
+      <attribute name="icon">
+       <iconset resource="../../../icons.qrc">
+        <normaloff>:/icon/resources/icons/messaging.png</normaloff>:/icon/resources/icons/messaging.png</iconset>
+      </attribute>
       <attribute name="title">
-       <string>AutoMessaging</string>
+       <string>Messaging</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_6">
        <item row="0" column="0">
@@ -362,6 +372,10 @@
       </layout>
      </widget>
      <widget class="QWidget" name="syncTab">
+      <attribute name="icon">
+       <iconset resource="../../../icons.qrc">
+        <normaloff>:/icon/resources/icons/cloud-sync.png</normaloff>:/icon/resources/icons/cloud-sync.png</iconset>
+      </attribute>
       <attribute name="title">
        <string>Sync</string>
       </attribute>
@@ -464,6 +478,10 @@
       </layout>
      </widget>
      <widget class="QWidget" name="logTab">
+      <attribute name="icon">
+       <iconset resource="../../../icons.qrc">
+        <normaloff>:/icon/resources/icons/log.png</normaloff>:/icon/resources/icons/log.png</iconset>
+      </attribute>
       <attribute name="title">
        <string>Log</string>
       </attribute>
@@ -502,6 +520,10 @@
       </layout>
      </widget>
      <widget class="QWidget" name="settingsTab">
+      <attribute name="icon">
+       <iconset resource="../../../icons.qrc">
+        <normaloff>:/icon/resources/icons/settings.png</normaloff>:/icon/resources/icons/settings.png</iconset>
+      </attribute>
       <attribute name="title">
        <string>Settings &amp;&amp; Other</string>
       </attribute>
