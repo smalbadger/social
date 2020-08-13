@@ -242,8 +242,7 @@ class InstanceWidget(QWidget):
             if self.ui.headlessBoxGeneral.isChecked():
                 messengerBrowserOpts.append("headless")
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                                  id=self.account.id, browser=self.browser,
-                                                                  options=messengerBrowserOpts)
+                                                                  browser=self.browser, options=messengerBrowserOpts)
             self.lw.addLogger(self.messagingController.getLoggerName(), "rgba(100, 100, 0, 0.2)")
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                connections, teardown_func=onComplete)
