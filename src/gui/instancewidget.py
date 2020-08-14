@@ -49,7 +49,7 @@ class InstanceWidget(QWidget):
         self.profilename = self.account.profile_name
 
         # Browser
-        self.opts = [f'{UserAgent().random}']
+        self.opts = [f'{UserAgent().random}', "--disable-gpu"]
         self.browser = self.ui.browserBox.currentText()
 
         # Controllers and tasks
