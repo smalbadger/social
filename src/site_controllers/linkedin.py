@@ -214,7 +214,7 @@ class LinkedInController(Controller):
                     pin_inputs[0].send_keys(pin + Keys.RETURN)
                     entered = True
 
-                timeout = timedelta(minutes=1)
+                timeout = timedelta(minutes=15)
                 self.info("Detected pin validation method. Attempting to retrieve PIN from email.")
 
                 task = ncTask(lambda: PinValidator().get_pin(self._profile_name, self._email, timeout))
@@ -278,7 +278,7 @@ class LinkedInController(Controller):
         self.info(f"Searching for {person} in messages")
 
         # make sure conversation list is visible
-        searchbox = WebDriverWait(self.browser, 3).until(
+        searchbox = WebDriverWait(self.browser, 10).until(
             EC.visibility_of_element_located((By.ID, EIS.connection_search)))
         self.info("The search field has been found")
         self.highlightElement(searchbox)
@@ -308,6 +308,7 @@ class LinkedInController(Controller):
     @authentication_required
     def openConversationWith(self, person: str):
         """Searches messages for the name entered, and gets the first person from the list"""
+        self.maximizeConnectionPopup()
         self.searchForConnectionInPopup(person)
         self.selectConnectionFromPopup(person)
 
@@ -354,6 +355,8 @@ class LinkedInController(Controller):
         self.info("Sending the message")
         msg_send.click()
 
+        necessary_wait(1) # Wait for the message to be sent
+
         self.info("Verifying the message was sent")
         now = datetime.now()
         msg, timestamp = self.getLastMessageWithConnection(person, assumeConversationIsOpened=True)
@@ -377,6 +380,10 @@ class LinkedInController(Controller):
 
         for connection in connections:  # each connection is a query object
 
+            if connection.account.dailyActivityLimitReached():
+                self.critical("Daily limit reached. No more messages will be sent on this account")
+                return
+
             # Checking database to see if template was already sent to user
             if checkPastMessages:
                 previouslySentMessages = Session.query(LinkedInMessage).filter(
@@ -394,6 +401,7 @@ class LinkedInController(Controller):
             else:
                 msg = usingTemplate.fill(connection)
                 self.sendMessageTo(connection, msg, usingTemplate)
+                random_uniform_wait(2, 5, self)
 
     @log_exceptions
     @authentication_required

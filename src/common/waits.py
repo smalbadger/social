@@ -3,7 +3,7 @@ import time
 
 def wait(wait, logger=None):
     if logger:
-        logger.debug(f"Waiting for {wait} seconds")
+        logger.debug(f"Waiting for {round(wait,2)} seconds")
     time.sleep(wait)
 
 def random_uniform_wait(min, max, logger=None):
