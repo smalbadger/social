@@ -94,6 +94,22 @@
               </property>
              </widget>
             </item>
+            <item row="0" column="0">
+             <widget class="QLineEdit" name="searchBox">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="placeholderText">
+               <string>Search</string>
+              </property>
+              <property name="clearButtonEnabled">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>
@@ -555,16 +571,6 @@
              <widget class="QCheckBox" name="headlessBoxGeneral">
               <property name="text">
                <string>Run in Headless Mode (No visible browser, log still active)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="closeBrowserBox">
-              <property name="text">
-               <string>Automatically close browser after completing task (Can be changed during execution)</string>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
               </property>
              </widget>
             </item>
