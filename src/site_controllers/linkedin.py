@@ -4,7 +4,7 @@ import html
 import logging
 from datetime import timedelta, datetime
 
-from PySide2.QtCore import Signal, QThreadPool
+from PySide2.QtCore import Signal, QThreadPool, QThread
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -74,6 +74,7 @@ class LinkedInException(ControllerException):
     def __init__(self, msg):
         ControllerException.__init__(self, msg)
 
+
 class LinkedInController(Controller):
     """
     The controller for LinkedIn
@@ -123,14 +124,12 @@ class LinkedInController(Controller):
         return self._loggerName
 
     @log_exceptions
-    @ensure_browser_is_running
     def auth_check(self):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
 
     @finish_executing  # TODO: Here for testing, remove later
     @log_exceptions
-    @ensure_browser_is_running
     def login(self, manual=False):
         """
         Logs in to LinkedIn
@@ -149,6 +148,9 @@ class LinkedInController(Controller):
         :param manual: If True, wait for the user to click the submit button. Credentials are entered automatically.
         :type manual: bool
         """
+
+        if self.manualClose:
+            QThread.currentThread().terminate()
 
         self.info("Logging in")
 
