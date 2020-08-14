@@ -22,7 +22,9 @@ class MessagePreviewDialog(QDialog):
         self.ui.setupUi(self)
 
         connections = [conn.id for conn in targetedConnections]
-        self.targetedConnections = Session.query(LinkedInConnection).filter(LinkedInConnection.id.in_(connections))
+        self.targetedConnections = Session.query(LinkedInConnection)\
+            .filter(LinkedInConnection.id.in_(connections))\
+            .order_by(LinkedInConnection.name)
         self.messageStatuses = {connection: None for connection in self.targetedConnections}
         self.template = Session.query(LinkedInMessageTemplate).get(template.id)
 
