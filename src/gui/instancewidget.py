@@ -210,6 +210,7 @@ class InstanceWidget(QWidget):
             startStopButton.setText("Closing, please wait...")
             startStopButton.setEnabled(False)
 
+            self.messagingController.manualClose = True
             self.messagingController.stop()
 
             del self.messagingController
@@ -247,14 +248,18 @@ class InstanceWidget(QWidget):
             # GUI Stuff
             self.ui.errorLabel.hide()
 
-            # Controller stuff
+            # Options
             messengerBrowserOpts = self.opts[:]
             if self.ui.headlessBoxGeneral.isChecked():
                 messengerBrowserOpts.append("headless")
+
+            # Controller
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
                                                                   browser=self.browser, options=messengerBrowserOpts)
             self.messagingController.messageSent.connect(lambda cid, mid: self.actionCountChanged.emit(cid))
             self.lw.addLogger(self.messagingController.getLoggerName(), "rgba(100, 100, 0, 0.2)")
+
+            # Task
             self.messenger = LinkedInMessenger(self.messagingController, template,
                                                connections, teardown_func=onComplete)
             QThreadPool.globalInstance().start(self.messenger)

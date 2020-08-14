@@ -1,11 +1,13 @@
 from functools import wraps
 import common.instance as inst
 
+
 def ensure_browser_is_running(func):
     """Makes the browser is started before a function is called"""
     @wraps(func)
     def check(*args, **kwargs):
         controller = args[0]
+
         if not controller.isRunning:
             controller.start()
 
@@ -34,11 +36,13 @@ def log_exceptions(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        controller = args[0]
 
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            args[0].exception(e)
+            if not controller.manualClose:  # Suppresses log of inevitable final http errors when closing manually
+                args[0].exception(e)
             # raise e
 
     return wrapper

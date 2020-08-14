@@ -59,6 +59,8 @@ class Controller(AbstractBaseClass):
         self.options = list(options)
         self.browser = browser
 
+        self.manualClose = False
+
     def checkForValidConfiguration(self):
         """
         Determines if the controller configuration is Valid
@@ -87,6 +89,7 @@ class Controller(AbstractBaseClass):
     def start(self):
         """Starts the controller"""
 
+        self.info('')
         self.info("Starting Controller")
 
         if self.isRunning:
@@ -101,13 +104,14 @@ class Controller(AbstractBaseClass):
 
     def stop(self):
         """Stops the controller by closing the browser"""
-        self.browser.quit()
+        if self.isRunning:
+            self.browser.quit()
 
-        while self.isRunning:
-            pass
-        self.browser = None
+            while self.isRunning:
+                pass
+            self.browser = None
 
-        self.info("Stopped browser")
+            self.info("Stopped browser")
 
     #############################################################
     #  Abstract Methods
@@ -141,16 +145,20 @@ class Controller(AbstractBaseClass):
         if not self.browser or not self.browser.service or not self.browser.service.process:
             return False
 
-        driver_process = psutil.Process(self.browser.service.process.pid)
-        if driver_process.is_running():
-            children_processes = driver_process.children()
-            if children_processes:
-                child_process = children_processes[0]
-                if child_process.is_running():
-                    return True
-                else:
-                    child_process.kill()
-        return False
+        try:
+            driver_process = psutil.Process(self.browser.service.process.pid)
+            if driver_process.is_running():
+                children_processes = driver_process.children()
+                if children_processes:
+                    child_process = children_processes[0]
+                    if child_process.is_running():
+                        return True
+                    else:
+                        child_process.kill()
+            return False
+
+        except:  # If process no longer exists
+            return False
 
     @property
     def browser(self) -> Remote:
