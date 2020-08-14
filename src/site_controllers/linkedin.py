@@ -740,7 +740,9 @@ class LinkedInMessenger(Task):
         self.setup()
 
         msgTemplate = Session.query(LinkedInMessageTemplate).get(self.msgTemplate_id)
-        connections = Session.query(LinkedInConnection).filter(LinkedInConnection.id.in_(self.connections_ids)).all()
+        connections = Session.query(LinkedInConnection)\
+            .filter(LinkedInConnection.id.in_(self.connections_ids))\
+            .order_by(LinkedInConnection.name)
         self.controller.start()
         self.controller.messageAll(connections, usingTemplate=msgTemplate)
 

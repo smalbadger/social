@@ -131,7 +131,7 @@ class InstanceWidget(QWidget):
                 self.ui.allConnectionsList.addItem(con.name)
                 self.allConnections[con.name] = con
 
-            self.ui.allConnectionsList.sortItems()
+            #self.ui.allConnectionsList.sortItems()
 
             prog.close()
 
@@ -140,7 +140,8 @@ class InstanceWidget(QWidget):
 
         self.db_logger.info(msg)
         task = Task(lambda: Session.query(LinkedInConnection)
-                    .filter(LinkedInConnection.account_id == self.account.id))
+                    .filter(LinkedInConnection.account_id == self.account.id)
+                    .order_by(LinkedInConnection.name))
         task.finished.connect(populate)
         QThreadPool.globalInstance().start(task)
 
