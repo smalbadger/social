@@ -1,7 +1,7 @@
 import logging
 
 from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog
-from PySide2.QtCore import QThreadPool, Signal
+from PySide2.QtCore import QThreadPool, Signal, Qt
 
 from gui.logwidget import LogWidget
 from gui.filterdialog import FilterDialog
@@ -12,7 +12,7 @@ from gui.messagepreviewdialog import MessagePreviewDialog
 from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
 
-from common.strings import fromHTML, toHTML
+from common.strings import fromHTML
 from common.threading import Task
 
 from database.linkedin import *
@@ -130,6 +130,8 @@ class InstanceWidget(QWidget):
                 self.gui_logger.debug(con.name)
                 self.ui.allConnectionsList.addItem(con.name)
                 self.allConnections[con.name] = con
+
+            self.ui.allConnectionsList.sortItems()
 
             prog.close()
 
@@ -291,6 +293,18 @@ class InstanceWidget(QWidget):
             self.client.linkedin_account.setActivityLimitForToday(value)
             self.dailyLimitChanged.emit(value)
         self.ui.dailyActionLimitSpinBox.focusOutEvent = onDailyLimitUpdated
+
+        def searchConnections(partialName):
+            if self.allConnections:
+                results = [entry.text() for entry in self.ui.allConnectionsList.findItems(partialName, Qt.MatchContains)]
+                all = self.ui.allConnectionsList.findItems('', Qt.MatchContains)
+
+                for entry in all:
+                    if entry.text() in results:
+                        entry.setHidden(False)
+                    else:
+                        entry.setHidden(True)
+        self.ui.searchBox.textEdited.connect(searchConnections)
 
     def openFilterDialog(self):
         """
