@@ -393,6 +393,20 @@ class LinkedInController(Controller):
                     LinkedInMessage.template_id == usingTemplate.id
                 )
                 alreadySent = previouslySentMessages.count()
+
+                # For templates pulled from the Legacy database, we need to scrape previous messages
+                if not alreadySent and usingTemplate.crc != LinkedInMessageTemplate.defaultCRC:
+                    for date, name, msg in self.getConversationHistory(connection.name):
+                        if str(usingTemplate.crc) in msg:
+                            alreadySent = 1
+
+                            # While we're at it, we create a message and put it in the database so we don't have to scrape
+                            # for this combination of template and connection again.
+                            msg = LinkedInMessage(template_id=usingTemplate.id, recipient_connection_id=connection.id)
+                            Session.add(msg)
+                            Session.commit()
+                            break
+
             else:
                 alreadySent = 0
 
@@ -773,9 +787,6 @@ class LinkedInSynchronizer(Task):
             connections = self.controller.getNewConnections(known=known)
             # TODO: Add connections scraping/syncing here. currently repopulates the all contacts list
 
-        if opts.get('messages'):
-            # TODO: Synchronize messages
-            pass
 
         self.teardown()
 

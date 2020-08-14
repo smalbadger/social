@@ -142,12 +142,13 @@ class LinkedInMessageTemplate(Base):
     __tablename__ = "linkedin_message_templates"
 
     invalidPlaceholder = "INVALID-PLACEHOLDER"
+    defaultCRC = -1
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
     name = Column(String, nullable=False)
     message_template = Column(String, unique=True)
-    crc = Column(Integer)
+    crc = Column(Integer, default=defaultCRC)
     date_created = Column(DateTime, default=datetime.utcnow)
     deleted = Column(Boolean, default=False)
 

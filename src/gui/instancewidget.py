@@ -131,7 +131,7 @@ class InstanceWidget(QWidget):
                 self.ui.allConnectionsList.addItem(con.name)
                 self.allConnections[con.name] = con
 
-            #self.ui.allConnectionsList.sortItems()
+            self.ui.allConnectionsGroupBox.setTitle(f"All Connections ({len(self.allConnections)})")
 
             prog.close()
 
@@ -495,7 +495,7 @@ class InstanceWidget(QWidget):
                         account_id=self.account.id,
                         name=name.encode('unicode_escape'),
                         message_template=" ",
-                        crc=-1
+                        crc=LinkedInMessageTemplate.defaultCRC
                     )
                 )  # Defaulting crc to -1
                 Session.commit()
@@ -572,7 +572,6 @@ class InstanceWidget(QWidget):
         if checked:
             acl = self.ui.allConnectionsList
             options = {
-                'messages': self.ui.updateMessagesBox.isChecked(),
                 'connections': self.ui.updateConnectionsBox.isChecked(),
                 'known': [acl.item(i).text() for i in range(acl.count())],
                 'accept new': self.ui.newConnectionsBox.isChecked()
