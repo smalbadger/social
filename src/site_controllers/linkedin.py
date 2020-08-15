@@ -639,7 +639,6 @@ class LinkedInController(Controller):
                 ).get_attribute('href'))
 
                 if link not in known or link in updateConnections + getMutualInfoFor:
-                    self.info('')
 
                     # Get this person's info
                     name, pos, loc = self.getConnectionInfo(connection, pos=findPosition, loc=findLocation)
@@ -692,28 +691,25 @@ class LinkedInController(Controller):
 
             try:
                 # Finding the button that appears when there are no results
-                self.info('End of connections')
                 self.browser.find_element_by_xpath(EIS.no_results_button)
+                self.info('End of connections\n')
                 break
             except NoSuchElementException:
                 if num > oldNum:
                     # Commit changes
-                    self.info('Adding new connections to database.')
+                    self.info('Adding new connections to database.\n')
                     Session.commit()
                     oldNum = num
                 else:
-                    self.info(f'No new connections found on page {page}.')
+                    self.info(f'No new connections found on page {page}.\n')
 
                 # Go to next page, and log it
-                self.info('')
                 page += 1
-                self.info(f'// Switching to page {page} of connections \\\\')
+                self.info(f'// Switching to page {page} of connections \\\\\n')
                 self.browser.get(baseURL + f'&page={page}')
 
         self.connectionsScraped.emit()
-        self.info('')
-        self.info(f'** Scraped {num} connections and their information. **')
-        self.info('')
+        self.info(f'** Scraped {num} connections and their information. **\n')
 
     @log_exceptions
     @authentication_required

@@ -90,8 +90,7 @@ class Controller(AbstractBaseClass):
     def start(self):
         """Starts the controller"""
 
-        self.info('')
-        self.info("Starting Controller")
+        self.info("Starting Controller\n")
 
         if self.isRunning:
             return
