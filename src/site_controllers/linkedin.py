@@ -96,6 +96,7 @@ class LinkedInController(Controller):
         self._criticalLoginInfo = LinkedInController.CRITICAL_LOGIN_INFO
         self.checkForValidConfiguration()
         self.info(f"Created LinkedIn controller for {self._profile_name}")
+        self.setMessageDelayRange(1, 2)
 
     @log_exceptions
     def initLogger(self):
@@ -323,6 +324,11 @@ class LinkedInController(Controller):
         self.info("Clearing all open message dialogs to avoid mis-identification")
         self.browser.refresh()
 
+    def setMessageDelayRange(self, minimum, maximum):
+        """Sets the upper and lower bounds (in seconds) for the random delay between messages."""
+        self.minMessagingDelay = minimum
+        self.maxMessagingDelay = maximum
+
     @finish_executing
     @log_exceptions
     @authentication_required
@@ -417,7 +423,9 @@ class LinkedInController(Controller):
             else:
                 msg = usingTemplate.fill(connection)
                 self.sendMessageTo(connection, msg, usingTemplate)
-                random_uniform_wait(2, 5, self)
+
+                self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
+                random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
 
     @log_exceptions
     @authentication_required
