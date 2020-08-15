@@ -60,6 +60,8 @@ class InstanceWidget(QWidget):
         self.allConnections = {}
         self.syncController = None
         self.synchronizer = None
+        self.messagingDelayLowerBound = 5
+        self.messagingDelayUpperBound = 3000
 
         # Loggers and handlers
         self.lw = LogWidget(self.ui.instanceLogTextEdit)
@@ -256,6 +258,7 @@ class InstanceWidget(QWidget):
             # Controller
             self.messagingController = self.controllerConstructor(self.client.name, self.email, self.pwd,
                                                                   browser=self.browser, options=messengerBrowserOpts)
+            self.messagingController.setMessageDelayRange(self.messagingDelayLowerBound, self.messagingDelayUpperBound)
             self.messagingController.messageSent.connect(lambda cid, mid: self.actionCountChanged.emit(cid))
             self.lw.addLogger(self.messagingController.getLoggerName(), "rgba(100, 100, 0, 0.2)")
 
@@ -298,6 +301,7 @@ class InstanceWidget(QWidget):
             value = self.ui.dailyActionLimitSpinBox.value()
             self.client.linkedin_account.setActivityLimitForToday(value)
             self.dailyLimitChanged.emit(value)
+
         self.ui.dailyActionLimitSpinBox.focusOutEvent = onDailyLimitUpdated
 
         def searchConnections(partialName):
@@ -310,7 +314,29 @@ class InstanceWidget(QWidget):
                         entry.setHidden(False)
                     else:
                         entry.setHidden(True)
+
         self.ui.searchBox.textEdited.connect(searchConnections)
+
+        def updateMessagingDelay(minOrMax):
+            """
+            sets the delay spinboxes to valid values and then records the values in instance variables that get
+            propagated to the messaging controller
+            """
+            if minOrMax == max:
+                toUpdate = self.ui.maxMessagingDelaySpinBox
+            else:
+                toUpdate = self.ui.minMessagingDelaySpinBox
+            currentMin = self.ui.minMessagingDelaySpinBox.value()
+            currentMax = self.ui.maxMessagingDelaySpinBox.value()
+            toUpdate.setValue(minOrMax(currentMin, currentMax))
+            self.messagingDelayLowerBound = self.ui.minMessagingDelaySpinBox.value()
+            self.messagingDelayUpperBound = self.ui.maxMessagingDelaySpinBox.value()
+            if self.messagingController:
+                self.messagingController.setMessageDelayRange(self.messagingDelayLowerBound, self.messagingDelayUpperBound)
+
+        updateMessagingDelay(min)
+        self.ui.minMessagingDelaySpinBox.valueChanged.connect(lambda: updateMessagingDelay(max))
+        self.ui.maxMessagingDelaySpinBox.valueChanged.connect(lambda: updateMessagingDelay(min))
 
     def openFilterDialog(self):
         """
