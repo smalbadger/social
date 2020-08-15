@@ -4,11 +4,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from database.credentials import username, password, host, port
-from database.linkedin import Client, LinkedInMessage, LinkedInAccount, LinkedInConnection, LinkedInMessageTemplate
-from database.linkedin import Session as newSession
+from database.linkedin import LinkedInMessage, LinkedInAccount, LinkedInConnection, LinkedInMessageTemplate
+from database.general import Client, Session as newSession
 
 engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/linkedin', pool_recycle=3600)
-session = sessionmaker(bind=engine)()
+legacySession = sessionmaker(bind=engine)()
 
 Base = declarative_base()
 
@@ -87,4 +87,36 @@ def migrateOldDatabase():
                     msg = LinkedInMessage(template=msg_template, recipient=connection, account=steve)
                     newSession.add(msg)
 
+def migrateAccount(name):
+
+    client = newSession.query(Client).filter(Client.name == name).one_or_none()
+
+    if client:
+        client_linkedin = client.linkedin_account
+
+    else:
+        client = Client(name=name, email="", phone="", tester=False)
+        client_linkedin = LinkedInAccount(email="", profile_name=client.name, password=b"")
+        client.linkedin_account = client_linkedin
+        newSession.add(client)
+        newSession.add(client_linkedin)
+
+    client_template_CRCs = list({c.MSG_CRC for c in legacySession.query(Contacts).filter(Contacts.Account == name).all()})
+    messages = legacySession.query(Messages).filter(Messages.MSG_CRC.in_(client_template_CRCs)).filter(Messages.ID >= 25).all()
+
+    for message in messages:
+
+        template = newSession.query(LinkedInMessageTemplate)\
+            .filter(LinkedInMessageTemplate.crc == message.MSG_CRC)\
+            .one_or_none()
+
+        if not template:
+            print(message.MSG)
+            newTemplate = LinkedInMessageTemplate(name=message.MSG.split()[0], message_template=message.MSG, crc=message.MSG_CRC, date_created=message.Date_Created)
+            newTemplate.account = client_linkedin
+            newSession.add(newTemplate)
+
     newSession.commit()
+
+if __name__ == '__main__':
+    migrateAccount("Steve Sims")
