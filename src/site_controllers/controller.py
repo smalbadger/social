@@ -60,6 +60,7 @@ class Controller(AbstractBaseClass):
         self.browser = browser
 
         self.manualClose = False
+        self.isStopping = False
 
     def checkForValidConfiguration(self):
         """
@@ -89,8 +90,7 @@ class Controller(AbstractBaseClass):
     def start(self):
         """Starts the controller"""
 
-        self.info('')
-        self.info("Starting Controller")
+        self.info("Starting Controller\n")
 
         if self.isRunning:
             return
@@ -104,7 +104,8 @@ class Controller(AbstractBaseClass):
 
     def stop(self):
         """Stops the controller by closing the browser"""
-        if self.isRunning:
+        if not self.isStopping:
+            self.isStopping = True
             self.browser.quit()
 
             while self.isRunning:
