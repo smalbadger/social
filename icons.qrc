@@ -18,6 +18,8 @@
 
         <file alias="../resources/icons/messaging.png">resources/icons/messaging.png</file>
 
+        <file alias="../resources/icons/right-arrow-big.png">resources/icons/right-arrow-big.png</file>
+
         <file alias="../resources/icons/settings.png">resources/icons/settings.png</file>
 
         <file alias="../resources/icons/social-network.png">resources/icons/social-network.png</file>
