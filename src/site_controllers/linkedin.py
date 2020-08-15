@@ -80,8 +80,8 @@ class LinkedInController(Controller):
     The controller for LinkedIn
     """
 
-    Beacon.connectionsScraped = Signal(dict)
-    Beacon.messageSent = Signal(int, int) # connection id, message id
+    Beacon.connectionsScraped = Signal()
+    Beacon.messageSent = Signal(int, int)  # connection id, message id
 
     CRITICAL_LOGIN_INFO = ("email", "password")
 
@@ -561,15 +561,16 @@ class LinkedInController(Controller):
 
     @log_exceptions
     @authentication_required
-    def getNewConnections(self, known: list = None, getMutualInfoFor: list = None,
+    def getNewConnections(self, account_id, known: list = None, getMutualInfoFor: list = None,
                           withLocation=True, withPosition=True, updateConnections=None) -> dict:
         """
         Gets all contacts and returns them in a dictionary
-        :param known: A list of currently stored connections
-        :param getMutualInfoFor: A list of connections you want the mutual connections info for
+        :param account_id: The account id
+        :param known: A list of the currently stored connections' profile links
+        :param getMutualInfoFor: A list of connections you want the mutual connections info for (links, not names)
         :param withLocation: whether to store location information about the connections
         :param withPosition: whether to store job/position info about the connections
-        :param updateConnections: update all info for those in this list
+        :param updateConnections: update all info for those in this list (links again)
         """
 
         self.info('Getting all connections')
@@ -596,16 +597,17 @@ class LinkedInController(Controller):
         self.browser.switch_to.window(self.mainWindow)
 
         # Iterate through connections on page, then click next
-        connections = self.scrapeConnections(baseURL, known=known, getMutualInfoFor=getMutualInfoFor,
-                                             location=withLocation, position=withPosition,
+        connections = self.scrapeConnections(baseURL, account_id, known=known, getMutualInfoFor=getMutualInfoFor,
+                                             findLocation=withLocation, findPosition=withPosition,
                                              updateConnections=updateConnections)
 
         return connections
 
+    @finish_executing
     @log_exceptions
     @authentication_required
-    def scrapeConnections(self, baseURL,  known: list = None, getMutualInfoFor: list = None,
-                          location=True, position=True, updateConnections=None):
+    def scrapeConnections(self, baseURL, account_id, known: list = None, getMutualInfoFor: list = None,
+                          findLocation=True, findPosition=True, updateConnections=None):
         """
         The while loop that iterates through all connections, getting their info
         """
@@ -616,47 +618,102 @@ class LinkedInController(Controller):
         if updateConnections is None:
             updateConnections = []
 
-        connections = {}
         page = 1
+        num = 0
+        oldNum = 0
 
         while True:
+            # Zoom out enough for all 10 listed connections to be on page
+            self.browser.execute_script("document.body.style.zoom='50%'")
+            necessary_wait(.5)  # Have to wait for script to execute
+
+            # Get all connection cards
             conns = self.browser.find_elements_by_class_name(EIS.connection_card_info_class)
+
+            # Iterate through them
             for connection in conns:
 
-                name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
+                # Get the link for this connection, which is unique
+                link = fromHTML(connection.find_element_by_css_selector(
+                    EIS.connection_card_profile_link
+                ).get_attribute('href'))
 
-                if name not in known or name in updateConnections + getMutualInfoFor:
+                if link not in known or link in updateConnections + getMutualInfoFor:
                     self.info('')
-                    self.info(f'--- Getting information about {name} ---')
 
-                    profileLink, pos, loc = self.getConnectionInfo(connection, pos=position, loc=location)
+                    # Get this person's info
+                    name, pos, loc = self.getConnectionInfo(connection, pos=findPosition, loc=findLocation)
 
-                    if name in getMutualInfoFor:
-                        names = self.getMutualConnections(connection)
+                    # # Get mutual connections if necessary
+                    # if name in getMutualInfoFor:
+                    #     names = self.getMutualConnections(connection)
+                    # else:
+                    #     names = []
+
+                    if link in updateConnections:
+
+                        # Get the matching connection from the database
+                        prevCon = Session.query(LinkedInConnection).filter(
+                            LinkedInConnection.account_id == account_id,
+                            LinkedInConnection.url == link
+                        )
+
+                        # Update its values
+                        if link != prevCon.url:
+                            prevCon.url = link
+
+                        if pos != prevCon.position:
+                            prevCon.position = pos
+
+                        if loc != prevCon.location:
+                            prevCon.location = loc
+
+                        # TODO: Implement mutual connections in database, if necessary, using names var from above
+
+                        # Commit changes, log, and continue
+                        Session.commit()
+                        self.warning(f"Updated {name}'s information.")
+
                     else:
-                        names = []
+                        # Create and add the new connection
+                        Session.add(
+                            LinkedInConnection(
+                                name=name,
+                                account_id=account_id,
+                                url=link,
+                                location=loc,
+                                position=pos
+                            )
+                        )
 
-                    connections[name] = {
-                        'link': profileLink,
-                        'position': pos,
-                        'location': loc,
-                        'mutual': names
-                    }
+                        # Add 1 to total number of new connections, log, and continue
+                        num += 1
+                        self.info(f'New connection found (#{num}): {name}')
 
             try:
+                # Finding the button that appears when there are no results
+                self.info('End of connections')
                 self.browser.find_element_by_xpath(EIS.no_results_button)
                 break
             except NoSuchElementException:
+                if num > oldNum:
+                    # Commit changes
+                    self.info('Adding new connections to database.')
+                    Session.commit()
+                    oldNum = num
+                else:
+                    self.info(f'No new connections found on page {page}.')
+
+                # Go to next page, and log it
+                self.info('')
                 page += 1
                 self.info(f'// Switching to page {page} of connections \\\\')
                 self.browser.get(baseURL + f'&page={page}')
 
+        self.connectionsScraped.emit()
         self.info('')
-        self.info('** Scraped all connections and their information. **')
+        self.info(f'** Scraped {num} connections and their information. **')
         self.info('')
-
-        self.connectionsScraped.emit(connections)
-        return connections
 
     @log_exceptions
     @authentication_required
@@ -724,25 +781,21 @@ class LinkedInController(Controller):
         Gets info about a connection. The connection variable is a web element, not a name
         """
 
-        self.info('Getting profile link')
-        profileLink = fromHTML(connection.find_element_by_css_selector(EIS.connection_card_profile_link)
-                               .get_attribute('href'))
+        name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
 
         if pos:
-            self.info('Getting employment information')
             position = fromHTML(connection.find_element_by_class_name(EIS.connection_card_position)
                                 .get_attribute('innerHTML')).strip()
         else:
             position = ""
 
         if loc:
-            self.info('Getting general location')
             location = fromHTML(connection.find_element_by_class_name(EIS.connection_card_location)
                                 .get_attribute('innerHTML')[:-len(' Area')]).strip()
         else:
             location = ""
 
-        return profileLink, position, location
+        return name, position, location
 
 
 class LinkedInMessenger(Task):
@@ -778,15 +831,12 @@ class LinkedInSynchronizer(Task):
 
         if opts.get('accept new'):
             newCons = self.controller.acceptAllConnections()
-
-            # TODO: Do necessary things to handle new connections
             self.controller.browser.get("https://www.linkedin.com/feed/")
 
         if opts.get('connections'):
             known = opts.get('known')
-            connections = self.controller.getNewConnections(known=known)
-            # TODO: Add connections scraping/syncing here. currently repopulates the all contacts list
-
+            account_id = opts.get('accid')
+            connections = self.controller.getNewConnections(account_id, known=known)
 
         self.teardown()
 
