@@ -14,14 +14,6 @@ def setVersion(v: Version):
     with open(versionFile, 'w') as vf:
         vf.write(str(v))
 
-def getChangeLog():
-    with open(changeLogFile) as clf:
-        return clf.read()
-
-def setChangeLog(log):
-    with open(changeLogFile, 'w') as clf:
-        clf.write(log)
-
 def getCommitMessagesSince(repoDir, v: Version):
     repo = Repository(repoDir)
     start = repo.revparse_single(repo.head.name)

@@ -1,10 +1,18 @@
 import os
-from semantic_version import Version
-from PySide2.QtWidgets import QDialog, QButtonGroup, QDialogButtonBox
+import database.general
+from subprocess import call
+from database.credentials import file_host, file_port, file_password, file_username
+from ftplib import FTP
+from PySide2.QtWidgets import QDialog, QButtonGroup, QDialogButtonBox, QProgressDialog
+from PySide2.QtCore import QThreadPool
 
 from gui.ui.ui_releasedialog import Ui_Dialog
-from common.version import getCurrentVersion, setVersion, setChangeLog, getCommitMessagesSince, addVersionTagToLastCommit
 
+from common.threading import Task
+from common.version import *
+
+versionFile = os.path.abspath('version.txt')
+changeLogFile = os.path.abspath('changelog.txt')
 
 class ReleaseDialog(QDialog):
 
@@ -57,6 +65,32 @@ class ReleaseDialog(QDialog):
     def accept(self):
         setVersion(self.target_version)
         addVersionTagToLastCommit(os.path.join('..', '.git'), self.target_version, f"Release v{self.target_version}")
-        setChangeLog(self.ui.changeLogEdit.toPlainText())
+        changeLog = self.ui.changeLogEdit.toPlainText()
+
+        v = database.general.Version(semantic_id=str(self.target_version), change_log=changeLog, active=True)
+        database.general.Session.add(v)
+        database.general.Session.commit()
+
+        def build_installer():
+            os.chdir('../scripts')
+            call(['python', '-v', str(self.target_version), 'build_installer.py'])
+            os.chdir('../src/')
+
+        prog = QProgressDialog("Building Installer", "Hide", 0, 0, self)
+        prog.show()
+        t1 = Task(build_installer)
+        t1.finished.connect(prog.close)
+        QThreadPool.globalInstance().start(t1)
+        prog.exec_()
+
+        ftp = FTP()
+        ftp.connect(host=file_host, port=file_port)
+        ftp.login(user=file_username, passwd=file_password)
+
+        localFile = f'../social_installer_v{str(self.target_version)}.exe'
+        remoteFile = f'installers/social_v{str(self.target_version)}.exe'
+        with open(localFile, 'r') as f:
+            ftp.storbinary(f'STOR {remoteFile}', f)
+        ftp.quit()
 
         super().accept()

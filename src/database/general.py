@@ -1,9 +1,11 @@
-from database.credentials import username, password, host, port
-
-from sqlalchemy import Column, String, Boolean, Integer, ForeignKey
+import enum
+from datetime import datetime
+from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, DateTime, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 from sqlalchemy import create_engine
+
+from database.credentials import username, password, host, port
 
 engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social',
                        pool_recycle=3600,
@@ -27,3 +29,17 @@ class Client(Base):
 
     # -- ORM --------------------------
     linkedin_account = relationship("LinkedInAccount", uselist=False, back_populates="client")
+
+
+class Active(enum.Enum):
+    true = True
+
+class Version(Base):
+
+    __tablename__ = "versions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    semantic_id = Column(String)
+    change_log = Column(String)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    active = Column(Boolean, unique=True)
