@@ -54,6 +54,7 @@ qtmodern @ file:///C:/Users/smalb/facade-technologies-inc/qtmodern
 requests @ file:///home/conda/feedstock_root/build_artifacts/requests_1592425495151/work
 scipy @ file:///C:/ci/scipy_1592916963468/work
 selenium==3.141.0
+semantic-version==2.8.5
 Shapely==1.7.0
 six==1.15.0
 SQLAlchemy @ file:///D:/bld/sqlalchemy_1593116549410/work
