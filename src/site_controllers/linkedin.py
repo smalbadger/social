@@ -3,8 +3,9 @@ import sys
 import html
 import logging
 from datetime import timedelta, datetime
+from dateutil.parser import parse
 
-from PySide2.QtCore import Signal, QThreadPool, QThread
+from PySide2.QtCore import Signal, QThreadPool, QThread, QRunnable
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -574,11 +575,11 @@ class LinkedInController(Controller):
         """
         Gets all contacts and returns them in a dictionary
         :param account_id: The account id
-        :param known: A list of the currently stored connections' profile links
-        :param getMutualInfoFor: A list of connections you want the mutual connections info for (links, not names)
+        :param known: A list of the currently stored connections' names
+        :param getMutualInfoFor: A list of connections you want the mutual connections info for
         :param withLocation: whether to store location information about the connections
         :param withPosition: whether to store job/position info about the connections
-        :param updateConnections: update all info for those in this list (links again)
+        :param updateConnections: update all info for those in this list
         """
 
         self.info('Getting all connections')
@@ -632,8 +633,8 @@ class LinkedInController(Controller):
 
         while True:
             # Zoom out enough for all 10 listed connections to be on page
-            self.browser.execute_script("document.body.style.zoom='50%'")
-            necessary_wait(.5)  # Have to wait for script to execute
+            self.browser.execute_script("document.body.style.zoom='20%'")
+            necessary_wait(.3)  # Have to wait for script to execute
 
             # Get all connection cards
             conns = self.browser.find_elements_by_class_name(EIS.connection_card_info_class)
@@ -641,15 +642,13 @@ class LinkedInController(Controller):
             # Iterate through them
             for connection in conns:
 
-                # Get the link for this connection, which is unique
-                link = fromHTML(connection.find_element_by_css_selector(
-                    EIS.connection_card_profile_link
-                ).get_attribute('href'))
+                # Get the name for this connection
+                name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
 
-                if link not in known or link in updateConnections + getMutualInfoFor:
+                if name not in known or name in updateConnections + getMutualInfoFor:
 
                     # Get this person's info
-                    name, pos, loc = self.getConnectionInfo(connection, pos=findPosition, loc=findLocation)
+                    link, pos, loc = self.getConnectionInfo(connection, pos=findPosition, loc=findLocation)
 
                     # # Get mutual connections if necessary
                     # if name in getMutualInfoFor:
@@ -657,12 +656,12 @@ class LinkedInController(Controller):
                     # else:
                     #     names = []
 
-                    if link in updateConnections:
+                    if name in updateConnections:
 
                         # Get the matching connection from the database
                         prevCon = Session.query(LinkedInConnection).filter(
                             LinkedInConnection.account_id == account_id,
-                            LinkedInConnection.url == link
+                            LinkedInConnection.name == name
                         )
 
                         # Update its values
@@ -785,7 +784,7 @@ class LinkedInController(Controller):
         Gets info about a connection. The connection variable is a web element, not a name
         """
 
-        name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
+        link = fromHTML(connection.find_element_by_css_selector(EIS.connection_card_profile_link).get_attribute('href'))
 
         if pos:
             position = fromHTML(connection.find_element_by_class_name(EIS.connection_card_position)
@@ -799,7 +798,7 @@ class LinkedInController(Controller):
         else:
             location = ""
 
-        return name, position, location
+        return link, position, location
 
 
 class LinkedInMessenger(Task):
@@ -843,4 +842,50 @@ class LinkedInSynchronizer(Task):
             connections = self.controller.getNewConnections(account_id, known=known)
 
         self.teardown()
+
+
+class UploadCSV(QRunnable):
+    """Run a function in the QThreadPool and emit the value returned in the finished signal."""
+
+    Beacon.packageCommitted = Signal()
+
+    def __init__(self, account_id, connections):
+        super().__init__()
+        self.__b = Beacon(self)
+        self.connections = sorted(connections, key=lambda conn: conn[0])
+        self.account_id = account_id
+
+    def run(self):
+        names = [name[0] for name in
+                 Session.query(LinkedInConnection.name).filter(LinkedInConnection.account_id == self.account_id)]
+
+        empty = 0
+        package = 0
+
+        for connection in self.connections:
+            fullName = ' '.join(connection[:2])
+            if fullName == ' ':
+                # Sometimes there are entries with no name. We skip these but keep track of them
+                empty += 1
+
+            elif fullName not in names:
+
+                Session.add(
+                    LinkedInConnection(
+                        account_id=self.account_id,
+                        name=fullName,
+                        email=connection[2],
+                        position=connection[4] + ' at ' + connection[3],
+                        date_added=parse(connection[5])
+                    )
+                )
+
+                package += 1
+
+                if package == 10:
+                    Session.commit()
+                    package = 0
+                    self.packageCommitted.emit()
+
+        self.finished.emit(empty)
 

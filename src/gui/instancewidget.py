@@ -10,11 +10,11 @@ from gui.ui.ui_instancewidget import Ui_mainWidget
 from gui.templateeditwidget import TemplateEditWidget
 from gui.messagepreviewdialog import MessagePreviewDialog
 
-from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
+from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer, UploadCSV
 from fake_useragent import UserAgent
 
 from common.strings import fromHTML
-from common.threading import Task, UploadCSV
+from common.threading import Task
 
 from database.linkedin import *
 from database.general import Session, Client
@@ -96,9 +96,6 @@ class InstanceWidget(QWidget):
         self.ui.errorLabel.hide()
         self.gui_logger.info(f'{self.platformName} instance created for {self.client.name}')
         self.updateStatusOfMessengerButton()
-
-        # TODO: Remove when synchronizing has been updated to support the csv-uploaded contacts
-        self.ui.updateConnectionsBox.setEnabled(False)
 
     def updateStatusOfMessengerButton(self):
         """Enable/disable the auto message button by looking at the selected connections list and the template editor"""
@@ -597,12 +594,12 @@ class InstanceWidget(QWidget):
             self.synchronizer = None
             self.syncController = None
 
-            self.ui.syncButton.setText('Synchronize Database')
+            self.ui.syncButton.setText('Synchronize')
             self.ui.syncButton.setEnabled(True)
 
         if checked:
-            known = [link[0] for link in
-                     Session.query(LinkedInConnection.url).filter(LinkedInConnection.account_id == self.account.id)]
+            known = [name[0] for name in
+                     Session.query(LinkedInConnection.name).filter(LinkedInConnection.account_id == self.account.id)]
 
             options = {
                 'connections': self.ui.updateConnectionsBox.isChecked(),
