@@ -1,13 +1,13 @@
 import os
 import subprocess
 import database.general
-from subprocess import call
-from database.credentials import file_host, file_port, file_password, file_username
 from ftplib import FTP
 from PySide2.QtWidgets import QDialog, QButtonGroup, QDialogButtonBox, QProgressDialog
 from PySide2.QtCore import QThreadPool
 
 from gui.ui.ui_releasedialog import Ui_Dialog
+from database.credentials import file_host, file_port, file_password, file_username
+from database.linkedin import LinkedInAccount
 
 from common.threading import Task
 from common.version import *
@@ -82,7 +82,7 @@ class ReleaseDialog(QDialog):
 
         def build_installer():
             os.chdir('../scripts')
-            call(['python', '-v', str(self.target_version), 'build_installer.py'])
+            subprocess.call(['python', '-v', str(self.target_version), 'build_installer.py'])
             os.chdir('../src/')
 
         prog = QProgressDialog("Building Installer", "Hide", 0, 0, self)
