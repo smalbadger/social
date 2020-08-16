@@ -1,4 +1,5 @@
 import os
+import subprocess
 import database.general
 from subprocess import call
 from database.credentials import file_host, file_port, file_password, file_username
@@ -35,6 +36,14 @@ class ReleaseDialog(QDialog):
         self.updateTargetRelease()
 
         self.suggestChangeLog()
+
+        # Check to make sure everything is committed
+        status = subprocess.check_output(['git', 'status'])
+        if b'nothing to commit, working tree clean' in status:
+            self.ui.warningLabel.hide()
+        else:
+            self.ui.warningLabel.show()
+            self.ui.warningLabel.setText("WARNING: Detected uncommitted changes. Please commit all files and resart this program.")
 
     def suggestChangeLog(self):
         repoDir = os.path.join('..', '.git')
