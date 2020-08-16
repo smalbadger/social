@@ -1,6 +1,7 @@
+import csv
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog, QFileDialog
 from PySide2.QtCore import QThreadPool, Signal, Qt
 
 from gui.logwidget import LogWidget
@@ -13,7 +14,7 @@ from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer
 from fake_useragent import UserAgent
 
 from common.strings import fromHTML
-from common.threading import Task
+from common.threading import Task, UploadCSV
 
 from database.linkedin import *
 from database.general import Session, Client
@@ -95,6 +96,9 @@ class InstanceWidget(QWidget):
         self.ui.errorLabel.hide()
         self.gui_logger.info(f'{self.platformName} instance created for {self.client.name}')
         self.updateStatusOfMessengerButton()
+
+        # TODO: Remove when synchronizing has been updated to support the csv-uploaded contacts
+        self.ui.updateConnectionsBox.setEnabled(False)
 
     def updateStatusOfMessengerButton(self):
         """Enable/disable the auto message button by looking at the selected connections list and the template editor"""
@@ -295,6 +299,7 @@ class InstanceWidget(QWidget):
         self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
         self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
+        self.ui.uploadCSVButton.clicked.connect(self.parseConnectionsCSV)
 
         # Wanted to connect to the focusOut signal, but that doesn't exist, so this is the next best thing.
         def onDailyLimitUpdated(*args):
@@ -639,3 +644,42 @@ class InstanceWidget(QWidget):
             ind = self.ui.selectedConnectionsList.row(connection)
             self.ui.selectedConnectionsList.takeItem(ind)
             self.selectedConnections.remove(connection.text())
+
+    def parseConnectionsCSV(self):
+        """
+        Opens a file dialog for the user to select the csv file, then it parses it and creates connections for them
+        """
+
+        url = QFileDialog.getOpenFileUrl(filter='Comma Separated Values (*.csv)')[0].toString()
+
+        if url:
+            with open(url[len('file:///'):], 'r', newline='', encoding='utf-8') as csvfile:
+                connections = list(csv.reader(csvfile))
+
+            if connections[0][0] != 'First Name':
+                QMessageBox.warning('Not a valid CSV file.')
+                return
+
+            connections.pop(0)
+
+            prog = QProgressDialog('Parsing CSV and uploading to database...', 'Hide',
+                                   0, len(connections), self.window())
+            prog.setWindowTitle('Uploading CSV...')
+            prog.setValue(0)
+            prog.setModal(True)
+
+            uc = UploadCSV(self.account.id, connections)
+            uc.packageCommitted.connect(lambda: prog.setValue(prog.value()+1))
+
+            def cleanup(num):
+                nonlocal self
+                prog.close()
+                # For some reason can't log from this, so just printing the message
+                print(f'Skipped {num} connections because their csv entries were blank.')
+
+            uc.finished.connect(cleanup)
+            QThreadPool.globalInstance().start(uc)
+
+            prog.exec_()
+
+            self.fetchValues()
