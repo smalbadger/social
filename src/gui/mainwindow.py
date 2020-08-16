@@ -20,6 +20,9 @@ class SocialView(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
+        with open("version.txt") as vf:
+            self.setWindowTitle(f"Social v{vf.read().strip()}")
+
         # Setup the controller tab scroll area
         self.instanceTabWidget = QWidget()
         self.ui.tabScrollArea.setWidget(self.instanceTabWidget)

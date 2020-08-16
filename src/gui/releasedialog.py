@@ -85,7 +85,6 @@ class ReleaseDialog(QDialog):
     def accept(self):
         self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
 
-
         setVersion(self.target_version)
 
         try:
@@ -105,21 +104,26 @@ class ReleaseDialog(QDialog):
             prog = QProgressDialog("Uploading Installer", "Hide", 0, 0, self)
             prog.show()
             t2 = Task(lambda: uploadInstaller(self.target_version))
-            t1.finished.connect(prog.close)
-            QThreadPool.globalInstance().start(t1)
+            t2.finished.connect(prog.close)
+            QThreadPool.globalInstance().start(t2)
             prog.exec_()
-
-            print("Adding version record to the database")
-            v = database.general.Version(semantic_id=str(self.target_version), change_log=self.ui.changeLogEdit.toPlainText(), active=True)
-            database.general.Session.add(v)
-            database.general.Session.commit()
 
             print(f"Tagging the current commit with v{str(self.target_version)}")
             addVersionTagToLastCommit(os.path.join('..', '.git'), self.target_version, f"Release v{self.target_version}")
 
-        except:
+            print("Adding version record to the database")
+            # Set all other versions to not active.
+            for version in database.general.Session.query(database.general.Version).all():
+                version.active = None
+            # Create new active version.
+            v = database.general.Version(semantic_id=str(self.target_version), change_log=self.ui.changeLogEdit.toPlainText(), active=True)
+            database.general.Session.add(v)
+            database.general.Session.commit()
+
+        except Exception as e:
             print(f"Rolling back to {self.current_version}")
             setVersion(self.current_version)
+            raise e
 
         finally:
             self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)

@@ -30,10 +30,6 @@ class Client(Base):
     # -- ORM --------------------------
     linkedin_account = relationship("LinkedInAccount", uselist=False, back_populates="client")
 
-
-class Active(enum.Enum):
-    true = True
-
 class Version(Base):
 
     __tablename__ = "versions"
