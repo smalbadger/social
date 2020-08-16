@@ -15,6 +15,17 @@ from common.version import *
 versionFile = os.path.abspath('version.txt')
 changeLogFile = os.path.abspath('changelog.txt')
 
+def uploadInstaller(v: Version):
+    ftp = FTP()
+    ftp.connect(host=file_host, port=file_port)
+    ftp.login(user=file_username, passwd=file_password)
+
+    localFile = f'../dist/social_installer_v{str(v)}.exe'
+    remoteFile = f'installers/social_v{str(v)}.exe'
+    with open(localFile, 'rb') as f:
+        ftp.storbinary(f'STOR {remoteFile}', f)
+    ftp.quit()
+
 class ReleaseDialog(QDialog):
 
     def __init__(self, parent=None):
@@ -72,34 +83,45 @@ class ReleaseDialog(QDialog):
         self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(enable)
 
     def accept(self):
+        self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
+
+
         setVersion(self.target_version)
-        addVersionTagToLastCommit(os.path.join('..', '.git'), self.target_version, f"Release v{self.target_version}")
-        changeLog = self.ui.changeLogEdit.toPlainText()
 
-        v = database.general.Version(semantic_id=str(self.target_version), change_log=changeLog, active=True)
-        database.general.Session.add(v)
-        database.general.Session.commit()
+        try:
+            print("Building the installer")
+            prog = QProgressDialog("Building Installer", "Hide", 0, 0, self)
+            prog.show()
+            def build_installer():
+                os.chdir('../scripts')
+                subprocess.check_call(['python', 'build_installer.py'])
+                os.chdir('../src/')
+            t1 = Task(build_installer)
+            t1.finished.connect(prog.close)
+            QThreadPool.globalInstance().start(t1)
+            prog.exec_()
 
-        def build_installer():
-            os.chdir('../scripts')
-            subprocess.check_call(['python', 'build_installer.py'])
-            os.chdir('../src/')
+            print("Uploading the installer")
+            prog = QProgressDialog("Uploading Installer", "Hide", 0, 0, self)
+            prog.show()
+            t2 = Task(lambda: uploadInstaller(self.target_version))
+            t1.finished.connect(prog.close)
+            QThreadPool.globalInstance().start(t1)
+            prog.exec_()
 
-        prog = QProgressDialog("Building Installer", "Hide", 0, 0, self)
-        prog.show()
-        t1 = Task(build_installer)
-        t1.finished.connect(prog.close)
-        QThreadPool.globalInstance().start(t1)
-        prog.exec_()
+            print("Adding version record to the database")
+            v = database.general.Version(semantic_id=str(self.target_version), change_log=self.ui.changeLogEdit.toPlainText(), active=True)
+            database.general.Session.add(v)
+            database.general.Session.commit()
 
-        ftp = FTP()
-        ftp.connect(host=file_host, port=file_port)
-        ftp.login(user=file_username, passwd=file_password)
+            print(f"Tagging the current commit with v{str(self.target_version)}")
+            addVersionTagToLastCommit(os.path.join('..', '.git'), self.target_version, f"Release v{self.target_version}")
 
-        localFile = f'../social_installer_v{str(self.target_version)}.exe'
-        remoteFile = f'installers/social_v{str(self.target_version)}.exe'
-        with open(localFile, 'r') as f:
-            ftp.storbinary(f'STOR {remoteFile}', f)
-        ftp.quit()
+        except:
+            print(f"Rolling back to {self.current_version}")
+            setVersion(self.current_version)
+
+        finally:
+            self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
 
         super().accept()
