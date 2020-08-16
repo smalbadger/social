@@ -82,7 +82,7 @@ class ReleaseDialog(QDialog):
 
         def build_installer():
             os.chdir('../scripts')
-            subprocess.call(['python', '-v', str(self.target_version), 'build_installer.py'])
+            subprocess.check_call(['python', 'build_installer.py'])
             os.chdir('../src/')
 
         prog = QProgressDialog("Building Installer", "Hide", 0, 0, self)
