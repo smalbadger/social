@@ -3,7 +3,7 @@ from PySide2.QtCore import Qt
 from semantic_version import Version
 
 
-from gui.ui.ui_updateversion import Ui_Dialog
+from gui.ui.ui_updateversiondialog import Ui_Dialog
 
 
 class UpdateVersionDialog(QDialog):
