@@ -5,11 +5,14 @@ Scrape the LinkedIn conversations
 import os
 import sys
 from PySide2.QtWidgets import QApplication
-from PySide2.QtCore import QTimer
+from PySide2.QtCore import QTimer, QThreadPool, Signal, Qt
 
 from gui.mainwindow import SocialView
-import common.instance as inst
+import common.authenticate as inst
 import qtmodern.styles as styles
+from common.threading import Task
+from common.version import downloadInstaller, triggerUpdate, updateInProgress
+from common.beacon import Beacon
 
 
 if __name__ == "__main__":
@@ -28,8 +31,23 @@ if __name__ == "__main__":
 
     inst.View = view
 
-    t = QTimer(view)
-    t.timeout.connect(inst.checkRun)
-    t.start(10000)  # Every 10 seconds
+    securityTimer = QTimer(view)
+    securityTimer.timeout.connect(inst.checkRun)
+    securityTimer.start(10_000)  # Every 10 seconds
+
+    def updateSocial():
+        if not updateInProgress:
+            t = Task(downloadInstaller)
+            t.finished.connect(triggerUpdate, type=Qt.BlockingQueuedConnection)
+            QThreadPool.globalInstance().start(t)
+
+    updateTimer = QTimer(view)
+    updateTimer.timeout.connect(updateSocial)
+    updateTimer.start(60_000) # Every 1 minute
+
+    initialUpdateTimer = QTimer(view)
+    initialUpdateTimer.timeout.connect(updateSocial)
+    initialUpdateTimer.setSingleShot(True)
+    initialUpdateTimer.start(1_000)  # trigger after 1 second
 
     sys.exit(app.exec_())

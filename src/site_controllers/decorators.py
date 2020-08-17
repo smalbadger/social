@@ -1,5 +1,5 @@
 from functools import wraps
-import common.instance as inst
+import common.authenticate as inst
 
 
 def ensure_browser_is_running(func):
