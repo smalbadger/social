@@ -1,4 +1,4 @@
-from common.instance import ftp
+from common.authenticate import ftp
 import os
 
 
