@@ -8,6 +8,8 @@ import database.general
 from database.credentials import file_host, file_port, file_password, file_username
 from gui.updateversiondialog import UpdateVersionDialog
 
+updateInProgress = False
+
 versionFile = os.path.abspath('version.txt')
 changeLogFile = os.path.abspath('changelog.txt')
 
@@ -56,7 +58,7 @@ def addVersionTagToLastCommit(repoDir, v: Version, message):
 
 def getActiveVersion():
     """Get the active version from the database"""
-    return database.general.Session.query(Version).filter(Version.active == True).one_or_none()
+    return database.general.Session.query(database.general.Version).filter(database.general.Version.active == True).one_or_none()
 
 def updateAvailable():
     """If an update is available, return True, else False"""
@@ -84,18 +86,14 @@ def uploadInstaller(v: Version):
 
 
 updateLock = False
-def update():
-    """Update to the active version of Social. Return True if update occurred and False otherwise."""
-    global updateLock
-
-    if updateLock:
-        return False
-
-    updateLock = True
+def downloadInstaller():
+    """Download"""
 
     if not updateAvailable():
-        updateLock = False
         return False
+
+    global uploadInProgress
+    updateInProgress = True
 
     activeVersion = getActiveVersion()
 
@@ -104,15 +102,19 @@ def update():
     ftp.login(user=file_username, passwd=file_password)
 
     # download new installer from server
-    def write_and_alert(contents):
-        installerFile = f'social_installer_v{activeVersion.semantic_id}.exe'
-        with open(installerFile, 'wb') as fp:
-            fp.write(contents)
+    installerFile = f'social_v{activeVersion.semantic_id}.exe'
+    with open(installerFile, 'wb') as fp:
+        ftp.retrbinary(f'RETR installers/social_v{activeVersion.semantic_id}.exe', callback=fp.write)
 
-        UpdateVersionDialog(activeVersion).exec_()
-        CREATE_NEW_PROCESS_GROUP = 0x00000200
-        DETACHED_PROCESS = 0x00000008
-        Popen([installerFile], stdin=PIPE, stdout=PIPE, stderr=PIPE, creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
-        exit(100)
+def triggerUpdate():
+    """Display the update dialog """
+    activeVersion = getActiveVersion()
+    installerFile = f'social_v{activeVersion.semantic_id}.exe'
+    UpdateVersionDialog(activeVersion).exec_()
 
-    ftp.retrbinary(f'RETR installers/social_installer_v{activeVersion.semantic_id}.exe', callback=write_and_alert)
+    CREATE_NEW_PROCESS_GROUP = 0x00000200
+    DETACHED_PROCESS = 0x00000008
+    Popen([installerFile], stdin=PIPE, stdout=PIPE, stderr=PIPE, creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+
+    exit(100)
+
