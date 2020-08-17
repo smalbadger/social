@@ -42,6 +42,8 @@ class EIS:
     captcha_challenge                        = "captcha-challenge"
     pin_verification_input                   = "input__email_verification_pin"
 
+    general_search_bar                       = '//input[@placeholder="Search"]'
+
     connection_bar                           = "msg-overlay-bubble-header"
     connection_bar_maximize                  = "overlay.maximize_connection_list_bar"
     connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"
@@ -584,9 +586,7 @@ class LinkedInController(Controller):
 
         self.info('Getting all connections')
 
-        # Find profile pic, click on it
-        profile = self.browser.find_element_by_xpath(EIS.profile_picture)
-        profile.click()
+        self.browser.get('https://www.linkedin.com/in/me/')
 
         # Find connection page link, click on it
         connLink = self.browser.find_element_by_xpath(EIS.all_connections_link)
@@ -688,7 +688,7 @@ class LinkedInController(Controller):
                                 account_id=account_id,
                                 url=link,
                                 location=loc,
-                                position=pos
+                                status=pos
                             )
                         )
 
@@ -800,6 +800,82 @@ class LinkedInController(Controller):
 
         return link, position, location
 
+    def refreshAll(self, known):
+        """
+        Updates information about all connections stored in the known list
+        Known is a list of name, id tuples
+        """
+
+        self.browser.get('https://www.linkedin.com/in/me/')
+
+        # Find connection page link, click on it
+        connLink = self.browser.find_element_by_xpath(EIS.all_connections_link)
+        connLink.click()
+
+        self.info('Waiting for page to load')
+        necessary_wait(2)
+        self.mainWindow = self.browser.window_handles[0]
+
+        # Make new tab to handle the mutual connections stuff
+        self.info('Making new tab to handle mutual connections')
+        self.browser.execute_script("window.open('');")
+        self.mutualWindow = self.browser.window_handles[1]
+
+        # switch back
+        self.browser.switch_to.window(self.mainWindow)
+
+        # Get the searchbar
+        searchbar = self.browser.find_element_by_xpath(EIS.general_search_bar)
+
+        package = 0
+        progress = 0
+        total = len(known)
+
+        for name, conn_id in known:
+            progress += 1
+            self.info(f"({progress} of {total}) Searching for {name}")
+
+            random_uniform_wait(.6, 1)
+
+            searchbar.clear()
+            random_uniform_wait(.1, .5)
+            send_keys_at_irregular_speed(searchbar, name, 1, 3, 0, .25)
+            searchbar.send_keys(Keys.RETURN)
+
+            necessary_wait(.5)
+
+            try:
+                firstResult = self.browser.find_elements_by_class_name(EIS.connection_card_info_class)[0]
+
+                if not firstResult:
+                    raise NoSuchElementException
+
+            except (IndexError, NoSuchElementException):
+                self.warning(f'It seems {name} is no longer a connection.\n')
+                # TODO: Figure out if we want to flag this connection as no longer connected to account or something
+                continue
+
+            link, status, location = self.getConnectionInfo(firstResult)
+
+            dbObj = Session.query(LinkedInConnection).filter(LinkedInConnection.id == conn_id)[0]
+
+            # print(dbObj.name, name, dbObj.id, conn_id)
+            # continue
+
+            dbObj.url = link
+            dbObj.status = status
+            dbObj.location = location
+
+            self.info(f"Updated {dbObj.name}'s information\n")
+
+            package += 1
+            if package == 20:
+                # Sending 20 connection updates at a time
+                Session.commit()
+
+        Session.commit()
+        self.info('Done.')
+
 
 class LinkedInMessenger(Task):
 
@@ -834,7 +910,6 @@ class LinkedInSynchronizer(Task):
 
         if opts.get('accept new'):
             newCons = self.controller.acceptAllConnections()
-            self.controller.browser.get("https://www.linkedin.com/feed/")
 
         if opts.get('connections'):
             known = opts.get('known')
@@ -887,5 +962,21 @@ class UploadCSV(QRunnable):
                     package = 0
                     self.packageCommitted.emit()
 
+        Session.commit()
         self.finished.emit(empty)
 
+
+class LinkedInFullRefresh(Task):
+    """Run a function in the QThreadPool and emit the value returned in the finished signal."""
+
+    def __init__(self, controller, known, setup_func=None, teardown_func=None):
+        super().__init__(controller, setup = setup_func, teardown = teardown_func)
+        self.known = known
+
+    def run(self):
+        self.setup()
+        self.controller.start()
+
+        self.controller.refreshAll(self.known)
+
+        self.teardown()

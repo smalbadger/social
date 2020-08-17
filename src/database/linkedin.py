@@ -128,6 +128,7 @@ class LinkedInConnection(Base):
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
     name = Column(String)
     email = Column(String, default='')
+    status = Column(String, default='')
     url = Column(String, default="")
     location = Column(String, default="")
     position = Column(String, default="")

@@ -10,7 +10,7 @@ from gui.ui.ui_instancewidget import Ui_mainWidget
 from gui.templateeditwidget import TemplateEditWidget
 from gui.messagepreviewdialog import MessagePreviewDialog
 
-from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer, UploadCSV
+from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer, UploadCSV, LinkedInFullRefresh
 from fake_useragent import UserAgent
 
 from common.strings import fromHTML
@@ -297,6 +297,7 @@ class InstanceWidget(QWidget):
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
         self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
         self.ui.uploadCSVButton.clicked.connect(self.parseConnectionsCSV)
+        self.ui.refreshAllButton.toggled.connect(self.refreshAllConnections)
 
         # Wanted to connect to the focusOut signal, but that doesn't exist, so this is the next best thing.
         def onDailyLimitUpdated(*args):
@@ -596,8 +597,13 @@ class InstanceWidget(QWidget):
 
             self.ui.syncButton.setText('Synchronize')
             self.ui.syncButton.setEnabled(True)
+            self.ui.refreshAllButton.setEnabled(True)
+            self.ui.uploadCSVButton.setEnabled(True)
 
         if checked:
+            self.ui.refreshAllButton.setEnabled(False)
+            self.ui.uploadCSVButton.setEnabled(False)
+
             known = [name[0] for name in
                      Session.query(LinkedInConnection.name).filter(LinkedInConnection.account_id == self.account.id)]
 
@@ -629,6 +635,61 @@ class InstanceWidget(QWidget):
                     self.syncController.warning(str(e))
             onComplete()
 
+    def refreshAllConnections(self, checked):
+        """Synchronizes account using options given in GUI"""
+
+        btn = self.ui.refreshAllButton
+
+        def onComplete():
+            """Called on completion of the Synchronizer task"""
+            btn.setChecked(False)
+            if not self.syncController:
+                return
+            btn.setText('Closing...')
+            btn.setEnabled(False)
+
+            self.syncController.stop()
+
+            del self.syncController
+            del self.synchronizer
+
+            self.synchronizer = None
+            self.syncController = None
+
+            btn.setText('Update All Connections')
+            btn.setEnabled(True)
+            self.ui.syncButton.setEnabled(True)
+            self.ui.uploadCSVButton.setEnabled(True)
+
+        if checked:
+            self.ui.syncButton.setEnabled(False)
+            self.ui.uploadCSVButton.setEnabled(False)
+
+            known = [(conn.name, conn.id) for conn in
+                     Session.query(LinkedInConnection).filter(LinkedInConnection.account_id == self.account.id)]
+
+            syncBrowserOpts = self.opts[:]
+            if self.ui.headlessBoxSync.isChecked():
+                syncBrowserOpts.append("headless")
+
+            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
+                                                             browser=self.browser, options=syncBrowserOpts)
+
+            logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+
+            self.synchronizer = LinkedInFullRefresh(self.syncController, known, teardown_func=onComplete)
+
+            QThreadPool.globalInstance().start(self.synchronizer)
+
+            btn.setText('Stop')
+        else:
+            if self.synchronizer:
+                try:
+                    QThreadPool.globalInstance().cancel(self.synchronizer)
+                except RuntimeError as e:
+                    self.syncController.warning(str(e))
+            onComplete()
+
     def addContactToSelected(self, connection: QListWidgetItem):
         """Adds item to selected column, and updates local list"""
         if connection.text() not in self.selectedConnections:
@@ -647,6 +708,9 @@ class InstanceWidget(QWidget):
         Opens a file dialog for the user to select the csv file, then it parses it and creates connections for them
         """
 
+        self.ui.refreshAllButton.setEnabled(False)
+        self.ui.syncButton.setEnabled(False)
+
         url = QFileDialog.getOpenFileUrl(filter='Comma Separated Values (*.csv)')[0].toString()
 
         if url:
@@ -654,13 +718,15 @@ class InstanceWidget(QWidget):
                 connections = list(csv.reader(csvfile))
 
             if connections[0][0] != 'First Name':
-                QMessageBox.warning('Not a valid CSV file.')
+                QMessageBox.warning(self.window(), 'Invalid File', 'Not a valid CSV file.')
+                self.ui.refreshAllButton.setEnabled(True)
+                self.ui.syncButton.setEnabled(True)
                 return
 
             connections.pop(0)
 
             prog = QProgressDialog('Parsing CSV and uploading to database...', 'Hide',
-                                   0, len(connections), self.window())
+                                   0, round(len(connections)/10), self.window())
             prog.setWindowTitle('Uploading CSV...')
             prog.setValue(0)
             prog.setModal(True)
@@ -669,8 +735,9 @@ class InstanceWidget(QWidget):
             uc.packageCommitted.connect(lambda: prog.setValue(prog.value()+1))
 
             def cleanup(num):
-                nonlocal self
                 prog.close()
+                self.ui.refreshAllButton.setEnabled(True)
+                self.ui.syncButton.setEnabled(True)
                 # For some reason can't log from this, so just printing the message
                 print(f'Skipped {num} connections because their csv entries were blank.')
 
