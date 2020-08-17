@@ -10,21 +10,11 @@ from database.credentials import file_host, file_port, file_password, file_usern
 from database.linkedin import LinkedInAccount
 
 from common.threading import Task
-from common.version import *
+from common.version import uploadInstaller, getCurrentVersion, getCommitMessagesSince, setVersion, addVersionTagToLastCommit
 
 versionFile = os.path.abspath('version.txt')
 changeLogFile = os.path.abspath('changelog.txt')
 
-def uploadInstaller(v: Version):
-    ftp = FTP()
-    ftp.connect(host=file_host, port=file_port)
-    ftp.login(user=file_username, passwd=file_password)
-
-    localFile = f'../dist/social_installer_v{str(v)}.exe'
-    remoteFile = f'installers/social_v{str(v)}.exe'
-    with open(localFile, 'rb') as f:
-        ftp.storbinary(f'STOR {remoteFile}', f)
-    ftp.quit()
 
 class ReleaseDialog(QDialog):
 
