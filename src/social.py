@@ -42,8 +42,12 @@ if __name__ == "__main__":
             QThreadPool.globalInstance().start(t)
 
     updateTimer = QTimer(view)
-    securityTimer.timeout.connect(updateSocial)
-    securityTimer.setSingleShot(True)
-    securityTimer.start(5_000) # Every 10 minutes
+    updateTimer.timeout.connect(updateSocial)
+    updateTimer.start(60_000) # Every 1 minute
+
+    initialUpdateTimer = QTimer(view)
+    initialUpdateTimer.timeout.connect(updateSocial)
+    initialUpdateTimer.setSingleShot(True)
+    initialUpdateTimer.start(1_000)  # trigger after 1 second
 
     sys.exit(app.exec_())

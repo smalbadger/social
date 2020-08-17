@@ -87,7 +87,7 @@ def uploadInstaller(v: Version):
 
 updateLock = False
 def downloadInstaller():
-    """Download"""
+    """Download the active installation file if we need to update"""
 
     if not updateAvailable():
         return False
@@ -106,15 +106,18 @@ def downloadInstaller():
     with open(installerFile, 'wb') as fp:
         ftp.retrbinary(f'RETR installers/social_v{activeVersion.semantic_id}.exe', callback=fp.write)
 
-def triggerUpdate():
-    """Display the update dialog """
-    activeVersion = getActiveVersion()
-    installerFile = f'social_v{activeVersion.semantic_id}.exe'
-    UpdateVersionDialog(activeVersion).exec_()
+    return True
 
-    CREATE_NEW_PROCESS_GROUP = 0x00000200
-    DETACHED_PROCESS = 0x00000008
-    Popen([installerFile], stdin=PIPE, stdout=PIPE, stderr=PIPE, creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+def triggerUpdate(trigger):
+    """Display the update dialog and then start the installer and close the program."""
+    if trigger:
+        activeVersion = getActiveVersion()
+        installerFile = f'social_v{activeVersion.semantic_id}.exe'
+        UpdateVersionDialog(activeVersion).exec_()
 
-    exit(100)
+        CREATE_NEW_PROCESS_GROUP = 0x00000200
+        DETACHED_PROCESS = 0x00000008
+        Popen([installerFile], stdin=PIPE, stdout=PIPE, stderr=PIPE, creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+
+        exit(100)
 
