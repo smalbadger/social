@@ -127,9 +127,12 @@ class LinkedInConnection(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey('linkedin_accounts.id'))
     name = Column(String)
+    email = Column(String, default='')
+    status = Column(String, default='')
     url = Column(String, default="")
     location = Column(String, default="")
     position = Column(String, default="")
+    date_added = Column(DateTime, default=None)
 
     # -- ORM --------------------------
     account = relationship("LinkedInAccount", uselist=False, back_populates="connections")
