@@ -153,7 +153,7 @@ class LinkedInController(Controller):
         :type manual: bool
         """
 
-        if self.manualClose:
+        if self.closing:
             QThread.currentThread().terminate()
 
         self.info("Logging in")

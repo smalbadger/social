@@ -290,7 +290,7 @@ class InstanceWidget(QWidget):
             startStopButton.setText("Closing, please wait...")
             startStopButton.setEnabled(False)
 
-            self.messagingController.manualClose = True
+            self.messagingController.closing = True
             self.messagingController.stop()
 
             del self.messagingController
@@ -664,6 +664,7 @@ class InstanceWidget(QWidget):
             btn.setText('Closing...')
             btn.setEnabled(False)
 
+            self.syncController.closing = True
             self.syncController.stop()
 
             del self.syncController
@@ -728,6 +729,7 @@ class InstanceWidget(QWidget):
             btn.setText('Closing...')
             btn.setEnabled(False)
 
+            self.syncController.closing = True
             self.syncController.stop()
 
             del self.syncController
@@ -788,6 +790,7 @@ class InstanceWidget(QWidget):
             btn.setText('Closing...')
             btn.setEnabled(False)
 
+            self.syncController.closing = True
             self.syncController.stop()
 
             del self.syncController
@@ -809,8 +812,63 @@ class InstanceWidget(QWidget):
             self.ui.uploadConnectionsCSVBtn.setEnabled(False)
             self.ui.sendConnectionRequestsBtn.setEnabled(False)
 
-            known = [(conn.name, conn.id) for conn in
-                     Session.query(LinkedInConnection).filter(LinkedInConnection.account_id == self.account.id)]
+            syncBrowserOpts = self.opts[:]
+            if self.ui.headlessBoxGeneral.isChecked():
+                syncBrowserOpts.append("headless")
+
+            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
+                                                             browser=self.browser, options=syncBrowserOpts)
+
+            logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+
+            self.synchronizer = LinkedInConnectionRequestAccepter(self.syncController, teardown_func=onComplete)
+
+            QThreadPool.globalInstance().start(self.synchronizer)
+
+            btn.setText('Stop')
+        else:
+            if self.synchronizer:
+                try:
+                    QThreadPool.globalInstance().cancel(self.synchronizer)
+                except RuntimeError as e:
+                    self.syncController.warning(str(e))
+            onComplete()
+
+    def sendConnectionRequests(self, checked):
+        """Synchronizes account using options given in GUI"""
+
+        btn = self.ui.sendConnectionRequestsBtn
+        originalText = btn.text()
+
+        def onComplete():
+            """Called on completion of the Synchronizer task"""
+            btn.setChecked(False)
+            if not self.syncController:
+                return
+            btn.setText('Closing...')
+            btn.setEnabled(False)
+
+            self.syncController.closing = True
+            self.syncController.stop()
+
+            del self.syncController
+            del self.synchronizer
+
+            self.synchronizer = None
+            self.syncController = None
+
+            btn.setText(originalText)
+            btn.setEnabled(True)
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(True)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(True)
+
+        if checked:
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(False)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(False)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(False)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(False)
 
             syncBrowserOpts = self.opts[:]
             if self.ui.headlessBoxGeneral.isChecked():
