@@ -25,8 +25,11 @@ if __name__ == "__main__":
 
     app = QApplication([])
     styles.darkClassic(app)
+    size = app.desktop().size()
 
     view = SocialView()
+    view.setMinimumSize(size.width()*2.2/3, size.height()*2.2/3)
+    view.ui.instancesDockWidget.setMinimumWidth(size.width()/8)
     view.show()
 
     inst.View = view
