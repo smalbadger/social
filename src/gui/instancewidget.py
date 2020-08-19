@@ -1,7 +1,8 @@
 import csv
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem, QTreeWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog, QFileDialog
+from PySide2.QtWidgets import (QWidget, QListWidgetItem, QTreeWidgetItem, QProgressDialog,
+                               QMessageBox, QDialog, QInputDialog, QFileDialog)
 from PySide2.QtCore import QThreadPool, Signal, Qt
 
 from gui.logwidget import LogWidget
@@ -9,8 +10,11 @@ from gui.filterdialog import FilterDialog
 from gui.ui.ui_instancewidget import Ui_mainWidget
 from gui.templateeditwidget import TemplateEditWidget
 from gui.messagepreviewdialog import MessagePreviewDialog
+from gui.searchcriteriadialog import SearchCriteriaDialog
 
-from site_controllers.linkedin import LinkedInMessenger, LinkedInBulkConnectionScraper, UploadConnectionCSV, LinkedInIndividualConnectionScraper, LinkedInConnectionRequestAccepter
+from site_controllers.linkedin import (LinkedInMessenger, LinkedInBulkConnectionScraper, UploadConnectionCSV,
+                                       LinkedInIndividualConnectionScraper, LinkedInConnectionRequestAccepter,
+                                       LinkedInConnectionRequestSender)
 from fake_useragent import UserAgent
 
 from common.strings import fromHTML
@@ -215,6 +219,7 @@ class InstanceWidget(QWidget):
         self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
         self.ui.uploadConnectionsCSVBtn.clicked.connect(self.parseConnectionsCSV)
         self.ui.scrapeIndividualConnectionsBtn.toggled.connect(self.scrapeConnectionsIndividually)
+        self.ui.sendConnectionRequestsBtn.toggled.connect(self.sendConnectionRequests)
 
         # Wanted to connect to the focusOut signal, but that doesn't exist, so this is the next best thing.
         def onDailyLimitUpdated(*args):
@@ -658,6 +663,7 @@ class InstanceWidget(QWidget):
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
+
             btn.setChecked(False)
             if not self.syncController:
                 return
@@ -723,6 +729,7 @@ class InstanceWidget(QWidget):
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
+
             btn.setChecked(False)
             if not self.syncController:
                 return
@@ -784,6 +791,7 @@ class InstanceWidget(QWidget):
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
+
             btn.setChecked(False)
             if not self.syncController:
                 return
@@ -842,6 +850,7 @@ class InstanceWidget(QWidget):
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
+
             btn.setChecked(False)
             if not self.syncController:
                 return
@@ -870,20 +879,41 @@ class InstanceWidget(QWidget):
             self.ui.uploadConnectionsCSVBtn.setEnabled(False)
             self.ui.acceptConnectionRequestsBtn.setEnabled(False)
 
-            syncBrowserOpts = self.opts[:]
-            if self.ui.headlessBoxGeneral.isChecked():
-                syncBrowserOpts.append("headless")
+            criteria = {}
 
-            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                             browser=self.browser, options=syncBrowserOpts)
+            def setCriteria(crit):
+                nonlocal criteria
+                criteria = crit
 
-            logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+            if maxRequests := self.account.getTodaysRemainingActions():
+                scd = SearchCriteriaDialog(self, buttonText=' Send Requests ',
+                                           maxRequests=maxRequests)
+                scd.useCriteria.connect(setCriteria)
+                ok = scd.exec_()
+            else:
+                ok = 0
 
-            self.synchronizer = LinkedInConnectionRequestAccepter(self.syncController, teardown_func=onComplete)
+            if ok:
+                syncBrowserOpts = self.opts[:]
+                if self.ui.headlessBoxGeneral.isChecked():
+                    syncBrowserOpts.append("headless")
 
-            QThreadPool.globalInstance().start(self.synchronizer)
+                self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
+                                                                 browser=self.browser, options=syncBrowserOpts)
 
-            btn.setText('Stop')
+                logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+
+                self.synchronizer = LinkedInConnectionRequestSender(self.syncController, criteria, teardown_func=onComplete)
+
+                QThreadPool.globalInstance().start(self.synchronizer)
+
+                btn.setText('Stop')
+            else:
+                btn.setChecked(False)
+                self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+                self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
+                self.ui.uploadConnectionsCSVBtn.setEnabled(True)
+                self.ui.acceptConnectionRequestsBtn.setEnabled(True)
         else:
             if self.synchronizer:
                 try:

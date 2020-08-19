@@ -51,6 +51,10 @@ class LinkedInAccount(Base):
         activityToday.activity_limit = newLimit
         Session.commit()
 
+    def getTodaysRemainingActions(self):
+        activityToday = LinkedInAccountDailyActivity.getToday(self.id)
+        return activityToday.activity_limit - activityToday.message_count - activityToday.connection_request_count
+
     def getDailyActivityLimit(self):
         """Get the linkedin account's daily activity limit"""
         return LinkedInAccountDailyActivity.getToday(self.id).activity_limit
