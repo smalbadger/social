@@ -12,7 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 from site_controllers.controller import Controller, Task
 from site_controllers.exceptions import *
@@ -293,7 +293,7 @@ class LinkedInController(Controller):
         searchbox.send_keys(Keys.CONTROL + "a")
         searchbox.send_keys(Keys.DELETE)
         self.info(f"Entering name in search field: {person}")
-        searchbox.send_keys(person)
+        send_keys_at_irregular_speed(searchbox, person, 1, 3, 0, .25)
         searchbox.send_keys(Keys.RETURN)
 
     @log_exceptions
@@ -312,11 +312,12 @@ class LinkedInController(Controller):
         target_account = None
         for textSearch in [quotation + person + quotation, "concat(\"" + "\", \"".join(list(person)) + "\")"]:
             necessary_wait(1)
+            xpath_str = EIS.connection_message_select.format(concat=textSearch)
             try:
                 target_account = WebDriverWait(self.browser, 3) \
-                    .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_message_select.format(concat=textSearch))))
-            except:
-                raise
+                    .until(EC.element_to_be_clickable((By.XPATH, xpath_str)))
+            except TimeoutException:
+                self.debug(f"Unable to locate the user in the connections list using the XPath: {xpath_str}")
             else:
                 break
 
@@ -382,13 +383,15 @@ class LinkedInController(Controller):
             return
 
         self.closeAllChatWindows()
-        self.openConversationWith(person)
+        foundInList = self.openConversationWith(person)
+        if not foundInList:
+            return False
 
         self.info("Finding the message box")
         msg_box = self.browser.find_element_by_class_name(EIS.message_editor)
         self.highlightElement(msg_box)
         self.info(f"Typing the message: {message}")
-        msg_box.send_keys(message)
+        send_keys_at_irregular_speed(msg_box, message, 1, 3, 0, .25)
         self.info("Finding the submit button")
         msg_send = self.browser.find_element_by_class_name(EIS.message_send)
         self.highlightElement(msg_send)
@@ -411,6 +414,7 @@ class LinkedInController(Controller):
         self.messageSent.emit(connection.id, msg.id)
         Session.add(msg)
         Session.commit()
+        return True
 
     @log_exceptions
     @authentication_required
@@ -454,10 +458,10 @@ class LinkedInController(Controller):
                 self.warning(f"Skipping {connection.name} because the message template was invalid for this connection.")
             else:
                 msg = usingTemplate.fill(connection)
-                self.sendMessageTo(connection, msg, usingTemplate)
-
-                self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
-                random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
+                success = self.sendMessageTo(connection, msg, usingTemplate)
+                if success:
+                    self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
+                    random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
 
     @log_exceptions
     @authentication_required
