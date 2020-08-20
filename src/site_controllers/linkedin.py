@@ -27,7 +27,8 @@ from common.beacon import Beacon
 from common.threading import Task as ncTask
 
 from database.general import Session
-from database.linkedin import LinkedInMessage, LinkedInConnection, LinkedInMessageTemplate
+from database.linkedin import (LinkedInMessage, LinkedInConnection, LinkedInMessageTemplate,
+                               LinkedInAccountDailyActivity, LinkedInAccount)
 
 
 #########################################################
@@ -64,6 +65,7 @@ class EIS:
 
     profile_picture                          = '//div[@data-control-name="identity_profile_photo"]/..'  # xpath
     all_connections_link                     = '//a[@data-control-name="topcard_view_all_connections"]'  # xpath
+    connection_card                          = 'search-result__wrapper'  # class
     connection_card_info_class               = 'search-result__info'  # class
     connection_card_profile_link             = '[data-control-name="search_srp_result"]'  # css selector
     connection_card_position                 = "subline-level-1"  # class
@@ -71,7 +73,8 @@ class EIS:
     connection_card_mutual_text              = 'search-result__social-proof-count'
     connection_card_mutual_link              = '[data-control-name="view_mutual_connections"]'  # css selector
     no_results_button                        = '//button[@data-test="no-results-cta"]'  # xpath
-    connect_button                           = 'button[@data-control-name="srp_profile_actions"]'  # xpath
+    connect_button                           = 'button[data-control-name="srp_profile_actions"]'  # css selector
+    confirm_request_button                   = '//button[@aria-label="Send now"]'
 
     all_filters_button                       = '//button[@data-control-name="all_filters"]'  # xpath
     apply_all_filters_button                 = '//button[@data-control-name="all_filters_apply"]'  # xpath
@@ -95,6 +98,7 @@ class LinkedInController(Controller):
 
     Beacon.connectionsScraped = Signal()
     Beacon.messageSent = Signal(int, int)  # connection id, message id
+    Beacon.requestSent = Signal()
 
     CRITICAL_LOGIN_INFO = ("email", "password")
 
@@ -810,6 +814,8 @@ class LinkedInController(Controller):
 
         return link, position, location
 
+    @log_exceptions
+    @authentication_required
     def refreshAll(self, known):
         """
         Updates information about all connections stored in the known list
@@ -887,10 +893,15 @@ class LinkedInController(Controller):
         self.info('Done.')
 
     @log_exceptions
-    def requestNewConnections(self, criteria):
+    @authentication_required
+    def requestNewConnections(self, account_id, criteria):
         """
         Requests new connections using the specified criteria
         """
+
+        # Get the account and daily activity
+        acct = Session.query(LinkedInAccount).filter(LinkedInAccount.id == account_id)[0]
+        dact = LinkedInAccountDailyActivity.getToday(account_id)
 
         self.info('Going to search page')
         self.browser.get('https://www.linkedin.com/in/me/')
@@ -901,6 +912,7 @@ class LinkedInController(Controller):
 
         necessary_wait(2)
 
+        # Enter and apply the search criteria
         self.setSearchCriteria(criteria)
 
         necessary_wait(1)
@@ -909,31 +921,62 @@ class LinkedInController(Controller):
         page = 1
         num = 0
         lim = criteria['Request Limit']
+        self.info(f'// On page 1 of results \\\\\n')
 
         while True:
-            # Zoom out enough for all 10 listed connections to be on page
+
+            # Zoom out the css enough for all 10 listed connections to be on page
             self.browser.execute_script("document.body.style.zoom='20%'")
-            necessary_wait(.3)  # Have to wait for script to execute
+            necessary_wait(.5)  # Have to wait for script to execute
 
             # Get all connection cards
-            conns = self.browser.find_elements_by_class_name(EIS.connection_card_info_class)
+            conns = self.browser.find_elements_by_class_name(EIS.connection_card)
 
             # Iterate through them
             for connection in conns:
+                # First check the limits (against the entered amount and against the daily limit)
+                if num == lim or acct.getTodaysRemainingActions() <= 0:  # lte just in case it somehow dips below
+                    self.info('Reached the local connection request limit')
+                    return
+
+                # Wait a bit
                 random_uniform_wait(1, 2)
 
+                # TODO: Determine what info we want to keep about requested connections.
+                #  Keeping none other than number for the moment
                 # Get the name for this connection
-                # name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
+                name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
 
-                # connection.find_element_by_xpath(EIS.connect_button).click()
-                self.highlightElement(connection.find_element_by_xpath(EIS.connect_button))
+                try:
+                    button = connection.find_element_by_css_selector(EIS.connect_button)
+                    print(button.text)
+                except NoSuchElementException:
+                    # Some connections have no button or a 'Follow' button instead of a connect button
+                    pass
+                else:
+                    if fromHTML(button.text) == 'Connect':
+                        self.info(f'Requesting {name} to connect')
 
-                num += 1
+                        self.browser.execute_script("arguments[0].click();", button)
+
+                        random_uniform_wait(1, 2)
+
+                        try:
+                            confirm = self.browser.find_element_by_xpath(EIS.confirm_request_button)
+                            self.browser.execute_script("arguments[0].click();", confirm)
+                        except NoSuchElementException:
+                            # Didn't have confirmation dialog
+                            pass
+
+                        num += 1
+                        dact.connection_request_count += 1
+                        Session.commit()
+                        self.requestSent.emit()
 
             try:
                 # Finding the button that appears when there are no results
                 self.browser.find_element_by_xpath(EIS.no_results_button)
-                self.info('End of results\n')
+                self.info(f'End of results, requested {num} connections.\n')
                 break
             except NoSuchElementException:
                 # Go to next page, and log it
@@ -942,6 +985,7 @@ class LinkedInController(Controller):
                 self.browser.get(baseURL + f'&page={page}')
 
     @log_exceptions
+    @authentication_required
     def setSearchCriteria(self, criteria):
         """
         Sets the search criteria on the connections page
@@ -1029,6 +1073,7 @@ class LinkedInController(Controller):
         # Apply the filters
         random_uniform_wait(1, 2)
         self.browser.find_element_by_xpath(EIS.apply_all_filters_button).click()
+        self.info('')
 
 
 # --- QRunnables and Tasks ---------------------------------------------------------------------------------------------
@@ -1149,15 +1194,16 @@ class LinkedInConnectionRequestAccepter(Task):
 
 class LinkedInConnectionRequestSender(Task):
 
-    def __init__(self, controller, criteria, setup_func=None, teardown_func=None):
+    def __init__(self, controller, account_id, criteria, setup_func=None, teardown_func=None):
         super().__init__(controller, setup = setup_func, teardown = teardown_func)
         self.criteria: dict = criteria
+        self.id = account_id
 
     def run(self):
         self.setup()
 
         self.controller.start()
 
-        self.controller.requestNewConnections(self.criteria)
+        self.controller.requestNewConnections(self.id, self.criteria)
 
         self.teardown()

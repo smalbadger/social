@@ -900,10 +900,12 @@ class InstanceWidget(QWidget):
 
                 self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
                                                                  browser=self.browser, options=syncBrowserOpts)
+                self.syncController.requestSent.connect(lambda: self.actionCountChanged.emit(0))
 
                 logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 
-                self.synchronizer = LinkedInConnectionRequestSender(self.syncController, criteria, teardown_func=onComplete)
+                self.synchronizer = LinkedInConnectionRequestSender(self.syncController, self.account.id, criteria,
+                                                                    teardown_func=onComplete)
 
                 QThreadPool.globalInstance().start(self.synchronizer)
 

@@ -91,6 +91,8 @@ class LinkedInAccountDailyActivity(Base):
         If it exists already, just return the record that exists.
         If not, create and return a new record with the limit automatically increased.
         """
+        Session.commit()  # updates everything
+
         account = Session.query(LinkedInAccount).filter(
             LinkedInAccount.id == account_id
         ).one_or_none()
