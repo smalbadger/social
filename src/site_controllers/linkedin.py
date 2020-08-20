@@ -383,7 +383,9 @@ class LinkedInController(Controller):
             return
 
         self.closeAllChatWindows()
-        self.openConversationWith(person)
+        foundInList = self.openConversationWith(person)
+        if not foundInList:
+            return False
 
         self.info("Finding the message box")
         msg_box = self.browser.find_element_by_class_name(EIS.message_editor)
@@ -412,6 +414,7 @@ class LinkedInController(Controller):
         self.messageSent.emit(connection.id, msg.id)
         Session.add(msg)
         Session.commit()
+        return True
 
     @log_exceptions
     @authentication_required
@@ -455,10 +458,10 @@ class LinkedInController(Controller):
                 self.warning(f"Skipping {connection.name} because the message template was invalid for this connection.")
             else:
                 msg = usingTemplate.fill(connection)
-                self.sendMessageTo(connection, msg, usingTemplate)
-
-                self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
-                random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
+                success = self.sendMessageTo(connection, msg, usingTemplate)
+                if success:
+                    self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
+                    random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
 
     @log_exceptions
     @authentication_required
