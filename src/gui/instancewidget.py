@@ -654,7 +654,6 @@ class InstanceWidget(QWidget):
         """Synchronizes account using options given in GUI"""
 
         btn = self.ui.scrapeBulkConnectionsBtn
-        originalText = btn.text()
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
@@ -673,7 +672,7 @@ class InstanceWidget(QWidget):
             self.synchronizer = None
             self.syncController = None
 
-            btn.setText(originalText)
+            btn.setText("      Scrape Connections In Bulk")
             btn.setEnabled(True)
             self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
             self.ui.uploadConnectionsCSVBtn.setEnabled(True)
@@ -719,7 +718,6 @@ class InstanceWidget(QWidget):
         """Synchronizes account using options given in GUI"""
 
         btn = self.ui.scrapeIndividualConnectionsBtn
-        originalText = btn.text()
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
@@ -738,7 +736,7 @@ class InstanceWidget(QWidget):
             self.synchronizer = None
             self.syncController = None
 
-            btn.setText(originalText)
+            btn.setText("Scrape Connections Individually")
             btn.setEnabled(True)
             self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
             self.ui.uploadConnectionsCSVBtn.setEnabled(True)
@@ -780,7 +778,6 @@ class InstanceWidget(QWidget):
         """Synchronizes account using options given in GUI"""
 
         btn = self.ui.acceptConnectionRequestsBtn
-        originalText = btn.text()
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
@@ -799,7 +796,7 @@ class InstanceWidget(QWidget):
             self.synchronizer = None
             self.syncController = None
 
-            btn.setText(originalText)
+            btn.setText("    Accept Connection Requests")
             btn.setEnabled(True)
             self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
             self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
@@ -838,7 +835,6 @@ class InstanceWidget(QWidget):
         """Synchronizes account using options given in GUI"""
 
         btn = self.ui.sendConnectionRequestsBtn
-        originalText = btn.text()
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
@@ -857,7 +853,7 @@ class InstanceWidget(QWidget):
             self.synchronizer = None
             self.syncController = None
 
-            btn.setText(originalText)
+            btn.setText("       Send Connection Requests")
             btn.setEnabled(True)
             self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
             self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
