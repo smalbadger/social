@@ -48,6 +48,7 @@ class EIS:
     connection_bar_maximize                  = "overlay.maximize_connection_list_bar"
     connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"
     connection_message_select                = "//h4[text()={concat}]/../.."
+    connection_messaging_popup_close         = '//header/section/button/li-icon[@type="cancel-icon"]/..'
 
     message_scroll_box                       = "msg-s-message-list"
     message_editor                           = "msg-form__contenteditable"
@@ -300,15 +301,36 @@ class LinkedInController(Controller):
     def selectConnectionFromPopup(self, person: str):
         """Select a person from the popup connection bar assuming they're already shown."""
         self.info(f"Finding link to {person}'s list element")
-        concat = "concat(\"" + "\", \"".join(list(person)) + "\")"
-        necessary_wait(1)
-        target_account = WebDriverWait(self.browser, 10) \
-            .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_message_select.format(concat=concat))))
+
+        # If the person's name has quotations (single or double), use the opposite one to do the XPath search
+        if '"' in person:
+            quotation = "'"
+        else:
+            quotation = '"'
+
+        # Because names can have weird characters, we can have a list of search methods
+        target_account = None
+        for textSearch in [quotation + person + quotation, "concat(\"" + "\", \"".join(list(person)) + "\")"]:
+            necessary_wait(1)
+            try:
+                target_account = WebDriverWait(self.browser, 3) \
+                    .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_message_select.format(concat=textSearch))))
+            except:
+                raise
+            else:
+                break
+
+        if not target_account:
+            self.error(f"Unable to find connection: {person}. Moving on.")
+            return False
+
         self.info(f"scrolling through results to {person}")
         ActionChains(self.browser).move_to_element(target_account).perform()
+        necessary_wait(1)
         self.highlightElement(target_account)
         self.info("Clicking on connection to open messaging box")
         target_account.click()
+        return True
 
     @log_exceptions
     @authentication_required
@@ -316,7 +338,7 @@ class LinkedInController(Controller):
         """Searches messages for the name entered, and gets the first person from the list"""
         self.maximizeConnectionPopup()
         self.searchForConnectionInPopup(person)
-        self.selectConnectionFromPopup(person)
+        return self.selectConnectionFromPopup(person)
 
     @log_exceptions
     @authentication_required
@@ -325,7 +347,14 @@ class LinkedInController(Controller):
         # I was having trouble iterating over all chat windows and closing them because when one closes, the others
         # become detached or something. Refreshing is a more robust way of closing the windows.
         self.info("Clearing all open message dialogs to avoid mis-identification")
-        self.browser.refresh()
+
+        while True:
+            try:
+                target_close_btn = WebDriverWait(self.browser, 1) \
+                    .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_messaging_popup_close)))
+                target_close_btn.click()
+            except:
+                break
 
     def setMessageDelayRange(self, minimum, maximum):
         """Sets the upper and lower bounds (in seconds) for the random delay between messages."""
@@ -366,7 +395,7 @@ class LinkedInController(Controller):
         self.info("Sending the message")
         msg_send.click()
 
-        necessary_wait(1) # Wait for the message to be sent
+        necessary_wait(2) # Wait for the message to be sent
 
         self.info("Verifying the message was sent")
         now = datetime.now()
