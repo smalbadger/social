@@ -41,7 +41,7 @@ def log_exceptions(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            if not controller.manualClose:  # Suppresses log of inevitable final http errors when closing manually
+            if not controller.closing:  # Suppresses log of inevitable final http errors when closing manually
                 args[0].exception(e)
             # raise e
 

@@ -8,21 +8,39 @@
 
         <file alias="../resources/icons/cloud-sync.png">resources/icons/cloud-sync.png</file>
 
+        <file alias="../resources/icons/connections.png">resources/icons/connections.png</file>
+
+        <file alias="../resources/icons/customer-insights.png">resources/icons/customer-insights.png</file>
+
         <file alias="../resources/icons/disclaimer.png">resources/icons/disclaimer.png</file>
 
         <file alias="../resources/icons/error.png">resources/icons/error.png</file>
 
         <file alias="../resources/icons/filter.png">resources/icons/filter.png</file>
 
+        <file alias="../resources/icons/invite.png">resources/icons/invite.png</file>
+
+        <file alias="../resources/icons/knife.png">resources/icons/knife.png</file>
+
         <file alias="../resources/icons/log.png">resources/icons/log.png</file>
 
         <file alias="../resources/icons/messaging.png">resources/icons/messaging.png</file>
 
+        <file alias="../resources/icons/omnichannel.png">resources/icons/omnichannel.png</file>
+
         <file alias="../resources/icons/right-arrow-big.png">resources/icons/right-arrow-big.png</file>
+
+        <file alias="../resources/icons/run.png">resources/icons/run.png</file>
+
+        <file alias="../resources/icons/send.png">resources/icons/send.png</file>
 
         <file alias="../resources/icons/settings.png">resources/icons/settings.png</file>
 
         <file alias="../resources/icons/social-network.png">resources/icons/social-network.png</file>
+
+        <file alias="../resources/icons/upload.png">resources/icons/upload.png</file>
+
+        <file alias="../resources/icons/walk.png">resources/icons/walk.png</file>
 
         <file alias="../resources/icons/warning.png">resources/icons/warning.png</file>
 
