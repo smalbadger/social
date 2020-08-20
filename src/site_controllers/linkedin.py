@@ -12,7 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 from site_controllers.controller import Controller, Task
 from site_controllers.exceptions import *
@@ -35,6 +35,7 @@ from database.linkedin import (LinkedInMessage, LinkedInConnection, LinkedInMess
 # Element Identification Strings
 #########################################################
 class EIS:
+
     login_header                             = "header__content__heading"  # class
     login_email_input                        = "username"  # id
     login_password_input                     = "password"  # id
@@ -49,6 +50,7 @@ class EIS:
     connection_bar_maximize                  = "overlay.maximize_connection_list_bar"  # data-control-name css selector
     connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"  # id
     connection_message_select                = "//h4[text()={concat}]/../.."  # xpath (must be formatted)
+    connection_messaging_popup_close         = '//header/section/button/li-icon[@type="cancel-icon"]/..'  # xpath
 
     message_scroll_box                       = "msg-s-message-list"  # class
     message_editor                           = "msg-form__contenteditable"  # class
@@ -306,7 +308,7 @@ class LinkedInController(Controller):
         searchbox.send_keys(Keys.CONTROL + "a")
         searchbox.send_keys(Keys.DELETE)
         self.info(f"Entering name in search field: {person}")
-        searchbox.send_keys(person)
+        send_keys_at_irregular_speed(searchbox, person, 1, 3, 0, .25)
         searchbox.send_keys(Keys.RETURN)
 
     @log_exceptions
@@ -314,15 +316,37 @@ class LinkedInController(Controller):
     def selectConnectionFromPopup(self, person: str):
         """Select a person from the popup connection bar assuming they're already shown."""
         self.info(f"Finding link to {person}'s list element")
-        concat = "concat(\"" + "\", \"".join(list(person)) + "\")"
-        necessary_wait(1)
-        target_account = WebDriverWait(self.browser, 10) \
-            .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_message_select.format(concat=concat))))
+
+        # If the person's name has quotations (single or double), use the opposite one to do the XPath search
+        if '"' in person:
+            quotation = "'"
+        else:
+            quotation = '"'
+
+        # Because names can have weird characters, we can have a list of search methods
+        target_account = None
+        for textSearch in [quotation + person + quotation, "concat(\"" + "\", \"".join(list(person)) + "\")"]:
+            necessary_wait(1)
+            xpath_str = EIS.connection_message_select.format(concat=textSearch)
+            try:
+                target_account = WebDriverWait(self.browser, 3) \
+                    .until(EC.element_to_be_clickable((By.XPATH, xpath_str)))
+            except TimeoutException:
+                self.debug(f"Unable to locate the user in the connections list using the XPath: {xpath_str}")
+            else:
+                break
+
+        if not target_account:
+            self.error(f"Unable to find connection: {person}. Moving on.")
+            return False
+
         self.info(f"scrolling through results to {person}")
         ActionChains(self.browser).move_to_element(target_account).perform()
+        necessary_wait(1)
         self.highlightElement(target_account)
         self.info("Clicking on connection to open messaging box")
         target_account.click()
+        return True
 
     @log_exceptions
     @authentication_required
@@ -330,7 +354,7 @@ class LinkedInController(Controller):
         """Searches messages for the name entered, and gets the first person from the list"""
         self.maximizeConnectionPopup()
         self.searchForConnectionInPopup(person)
-        self.selectConnectionFromPopup(person)
+        return self.selectConnectionFromPopup(person)
 
     @log_exceptions
     @authentication_required
@@ -339,7 +363,14 @@ class LinkedInController(Controller):
         # I was having trouble iterating over all chat windows and closing them because when one closes, the others
         # become detached or something. Refreshing is a more robust way of closing the windows.
         self.info("Clearing all open message dialogs to avoid mis-identification")
-        self.browser.refresh()
+
+        while True:
+            try:
+                target_close_btn = WebDriverWait(self.browser, 1) \
+                    .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_messaging_popup_close)))
+                target_close_btn.click()
+            except:
+                break
 
     def setMessageDelayRange(self, minimum, maximum):
         """Sets the upper and lower bounds (in seconds) for the random delay between messages."""
@@ -367,20 +398,22 @@ class LinkedInController(Controller):
             return
 
         self.closeAllChatWindows()
-        self.openConversationWith(person)
+        foundInList = self.openConversationWith(person)
+        if not foundInList:
+            return False
 
         self.info("Finding the message box")
         msg_box = self.browser.find_element_by_class_name(EIS.message_editor)
         self.highlightElement(msg_box)
         self.info(f"Typing the message: {message}")
-        msg_box.send_keys(message)
+        send_keys_at_irregular_speed(msg_box, message, 1, 3, 0, .25)
         self.info("Finding the submit button")
         msg_send = self.browser.find_element_by_class_name(EIS.message_send)
         self.highlightElement(msg_send)
         self.info("Sending the message")
         msg_send.click()
 
-        necessary_wait(1) # Wait for the message to be sent
+        necessary_wait(2) # Wait for the message to be sent
 
         self.info("Verifying the message was sent")
         now = datetime.now()
@@ -396,6 +429,7 @@ class LinkedInController(Controller):
         self.messageSent.emit(connection.id, msg.id)
         Session.add(msg)
         Session.commit()
+        return True
 
     @log_exceptions
     @authentication_required
@@ -439,10 +473,10 @@ class LinkedInController(Controller):
                 self.warning(f"Skipping {connection.name} because the message template was invalid for this connection.")
             else:
                 msg = usingTemplate.fill(connection)
-                self.sendMessageTo(connection, msg, usingTemplate)
-
-                self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
-                random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
+                success = self.sendMessageTo(connection, msg, usingTemplate)
+                if success:
+                    self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
+                    random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
 
     @log_exceptions
     @authentication_required
