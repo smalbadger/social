@@ -293,7 +293,7 @@ class LinkedInController(Controller):
         searchbox.send_keys(Keys.CONTROL + "a")
         searchbox.send_keys(Keys.DELETE)
         self.info(f"Entering name in search field: {person}")
-        searchbox.send_keys(person)
+        send_keys_at_irregular_speed(searchbox, person, 1, 3, 0, .25)
         searchbox.send_keys(Keys.RETURN)
 
     @log_exceptions
@@ -391,7 +391,7 @@ class LinkedInController(Controller):
         msg_box = self.browser.find_element_by_class_name(EIS.message_editor)
         self.highlightElement(msg_box)
         self.info(f"Typing the message: {message}")
-        msg_box.send_keys(message)
+        send_keys_at_irregular_speed(msg_box, message, 1, 3, 0, .25)
         self.info("Finding the submit button")
         msg_send = self.browser.find_element_by_class_name(EIS.message_send)
         self.highlightElement(msg_send)
