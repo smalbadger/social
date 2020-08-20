@@ -12,7 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 from site_controllers.controller import Controller, Task
 from site_controllers.exceptions import *
@@ -312,11 +312,12 @@ class LinkedInController(Controller):
         target_account = None
         for textSearch in [quotation + person + quotation, "concat(\"" + "\", \"".join(list(person)) + "\")"]:
             necessary_wait(1)
+            xpath_str = EIS.connection_message_select.format(concat=textSearch)
             try:
                 target_account = WebDriverWait(self.browser, 3) \
-                    .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_message_select.format(concat=textSearch))))
-            except:
-                raise
+                    .until(EC.element_to_be_clickable((By.XPATH, xpath_str)))
+            except TimeoutException:
+                self.debug(f"Unable to locate the user in the connections list using the XPath: {xpath_str}")
             else:
                 break
 
