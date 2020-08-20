@@ -1,7 +1,7 @@
 import csv
 import logging
 
-from PySide2.QtWidgets import QWidget, QListWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog, QFileDialog
+from PySide2.QtWidgets import QWidget, QListWidgetItem, QTreeWidgetItem, QProgressDialog, QMessageBox, QDialog, QInputDialog, QFileDialog
 from PySide2.QtCore import QThreadPool, Signal, Qt
 
 from gui.logwidget import LogWidget
@@ -10,7 +10,7 @@ from gui.ui.ui_instancewidget import Ui_mainWidget
 from gui.templateeditwidget import TemplateEditWidget
 from gui.messagepreviewdialog import MessagePreviewDialog
 
-from site_controllers.linkedin import LinkedInMessenger, LinkedInSynchronizer, UploadCSV, LinkedInFullRefresh
+from site_controllers.linkedin import LinkedInMessenger, LinkedInBulkConnectionScraper, UploadConnectionCSV, LinkedInIndividualConnectionScraper, LinkedInConnectionRequestAccepter
 from fake_useragent import UserAgent
 
 from common.strings import fromHTML
@@ -24,6 +24,8 @@ class InstanceWidget(QWidget):
 
     dailyLimitChanged = Signal(int)
     actionCountChanged = Signal(int)
+
+    # --- Initialization Methods ---------------------------------------------------------------------------------------
 
     def __init__(self, client: Client, cConstructor):
         QWidget.__init__(self)
@@ -86,8 +88,6 @@ class InstanceWidget(QWidget):
             if not self.account.__getattribute__(field):
                 headlessEnabled = False
                 break
-        self.ui.headlessBoxSync.setChecked(False)
-        self.ui.headlessBoxSync.setEnabled(headlessEnabled)
         self.ui.headlessBoxGeneral.setChecked(False)
         self.ui.headlessBoxGeneral.setEnabled(headlessEnabled)
 
@@ -96,22 +96,6 @@ class InstanceWidget(QWidget):
         self.ui.errorLabel.hide()
         self.gui_logger.info(f'{self.platformName} instance created for {self.client.name}')
         self.updateStatusOfMessengerButton()
-
-    def updateStatusOfMessengerButton(self):
-        """Enable/disable the auto message button by looking at the selected connections list and the template editor"""
-        enable = True
-
-        # There must be text in the template editor
-        if not self.ui.messageTemplateEdit.toPlainText().strip():
-            enable = False
-
-        # There must be connections in the selected connections list
-        elif not self.ui.selectedConnectionsList.count():
-            enable = False
-
-        # TODO: Add condition that the template must be saved before sending it?
-
-        self.ui.autoMessageButton.setEnabled(enable)
 
     def fetchValues(self, skipTemplates=False):
         """
@@ -126,12 +110,22 @@ class InstanceWidget(QWidget):
         def populate(connections):
             self.gui_logger.info("Populating connections...")
             self.ui.allConnectionsList.clear()
+            self.ui.connectionsTable.clear()
             self.ui.selectedConnectionsList.clear()
             self.selectedConnections = []
 
             for con in connections:
                 self.gui_logger.debug(con.name)
+
+                # Add to connections list for messaging
                 self.ui.allConnectionsList.addItem(con.name)
+
+                # Add to main connections table
+                connectionItem = QTreeWidgetItem(self.ui.connectionsTable)
+                connectionItem.setText(0, con.name)
+                connectionItem.setText(1, con.location)
+                connectionItem.setText(2, con.position)
+
                 self.allConnections[con.name] = con
 
             self.ui.allConnectionsGroupBox.setTitle(f"All Connections ({len(self.allConnections)})")
@@ -199,6 +193,89 @@ class InstanceWidget(QWidget):
 
         prog.exec_()
 
+    def connectSignalsToFunctions(self):
+        """
+        Connects all UI signals to functions
+        """
+
+        self.ui.acceptConnectionRequestsBtn.clicked.connect(self.acceptConnectionRequests)
+        self.ui.autoMessageButton.toggled.connect(self.autoMessage)
+        self.ui.allConnectionsList.itemClicked.connect(self.addConnectionToSelected)
+        self.ui.selectedConnectionsList.itemClicked.connect(self.removeConnectionFromSelected)
+        self.ui.scrapeBulkConnectionsBtn.toggled.connect(self.scrapeConnectionsInBulk)
+        self.ui.selectAllBox.toggled.connect(self.selectAllConnections)
+        self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
+        self.ui.newTemplateButton.clicked.connect(self.createNewTemplate)
+        self.ui.templatesBox.currentIndexChanged.connect(self.loadTemplateAtIndex)
+        self.ui.deleteTemplateButton.clicked.connect(lambda: self.deleteCurrentTemplate())  # lambda needed to fix bug
+        self.ui.messageTemplateEdit.textChanged.connect(self.updateStatusOfMessengerButton)
+        self.ui.allConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
+        self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
+        self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
+        self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
+        self.ui.uploadConnectionsCSVBtn.clicked.connect(self.parseConnectionsCSV)
+        self.ui.scrapeIndividualConnectionsBtn.toggled.connect(self.scrapeConnectionsIndividually)
+
+        # Wanted to connect to the focusOut signal, but that doesn't exist, so this is the next best thing.
+        def onDailyLimitUpdated(*args):
+            value = self.ui.dailyActionLimitSpinBox.value()
+            self.client.linkedin_account.setActivityLimitForToday(value)
+            self.dailyLimitChanged.emit(value)
+
+        self.ui.dailyActionLimitSpinBox.focusOutEvent = onDailyLimitUpdated
+
+        def searchConnections(partialName):
+            if self.allConnections:
+                results = [entry.text() for entry in self.ui.allConnectionsList.findItems(partialName, Qt.MatchContains)]
+                all = self.ui.allConnectionsList.findItems('', Qt.MatchContains)
+
+                for entry in all:
+                    if entry.text() in results:
+                        entry.setHidden(False)
+                    else:
+                        entry.setHidden(True)
+
+        self.ui.searchBox.textEdited.connect(searchConnections)
+
+        def updateMessagingDelay(minOrMax):
+            """
+            sets the delay spinboxes to valid values and then records the values in instance variables that get
+            propagated to the messaging controller
+            """
+            if minOrMax == max:
+                toUpdate = self.ui.maxMessagingDelaySpinBox
+            else:
+                toUpdate = self.ui.minMessagingDelaySpinBox
+            currentMin = self.ui.minMessagingDelaySpinBox.value()
+            currentMax = self.ui.maxMessagingDelaySpinBox.value()
+            toUpdate.setValue(minOrMax(currentMin, currentMax))
+            self.messagingDelayLowerBound = self.ui.minMessagingDelaySpinBox.value()
+            self.messagingDelayUpperBound = self.ui.maxMessagingDelaySpinBox.value()
+            if self.messagingController:
+                self.messagingController.setMessageDelayRange(self.messagingDelayLowerBound, self.messagingDelayUpperBound)
+
+        updateMessagingDelay(min)
+        self.ui.minMessagingDelaySpinBox.valueChanged.connect(lambda: updateMessagingDelay(max))
+        self.ui.maxMessagingDelaySpinBox.valueChanged.connect(lambda: updateMessagingDelay(min))
+
+    # --- Messaging Methods --------------------------------------------------------------------------------------------
+
+    def updateStatusOfMessengerButton(self):
+        """Enable/disable the auto message button by looking at the selected connections list and the template editor"""
+        enable = True
+
+        # There must be text in the template editor
+        if not self.ui.messageTemplateEdit.toPlainText().strip():
+            enable = False
+
+        # There must be connections in the selected connections list
+        elif not self.ui.selectedConnectionsList.count():
+            enable = False
+
+        # TODO: Add condition that the template must be saved before sending it?
+
+        self.ui.autoMessageButton.setEnabled(enable)
+
     def autoMessage(self, start=True):
         """Starts or stops the messaging controller based on the status of the start/stop button."""
 
@@ -213,7 +290,7 @@ class InstanceWidget(QWidget):
             startStopButton.setText("Closing, please wait...")
             startStopButton.setEnabled(False)
 
-            self.messagingController.manualClose = True
+            self.messagingController.closing = True
             self.messagingController.stop()
 
             del self.messagingController
@@ -276,70 +353,6 @@ class InstanceWidget(QWidget):
                 except RuntimeError as e:
                     self.messagingController.warning(str(e))
             onComplete()
-
-    def connectSignalsToFunctions(self):
-        """
-        Connects all UI signals to functions
-        """
-
-        self.ui.autoMessageButton.toggled.connect(self.autoMessage)
-        self.ui.allConnectionsList.itemClicked.connect(self.addContactToSelected)
-        self.ui.selectedConnectionsList.itemClicked.connect(self.removeContactFromSelected)
-        self.ui.syncButton.toggled.connect(self.synchronizeAccount)
-        self.ui.selectAllBox.toggled.connect(self.selectAll)
-        self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
-        self.ui.newTemplateButton.clicked.connect(self.createNewTemplate)
-        self.ui.templatesBox.currentIndexChanged.connect(self.loadTemplateAtIndex)
-        self.ui.deleteTemplateButton.clicked.connect(lambda: self.deleteCurrentTemplate())  # lambda needed to fix bug
-        self.ui.messageTemplateEdit.textChanged.connect(self.updateStatusOfMessengerButton)
-        self.ui.allConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
-        self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
-        self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
-        self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
-        self.ui.uploadCSVButton.clicked.connect(self.parseConnectionsCSV)
-        self.ui.refreshAllButton.toggled.connect(self.refreshAllConnections)
-
-        # Wanted to connect to the focusOut signal, but that doesn't exist, so this is the next best thing.
-        def onDailyLimitUpdated(*args):
-            value = self.ui.dailyActionLimitSpinBox.value()
-            self.client.linkedin_account.setActivityLimitForToday(value)
-            self.dailyLimitChanged.emit(value)
-
-        self.ui.dailyActionLimitSpinBox.focusOutEvent = onDailyLimitUpdated
-
-        def searchConnections(partialName):
-            if self.allConnections:
-                results = [entry.text() for entry in self.ui.allConnectionsList.findItems(partialName, Qt.MatchContains)]
-                all = self.ui.allConnectionsList.findItems('', Qt.MatchContains)
-
-                for entry in all:
-                    if entry.text() in results:
-                        entry.setHidden(False)
-                    else:
-                        entry.setHidden(True)
-
-        self.ui.searchBox.textEdited.connect(searchConnections)
-
-        def updateMessagingDelay(minOrMax):
-            """
-            sets the delay spinboxes to valid values and then records the values in instance variables that get
-            propagated to the messaging controller
-            """
-            if minOrMax == max:
-                toUpdate = self.ui.maxMessagingDelaySpinBox
-            else:
-                toUpdate = self.ui.minMessagingDelaySpinBox
-            currentMin = self.ui.minMessagingDelaySpinBox.value()
-            currentMax = self.ui.maxMessagingDelaySpinBox.value()
-            toUpdate.setValue(minOrMax(currentMin, currentMax))
-            self.messagingDelayLowerBound = self.ui.minMessagingDelaySpinBox.value()
-            self.messagingDelayUpperBound = self.ui.maxMessagingDelaySpinBox.value()
-            if self.messagingController:
-                self.messagingController.setMessageDelayRange(self.messagingDelayLowerBound, self.messagingDelayUpperBound)
-
-        updateMessagingDelay(min)
-        self.ui.minMessagingDelaySpinBox.valueChanged.connect(lambda: updateMessagingDelay(max))
-        self.ui.maxMessagingDelaySpinBox.valueChanged.connect(lambda: updateMessagingDelay(min))
 
     def openFilterDialog(self):
         """
@@ -554,7 +567,7 @@ class InstanceWidget(QWidget):
         else:
             self.createNewTemplate(skipSave=True)
 
-    def selectAll(self, checked):
+    def selectAllConnections(self, checked):
         """Selects all connections to send them a message"""
         sel = self.ui.selectedConnectionsList
         alc = self.ui.allConnectionsList
@@ -575,70 +588,72 @@ class InstanceWidget(QWidget):
             self.selectedConnections = []
             sel.setEnabled(True)
 
-    def synchronizeAccount(self, checked):
-        """Synchronizes account using options given in GUI"""
+    def addConnectionToSelected(self, connection: QListWidgetItem):
+        """Adds item to selected column, and updates local list"""
+        if connection.text() not in self.selectedConnections:
+            self.ui.selectedConnectionsList.addItem(QListWidgetItem(connection.text()))
+            self.selectedConnections.append(connection.text())
 
-        syncBtn = self.ui.syncButton
-        def onComplete():
-            """Called on completion of the Synchronizer task"""
-            syncBtn.setChecked(False)
-            if not self.syncController:
+    def removeConnectionFromSelected(self, connection: QListWidgetItem):
+        """Removes connection from selected connections"""
+        if connection.text() in self.selectedConnections:
+            ind = self.ui.selectedConnectionsList.row(connection)
+            self.ui.selectedConnectionsList.takeItem(ind)
+            self.selectedConnections.remove(connection.text())
+
+    # --- Connections Methods ------------------------------------------------------------------------------------------
+
+    def parseConnectionsCSV(self):
+        """
+        Opens a file dialog for the user to select the csv file, then it parses it and creates connections for them
+        """
+
+        self.ui.scrapeIndividualConnectionsBtn.setEnabled(False)
+        self.ui.scrapeBulkConnectionsBtn.setEnabled(False)
+        self.ui.acceptConnectionRequestsBtn.setEnabled(False)
+        self.ui.sendConnectionRequestsBtn.setEnabled(False)
+
+        url = QFileDialog.getOpenFileUrl(filter='Comma Separated Values (*.csv)')[0].toString()
+
+        if url:
+            with open(url[len('file:///'):], 'r', newline='', encoding='utf-8') as csvfile:
+                connections = list(csv.reader(csvfile))
+
+            if connections[0][0] != 'First Name':
+                QMessageBox.warning(self.window(), 'Invalid File', 'Not a valid CSV file.')
+                self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+                self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
                 return
-            self.ui.syncButton.setText('Closing...')
-            self.ui.syncButton.setEnabled(False)
 
-            self.syncController.stop()
+            connections.pop(0)
 
-            del self.syncController
-            del self.synchronizer
+            prog = QProgressDialog('Parsing CSV and uploading to database...', 'Hide',
+                                   0, round(len(connections)/10), self.window())
+            prog.setWindowTitle('Uploading CSV...')
+            prog.setValue(0)
+            prog.setModal(True)
 
-            self.synchronizer = None
-            self.syncController = None
+            uc = UploadConnectionCSV(self.account.id, connections)
+            uc.packageCommitted.connect(lambda: prog.setValue(prog.value()+1))
 
-            self.ui.syncButton.setText('Synchronize')
-            self.ui.syncButton.setEnabled(True)
-            self.ui.refreshAllButton.setEnabled(True)
-            self.ui.uploadCSVButton.setEnabled(True)
+            def cleanup(num):
+                prog.close()
+                self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+                self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
+                # For some reason can't log from this, so just printing the message
+                print(f'Skipped {num} connections because their csv entries were blank.')
 
-        if checked:
-            self.ui.refreshAllButton.setEnabled(False)
-            self.ui.uploadCSVButton.setEnabled(False)
+            uc.finished.connect(cleanup)
+            QThreadPool.globalInstance().start(uc)
 
-            known = [name[0] for name in
-                     Session.query(LinkedInConnection.name).filter(LinkedInConnection.account_id == self.account.id)]
+            prog.exec_()
 
-            options = {
-                'connections': self.ui.updateConnectionsBox.isChecked(),
-                'known': known,
-                'accid': self.account.id,
-                'accept new': self.ui.newConnectionsBox.isChecked()
-            }
+            self.fetchValues()
 
-            syncBrowserOpts = self.opts[:]
-            if self.ui.headlessBoxSync.isChecked():
-                syncBrowserOpts.append("headless")
-            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
-                                                             browser=self.browser, options=syncBrowserOpts)
-            logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
-
-            self.synchronizer = LinkedInSynchronizer(self.syncController, options, teardown_func=onComplete)
-            self.syncController.connectionsScraped.connect(lambda: self.fetchValues(skipTemplates=True))
-
-            QThreadPool.globalInstance().start(self.synchronizer)
-
-            self.ui.syncButton.setText('Stop')
-        else:
-            if self.synchronizer:
-                try:
-                    QThreadPool.globalInstance().cancel(self.synchronizer)
-                except RuntimeError as e:
-                    self.syncController.warning(str(e))
-            onComplete()
-
-    def refreshAllConnections(self, checked):
+    def scrapeConnectionsInBulk(self, checked):
         """Synchronizes account using options given in GUI"""
 
-        btn = self.ui.refreshAllButton
+        btn = self.ui.scrapeBulkConnectionsBtn
 
         def onComplete():
             """Called on completion of the Synchronizer task"""
@@ -648,6 +663,7 @@ class InstanceWidget(QWidget):
             btn.setText('Closing...')
             btn.setEnabled(False)
 
+            self.syncController.closing = True
             self.syncController.stop()
 
             del self.syncController
@@ -656,28 +672,36 @@ class InstanceWidget(QWidget):
             self.synchronizer = None
             self.syncController = None
 
-            btn.setText('Update All Connections')
+            btn.setText("      Scrape Connections In Bulk")
             btn.setEnabled(True)
-            self.ui.syncButton.setEnabled(True)
-            self.ui.uploadCSVButton.setEnabled(True)
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(True)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(True)
+            self.ui.sendConnectionRequestsBtn.setEnabled(True)
 
         if checked:
-            self.ui.syncButton.setEnabled(False)
-            self.ui.uploadCSVButton.setEnabled(False)
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(False)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(False)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(False)
+            self.ui.sendConnectionRequestsBtn.setEnabled(False)
 
-            known = [(conn.name, conn.id) for conn in
-                     Session.query(LinkedInConnection).filter(LinkedInConnection.account_id == self.account.id)]
+            known = [name[0] for name in
+                     Session.query(LinkedInConnection.name).filter(LinkedInConnection.account_id == self.account.id)]
+
+            options = {
+                'known': known,
+                'accid': self.account.id
+            }
 
             syncBrowserOpts = self.opts[:]
-            if self.ui.headlessBoxSync.isChecked():
+            if self.ui.headlessBoxGeneral.isChecked():
                 syncBrowserOpts.append("headless")
-
             self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
                                                              browser=self.browser, options=syncBrowserOpts)
-
             logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
 
-            self.synchronizer = LinkedInFullRefresh(self.syncController, known, teardown_func=onComplete)
+            self.synchronizer = LinkedInBulkConnectionScraper(self.syncController, options, teardown_func=onComplete)
+            self.syncController.connectionsScraped.connect(lambda: self.fetchValues(skipTemplates=True))
 
             QThreadPool.globalInstance().start(self.synchronizer)
 
@@ -690,60 +714,176 @@ class InstanceWidget(QWidget):
                     self.syncController.warning(str(e))
             onComplete()
 
-    def addContactToSelected(self, connection: QListWidgetItem):
-        """Adds item to selected column, and updates local list"""
-        if connection.text() not in self.selectedConnections:
-            self.ui.selectedConnectionsList.addItem(QListWidgetItem(connection.text()))
-            self.selectedConnections.append(connection.text())
+    def scrapeConnectionsIndividually(self, checked):
+        """Synchronizes account using options given in GUI"""
 
-    def removeContactFromSelected(self, connection: QListWidgetItem):
-        """Removes connection from selected connections"""
-        if connection.text() in self.selectedConnections:
-            ind = self.ui.selectedConnectionsList.row(connection)
-            self.ui.selectedConnectionsList.takeItem(ind)
-            self.selectedConnections.remove(connection.text())
+        btn = self.ui.scrapeIndividualConnectionsBtn
 
-    def parseConnectionsCSV(self):
-        """
-        Opens a file dialog for the user to select the csv file, then it parses it and creates connections for them
-        """
-
-        self.ui.refreshAllButton.setEnabled(False)
-        self.ui.syncButton.setEnabled(False)
-
-        url = QFileDialog.getOpenFileUrl(filter='Comma Separated Values (*.csv)')[0].toString()
-
-        if url:
-            with open(url[len('file:///'):], 'r', newline='', encoding='utf-8') as csvfile:
-                connections = list(csv.reader(csvfile))
-
-            if connections[0][0] != 'First Name':
-                QMessageBox.warning(self.window(), 'Invalid File', 'Not a valid CSV file.')
-                self.ui.refreshAllButton.setEnabled(True)
-                self.ui.syncButton.setEnabled(True)
+        def onComplete():
+            """Called on completion of the Synchronizer task"""
+            btn.setChecked(False)
+            if not self.syncController:
                 return
+            btn.setText('Closing...')
+            btn.setEnabled(False)
 
-            connections.pop(0)
+            self.syncController.closing = True
+            self.syncController.stop()
 
-            prog = QProgressDialog('Parsing CSV and uploading to database...', 'Hide',
-                                   0, round(len(connections)/10), self.window())
-            prog.setWindowTitle('Uploading CSV...')
-            prog.setValue(0)
-            prog.setModal(True)
+            del self.syncController
+            del self.synchronizer
 
-            uc = UploadCSV(self.account.id, connections)
-            uc.packageCommitted.connect(lambda: prog.setValue(prog.value()+1))
+            self.synchronizer = None
+            self.syncController = None
 
-            def cleanup(num):
-                prog.close()
-                self.ui.refreshAllButton.setEnabled(True)
-                self.ui.syncButton.setEnabled(True)
-                # For some reason can't log from this, so just printing the message
-                print(f'Skipped {num} connections because their csv entries were blank.')
+            btn.setText("Scrape Connections Individually")
+            btn.setEnabled(True)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(True)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(True)
+            self.ui.sendConnectionRequestsBtn.setEnabled(True)
 
-            uc.finished.connect(cleanup)
-            QThreadPool.globalInstance().start(uc)
+        if checked:
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(False)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(False)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(False)
+            self.ui.sendConnectionRequestsBtn.setEnabled(False)
 
-            prog.exec_()
+            known = [(conn.name, conn.id) for conn in
+                     Session.query(LinkedInConnection).filter(LinkedInConnection.account_id == self.account.id)]
 
-            self.fetchValues()
+            syncBrowserOpts = self.opts[:]
+            if self.ui.headlessBoxGeneral.isChecked():
+                syncBrowserOpts.append("headless")
+
+            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
+                                                             browser=self.browser, options=syncBrowserOpts)
+
+            logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+
+            self.synchronizer = LinkedInIndividualConnectionScraper(self.syncController, known, teardown_func=onComplete)
+
+            QThreadPool.globalInstance().start(self.synchronizer)
+
+            btn.setText('Stop')
+        else:
+            if self.synchronizer:
+                try:
+                    QThreadPool.globalInstance().cancel(self.synchronizer)
+                except RuntimeError as e:
+                    self.syncController.warning(str(e))
+            onComplete()
+
+    def acceptConnectionRequests(self, checked):
+        """Synchronizes account using options given in GUI"""
+
+        btn = self.ui.acceptConnectionRequestsBtn
+
+        def onComplete():
+            """Called on completion of the Synchronizer task"""
+            btn.setChecked(False)
+            if not self.syncController:
+                return
+            btn.setText('Closing...')
+            btn.setEnabled(False)
+
+            self.syncController.closing = True
+            self.syncController.stop()
+
+            del self.syncController
+            del self.synchronizer
+
+            self.synchronizer = None
+            self.syncController = None
+
+            btn.setText("    Accept Connection Requests")
+            btn.setEnabled(True)
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(True)
+            self.ui.sendConnectionRequestsBtn.setEnabled(True)
+
+        if checked:
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(False)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(False)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(False)
+            self.ui.sendConnectionRequestsBtn.setEnabled(False)
+
+            syncBrowserOpts = self.opts[:]
+            if self.ui.headlessBoxGeneral.isChecked():
+                syncBrowserOpts.append("headless")
+
+            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
+                                                             browser=self.browser, options=syncBrowserOpts)
+
+            logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+
+            self.synchronizer = LinkedInConnectionRequestAccepter(self.syncController, teardown_func=onComplete)
+
+            QThreadPool.globalInstance().start(self.synchronizer)
+
+            btn.setText('Stop')
+        else:
+            if self.synchronizer:
+                try:
+                    QThreadPool.globalInstance().cancel(self.synchronizer)
+                except RuntimeError as e:
+                    self.syncController.warning(str(e))
+            onComplete()
+
+    def sendConnectionRequests(self, checked):
+        """Synchronizes account using options given in GUI"""
+
+        btn = self.ui.sendConnectionRequestsBtn
+
+        def onComplete():
+            """Called on completion of the Synchronizer task"""
+            btn.setChecked(False)
+            if not self.syncController:
+                return
+            btn.setText('Closing...')
+            btn.setEnabled(False)
+
+            self.syncController.closing = True
+            self.syncController.stop()
+
+            del self.syncController
+            del self.synchronizer
+
+            self.synchronizer = None
+            self.syncController = None
+
+            btn.setText("       Send Connection Requests")
+            btn.setEnabled(True)
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(True)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(True)
+
+        if checked:
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(False)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(False)
+            self.ui.uploadConnectionsCSVBtn.setEnabled(False)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(False)
+
+            syncBrowserOpts = self.opts[:]
+            if self.ui.headlessBoxGeneral.isChecked():
+                syncBrowserOpts.append("headless")
+
+            self.syncController = self.controllerConstructor(self.client.name, self.email, self.pwd,
+                                                             browser=self.browser, options=syncBrowserOpts)
+
+            logging.getLogger(self.syncController.getLoggerName()).addHandler(self.lw)
+
+            self.synchronizer = LinkedInConnectionRequestAccepter(self.syncController, teardown_func=onComplete)
+
+            QThreadPool.globalInstance().start(self.synchronizer)
+
+            btn.setText('Stop')
+        else:
+            if self.synchronizer:
+                try:
+                    QThreadPool.globalInstance().cancel(self.synchronizer)
+                except RuntimeError as e:
+                    self.syncController.warning(str(e))
+            onComplete()

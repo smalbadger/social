@@ -154,7 +154,7 @@ class LinkedInController(Controller):
         :type manual: bool
         """
 
-        if self.manualClose:
+        if self.closing:
             QThread.currentThread().terminate()
 
         self.info("Logging in")
@@ -926,29 +926,7 @@ class LinkedInMessenger(Task):
         self.teardown()
 
 
-class LinkedInSynchronizer(Task):
-
-    def __init__(self, controller, options, setup_func=None, teardown_func=None):
-        super().__init__(controller, setup = setup_func, teardown = teardown_func)
-        self.options: dict = options
-
-    def run(self):
-        self.setup()
-        opts = self.options
-        self.controller.start()
-
-        if opts.get('accept new'):
-            newCons = self.controller.acceptAllConnections()
-
-        if opts.get('connections'):
-            known = opts.get('known')
-            account_id = opts.get('accid')
-            connections = self.controller.getNewConnections(account_id, known=known)
-
-        self.teardown()
-
-
-class UploadCSV(QRunnable):
+class UploadConnectionCSV(QRunnable):
     """Run a function in the QThreadPool and emit the value returned in the finished signal."""
 
     Beacon.packageCommitted = Signal()
@@ -995,7 +973,7 @@ class UploadCSV(QRunnable):
         self.finished.emit(empty)
 
 
-class LinkedInFullRefresh(Task):
+class LinkedInIndividualConnectionScraper(Task):
     """Run a function in the QThreadPool and emit the value returned in the finished signal."""
 
     def __init__(self, controller, known, setup_func=None, teardown_func=None):
@@ -1007,5 +985,51 @@ class LinkedInFullRefresh(Task):
         self.controller.start()
 
         self.controller.refreshAll(self.known)
+
+        self.teardown()
+
+
+class LinkedInBulkConnectionScraper(Task):
+
+    def __init__(self, controller, options, setup_func=None, teardown_func=None):
+        super().__init__(controller, setup = setup_func, teardown = teardown_func)
+        self.options: dict = options
+
+    def run(self):
+        self.setup()
+        opts = self.options
+        self.controller.start()
+
+        known = opts.get('known')
+        account_id = opts.get('accid')
+        connections = self.controller.getNewConnections(account_id, known=known)
+
+        self.teardown()
+
+
+class LinkedInConnectionRequestAccepter(Task):
+
+    def __init__(self, controller, setup_func=None, teardown_func=None):
+        super().__init__(controller, setup = setup_func, teardown = teardown_func)
+
+    def run(self):
+        self.setup()
+        self.controller.start()
+        newCons = self.controller.acceptAllConnections()
+        self.teardown()
+
+
+class LinkedInConnectionRequestSender(Task):
+
+    def __init__(self, controller, options, setup_func=None, teardown_func=None):
+        super().__init__(controller, setup = setup_func, teardown = teardown_func)
+        self.options: dict = options
+
+    def run(self):
+        self.setup()
+        opts = self.options
+        self.controller.start()
+
+        # TODO: call function to send connection requests
 
         self.teardown()

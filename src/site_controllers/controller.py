@@ -59,8 +59,8 @@ class Controller(AbstractBaseClass):
         self.options = list(options)
         self.browser = browser
 
-        self.manualClose = False
-        self.isStopping = False
+        self.closing = False  # Signifies that the controller is being closed, allows for error-less exit
+        self.isStopping = False  # Flag raised by the stop() method that way it doesn't get stopped twice
 
     def checkForValidConfiguration(self):
         """

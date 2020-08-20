@@ -46,6 +46,220 @@
        <height>48</height>
       </size>
      </property>
+     <widget class="QWidget" name="tab">
+      <attribute name="icon">
+       <iconset resource="../../../icons.qrc">
+        <normaloff>:/icon/resources/icons/connections.png</normaloff>:/icon/resources/icons/connections.png</iconset>
+      </attribute>
+      <attribute name="title">
+       <string>Connections</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_12">
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_6">
+         <item>
+          <widget class="QGroupBox" name="groupBox_5">
+           <property name="title">
+            <string>Synchronize Database</string>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_4">
+            <item>
+             <widget class="QPushButton" name="uploadConnectionsCSVBtn">
+              <property name="text">
+               <string>          Upload Connections CSV</string>
+              </property>
+              <property name="icon">
+               <iconset resource="../../../icons.qrc">
+                <normaloff>:/icon/resources/icons/upload.png</normaloff>:/icon/resources/icons/upload.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>36</width>
+                <height>36</height>
+               </size>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <property name="autoDefault">
+               <bool>false</bool>
+              </property>
+              <property name="default">
+               <bool>false</bool>
+              </property>
+              <property name="flat">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="scrapeIndividualConnectionsBtn">
+              <property name="text">
+               <string>Scrape Connections Individually</string>
+              </property>
+              <property name="icon">
+               <iconset resource="../../../icons.qrc">
+                <normaloff>:/icon/resources/icons/walk.png</normaloff>:/icon/resources/icons/walk.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>36</width>
+                <height>36</height>
+               </size>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="scrapeBulkConnectionsBtn">
+              <property name="text">
+               <string>      Scrape Connections In Bulk</string>
+              </property>
+              <property name="icon">
+               <iconset resource="../../../icons.qrc">
+                <normaloff>:/icon/resources/icons/run.png</normaloff>:/icon/resources/icons/run.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>36</width>
+                <height>36</height>
+               </size>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_6">
+           <property name="title">
+            <string>Expand Network</string>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_5">
+            <item>
+             <widget class="QPushButton" name="acceptConnectionRequestsBtn">
+              <property name="text">
+               <string>    Accept Connection Requests</string>
+              </property>
+              <property name="icon">
+               <iconset resource="../../../icons.qrc">
+                <normaloff>:/icon/resources/icons/invite.png</normaloff>:/icon/resources/icons/invite.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>36</width>
+                <height>36</height>
+               </size>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="sendConnectionRequestsBtn">
+              <property name="text">
+               <string>       Send Connection Requests</string>
+              </property>
+              <property name="icon">
+               <iconset resource="../../../icons.qrc">
+                <normaloff>:/icon/resources/icons/send.png</normaloff>:/icon/resources/icons/send.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>36</width>
+                <height>36</height>
+               </size>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <property name="default">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QTabWidget" name="connectionsTabWidget">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="QWidget" name="connectionsList">
+          <attribute name="title">
+           <string>List</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_3">
+           <item>
+            <widget class="QTreeWidget" name="connectionsTable">
+             <property name="alternatingRowColors">
+              <bool>true</bool>
+             </property>
+             <property name="verticalScrollMode">
+              <enum>QAbstractItemView::ScrollPerPixel</enum>
+             </property>
+             <property name="sortingEnabled">
+              <bool>true</bool>
+             </property>
+             <property name="animated">
+              <bool>true</bool>
+             </property>
+             <property name="allColumnsShowFocus">
+              <bool>true</bool>
+             </property>
+             <column>
+              <property name="text">
+               <string>Name</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Location</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Position</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="connectionsMap">
+          <attribute name="title">
+           <string>Map</string>
+          </attribute>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="messagingTab">
       <attribute name="icon">
        <iconset resource="../../../icons.qrc">
@@ -382,187 +596,6 @@
             </spacer>
            </item>
           </layout>
-         </item>
-        </layout>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="syncTab">
-      <attribute name="icon">
-       <iconset resource="../../../icons.qrc">
-        <normaloff>:/icon/resources/icons/cloud-sync.png</normaloff>:/icon/resources/icons/cloud-sync.png</iconset>
-      </attribute>
-      <attribute name="title">
-       <string>Sync</string>
-      </attribute>
-      <layout class="QGridLayout" name="gridLayout_10">
-       <item row="0" column="0">
-        <widget class="QGroupBox" name="groupBox_6">
-         <property name="title">
-          <string>Browser Automated</string>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_8">
-          <item row="2" column="0">
-           <widget class="Line" name="line">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="10" column="0">
-           <spacer name="verticalSpacer">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::MinimumExpanding</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="9" column="0">
-           <widget class="QPushButton" name="refreshAllButton">
-            <property name="text">
-             <string>Update All Connections</string>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <layout class="QVBoxLayout" name="verticalLayout_3">
-            <item>
-             <widget class="QCheckBox" name="newConnectionsBox">
-              <property name="text">
-               <string>Accept New Connections</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="updateConnectionsBox">
-              <property name="text">
-               <string>Update Connections List</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_11">
-              <item>
-               <widget class="QPushButton" name="syncButton">
-                <property name="text">
-                 <string>Synchronize</string>
-                </property>
-                <property name="checkable">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-           </layout>
-          </item>
-          <item row="6" column="0">
-           <widget class="QLabel" name="label_6">
-            <property name="text">
-             <string>Full Refresh</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_5">
-            <property name="text">
-             <string>New Connections</string>
-            </property>
-           </widget>
-          </item>
-          <item row="7" column="0">
-           <widget class="Line" name="line_2">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="8" column="0">
-           <widget class="QLabel" name="label_7">
-            <property name="text">
-             <string>Note: Will take a while, but gets the most information about *existing* connections</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="0">
-           <spacer name="verticalSpacer_4">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Fixed</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <layout class="QVBoxLayout" name="verticalLayout_4">
-         <item>
-          <widget class="QGroupBox" name="groupBox_5">
-           <property name="title">
-            <string>Manual Upload</string>
-           </property>
-           <layout class="QGridLayout" name="gridLayout_3">
-            <item row="0" column="0">
-             <widget class="QPushButton" name="uploadCSVButton">
-              <property name="text">
-               <string>Upload CSV</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox_7">
-           <property name="title">
-            <string>General</string>
-           </property>
-           <layout class="QGridLayout" name="gridLayout_9">
-            <item row="0" column="0">
-             <widget class="QCheckBox" name="headlessBoxSync">
-              <property name="text">
-               <string>Headless (No Browser)</string>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0">
-             <spacer name="verticalSpacer_2">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>20</width>
-                <height>40</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-           </layout>
-          </widget>
          </item>
         </layout>
        </item>
