@@ -34,44 +34,44 @@ from database.linkedin import LinkedInMessage, LinkedInConnection, LinkedInMessa
 # Element Identification Strings
 #########################################################
 class EIS:
-    login_header                             = "header__content__heading"
-    login_email_input                        = "username"
-    login_password_input                     = "password"
-    login_submit_button                      = "button[type=submit]"  # xpath
+    login_header                             = "header__content__heading"  # class
+    login_email_input                        = "username"  # id
+    login_password_input                     = "password"  # id
+    login_submit_button                      = "button[type=submit]"  # css selector
 
-    captcha_challenge                        = "captcha-challenge"
-    pin_verification_input                   = "input__email_verification_pin"
+    captcha_challenge                        = "captcha-challenge"  # id
+    pin_verification_input                   = "input__email_verification_pin"  # id
 
     general_search_bar                       = '//input[@placeholder="Search"]'  # xpath
 
-    connection_bar                           = "msg-overlay-bubble-header"
-    connection_bar_maximize                  = "overlay.maximize_connection_list_bar"
-    connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"
-    connection_message_select                = "//h4[text()={concat}]/../.."  # xpath
+    connection_bar                           = "msg-overlay-bubble-header"  # class
+    connection_bar_maximize                  = "overlay.maximize_connection_list_bar"  # data-control-name css selector
+    connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"  # id
+    connection_message_select                = "//h4[text()={concat}]/../.."  # xpath (must be formatted)
 
-    message_scroll_box                       = "msg-s-message-list"
-    message_editor                           = "msg-form__contenteditable"
-    message_send                             = "msg-form__send-button"
-    message_item                             = "msg-s-message-list__event"
-    message_date                             = "msg-s-message-list__time-heading"
-    message_time                             = "msg-s-message-group__timestamp"
-    message_author                           = "msg-s-message-group__name"
-    message_body                             = "msg-s-event-listitem__body"
+    message_scroll_box                       = "msg-s-message-list"  # class
+    message_editor                           = "msg-form__contenteditable"  # class
+    message_send                             = "msg-form__send-button"  # class
+    message_item                             = "msg-s-message-list__event"  # class
+    message_date                             = "msg-s-message-list__time-heading"  # class
+    message_time                             = "msg-s-message-group__timestamp"  # class
+    message_author                           = "msg-s-message-group__name"  # class
+    message_body                             = "msg-s-event-listitem__body"  # class
 
     profile_link                             = '//span[text()="{connectionName}"]./..'  # xpath
     connection_request_accept_button         = "//button[@class='invitation-card__action-btn artdeco-button" \
-                                               "artdeco-button--2 artdeco-button--secondary ember-view']"
+                                               "artdeco-button--2 artdeco-button--secondary ember-view']"  # xpath
 
     profile_picture                          = '//div[@data-control-name="identity_profile_photo"]/..'  # xpath
     all_connections_link                     = '//a[@data-control-name="topcard_view_all_connections"]'  # xpath
     connection_card_info_class               = 'search-result__info'  # class
-    connection_card_profile_link             = '[data-control-name="search_srp_result"]'
-    connection_card_position                 = "subline-level-1"
-    connection_card_location                 = "subline-level-2"
+    connection_card_profile_link             = '[data-control-name="search_srp_result"]'  # css selector
+    connection_card_position                 = "subline-level-1"  # class
+    connection_card_location                 = "subline-level-2"  # class
     connection_card_mutual_text              = 'search-result__social-proof-count'
-    connection_card_mutual_link              = '[data-control-name="view_mutual_connections"]'
+    connection_card_mutual_link              = '[data-control-name="view_mutual_connections"]'  # css selector
     no_results_button                        = '//button[@data-test="no-results-cta"]'  # xpath
-    connect_button                           = '//button[@data-control-name="srp_profile_actions"]'
+    connect_button                           = 'button[@data-control-name="srp_profile_actions"]'  # xpath
 
     all_filters_button                       = '//button[@data-control-name="all_filters"]'  # xpath
     apply_all_filters_button                 = '//button[@data-control-name="all_filters_apply"]'  # xpath
