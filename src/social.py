@@ -4,6 +4,7 @@ Scrape the LinkedIn conversations
 
 import os
 import sys
+import logging
 from PySide2.QtWidgets import QApplication
 from PySide2.QtCore import QTimer, QThreadPool, Signal, Qt
 
@@ -11,13 +12,16 @@ from gui.mainwindow import SocialView
 import common.authenticate as inst
 import qtmodern.styles as styles
 from common.threading import Task
-from common.version import downloadInstaller, triggerUpdate, updateInProgress
+from common.version import downloadInstaller, triggerUpdate, updateInProgress, getCurrentVersion
 from common.beacon import Beacon
 
+logger = logging.getLogger("root")
 
 if __name__ == "__main__":
     if not inst.canRun():
         exit(0)
+
+    logging.info(f"Version: v{str(getCurrentVersion())}")
 
     # add the driver to the PATH variable
     os.environ["PATH"] += os.pathsep + os.path.abspath(os.path.join("..", "drivers", "windows"))
