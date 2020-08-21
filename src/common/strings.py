@@ -17,6 +17,9 @@ def equalTo(s1, s2, normalize_whitespace=True, normalize_html_chars=True):
 
     return s1 == s2
 
+def xpathConcat(s, quotation="'"):
+    return f"concat({quotation}" + f"{quotation}, {quotation}".join(list(s)) + f"{quotation})"
+
 
 def fromHTML(astring):
     return html.unescape(astring)

@@ -20,7 +20,7 @@ from site_controllers.decorators import *
 from emails import PinValidator
 
 from common.logging import initial_timestamp, LOG_FILES_DIR
-from common.strings import onlyAplhaNumeric, equalTo, fromHTML
+from common.strings import onlyAplhaNumeric, equalTo, fromHTML, xpathConcat
 from common.datetime import convertToDate, convertToTime, combineDateAndTime
 from common.waits import random_uniform_wait, send_keys_at_irregular_speed, necessary_wait
 from common.beacon import Beacon
@@ -46,11 +46,14 @@ class EIS:
 
     general_search_bar                       = '//input[@placeholder="Search"]'  # xpath
 
-    connection_bar                           = "msg-overlay-bubble-header"  # class
-    connection_bar_maximize                  = "overlay.maximize_connection_list_bar"  # data-control-name css selector
-    connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"  # id
-    connection_message_select                = "//h4[text()={concat}]/../.."  # xpath (must be formatted)
-    connection_messaging_popup_close         = '//header/section/button/li-icon[@type="cancel-icon"]/..'  # xpath
+    popup_connection_bar                     = "msg-overlay-bubble-header"  # class
+    popup_connection_bar_maximize            = "overlay.maximize_connection_list_bar"  # data-control-name css selector
+    popup_connection_search                  = "msg-overlay-list-bubble-search__search-typeahead-input"  # id
+    popup_connection_message_select          = "//h4[text()={search}]/../.."  # xpath (must be formatted)
+    popup_connection_messaging_popup_close   = '//header/section/button/li-icon[@type="cancel-icon"]/..'  # xpath
+
+    my_network_connection_search             = "mn-connections-search-input" # id
+    my_network_connection_message_button     = "//button[@aria-label={search}]" #xpath (must be formatted)
 
     message_scroll_box                       = "msg-s-message-list"  # class
     message_editor                           = "msg-form__contenteditable"  # class
@@ -61,7 +64,7 @@ class EIS:
     message_author                           = "msg-s-message-group__name"  # class
     message_body                             = "msg-s-event-listitem__body"  # class
 
-    profile_link                             = '//span[text()="{connectionName}"]./..'  # xpath
+    profile_link                             = '//span[text()="{connectionName}"]./..'  # xpath (must be formatted)
     connection_request_accept_button         = "//button[@class='invitation-card__action-btn artdeco-button" \
                                                "artdeco-button--2 artdeco-button--secondary ember-view']"  # xpath
 
@@ -114,7 +117,7 @@ class LinkedInController(Controller):
         self.mutualWindow = None
         self._criticalLoginInfo = LinkedInController.CRITICAL_LOGIN_INFO
         self.checkForValidConfiguration()
-        self.info(f"Created LinkedIn controller for {self._profile_name}")
+        self.debug(f"Created LinkedIn controller for {self._profile_name}")
         self.setMessageDelayRange(1, 2)
 
     @log_exceptions
@@ -192,11 +195,11 @@ class LinkedInController(Controller):
         if "Login" in self.browser.title or "Sign in" in self.browser.title:
 
             if self._email:
-                self.info(f"Entering email: {self._email}")
+                self.debug(f"Entering email: {self._email}")
                 send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_email_input), self._email, 1, 3, 0, .25)
 
             if self._password:
-                self.info(f"Entering password: {'*'*len(self._password)}")
+                self.debug(f"Entering password: {'*'*len(self._password)}")
                 send_keys_at_irregular_speed(self.browser.find_element_by_id(EIS.login_password_input), self._password, 1, 3, 0, .25)
 
             # If manual is True, we require the user to press the login button (allowing them to change the credentials too)
@@ -232,7 +235,7 @@ class LinkedInController(Controller):
 
                 def enterPIN(pin):
                     nonlocal entered
-                    self.info(f"Retrieved PIN: {pin}")
+                    self.debug(f"Retrieved PIN: {pin}")
                     pin_inputs[0].send_keys(pin + Keys.RETURN)
                     entered = True
 
@@ -247,7 +250,7 @@ class LinkedInController(Controller):
                 while True:
                     pin_inputs = self.browser.find_elements_by_id(EIS.pin_verification_input)
                     if not pin_inputs and not entered:
-                        self.info('PIN entered manually.')
+                        self.warning('detected that PIN was entered manually.')
                         break
                     elif entered:  # Entered automatically
                         break
@@ -262,13 +265,13 @@ class LinkedInController(Controller):
                 captcha = self.browser.find_elements_by_id(EIS.captcha_challenge)
                 if captcha:
                     if not found:
-                        self.critical(f"Detected Captcha. You have {timeout.total_seconds()/60} minutes to solve it.")
+                        self.warning(f"Detected Captcha. You have {timeout.total_seconds()/60} minutes to solve it.")
                         method = "captcha"
                         start = datetime.now()
                         found = True
 
                 if not found:
-                    self.info("Captcha was not detected.")
+                    self.debug("Captcha was not detected.")
                     break
                 elif found and not captcha:
                     self.info("Captcha solved.")
@@ -286,48 +289,78 @@ class LinkedInController(Controller):
     @authentication_required
     def maximizeConnectionPopup(self):
         """opens the connection popup"""
-        self.info("Finding connection list bar")
-        possible_connection_bars = self.browser.find_elements_by_class_name(EIS.connection_bar)
+        self.debug("Finding connection list bar")
+        possible_connection_bars = self.browser.find_elements_by_class_name(EIS.popup_connection_bar)
         for possibility in possible_connection_bars:
-            if possibility.get_attribute("data-control-name") == EIS.connection_bar_maximize:
-                self.info("maximizing the connection list")
+            if possibility.get_attribute("data-control-name") == EIS.popup_connection_bar_maximize:
+                self.debug("maximizing the connection list")
                 possibility.click()
 
     @log_exceptions
     @authentication_required
-    def searchForConnectionInPopup(self, person: str):
-        """Only search for a person in the popup connections bar."""
-        self.info(f"Searching for {person} in messages")
+    def searchForConnection(self, person: str, where:str="POPUP"):
+        """
+        Search for a person in the popup connections bar.
+        :param person: the person to search for
+        :param where: "POPUP", "MY_NETWORK", ...
+        """
+        self.debug(f"Searching for {person}.")
+
+        if where == "MY_NETWORK":
+            self.browser.get("https://www.linkedin.com/mynetwork/invite-connect/connections/")
+            searchbox_id = EIS.my_network_connection_search
+        elif where == "POPUP":
+            searchbox_id = EIS.popup_connection_search
+        else:
+            raise Exception("Invalid search location 'where'")
 
         # make sure conversation list is visible
         searchbox = WebDriverWait(self.browser, 10).until(
-            EC.visibility_of_element_located((By.ID, EIS.connection_search)))
-        self.info("The search field has been found")
+            EC.visibility_of_element_located((By.ID, searchbox_id)))
+        self.debug("The search field has been found")
         self.highlightElement(searchbox)
-        self.info("Clearing the search field")
+        self.debug("Clearing the search field")
         searchbox.send_keys(Keys.CONTROL + "a")
         searchbox.send_keys(Keys.DELETE)
-        self.info(f"Entering name in search field: {person}")
+        self.debug(f"Entering name in search field: {person}")
         send_keys_at_irregular_speed(searchbox, person, 1, 3, 0, .25)
         searchbox.send_keys(Keys.RETURN)
 
     @log_exceptions
     @authentication_required
-    def selectConnectionFromPopup(self, person: str):
-        """Select a person from the popup connection bar assuming they're already shown."""
-        self.info(f"Finding link to {person}'s list element")
+    def selectConnection(self, person: str, where:str= "POPUP"):
+        """
+        Select a person to send a message to.
+        :param person: The person to search for
+        :param where: "POPUP", "MY_NETWORK"
+        :return: True if connection was successfully selected and False otherwise
+        """
+        self.debug(f"Finding link to {person}'s list element")
 
         # If the person's name has quotations (single or double), use the opposite one to do the XPath search
-        if '"' in person:
-            quotation = "'"
-        else:
-            quotation = '"'
+        q = "'" if '"' in person else '"'
 
-        # Because names can have weird characters, we can have a list of search methods
+        # Construct the XPath queries depending on where we're searching.
+        attempts = []
+        if where == "POPUP":
+            attempts = [
+                EIS.popup_connection_message_select.format(search=q + person + q),
+                EIS.popup_connection_message_select.format(search=xpathConcat(person, q))
+            ]
+
+        elif where == "MY_NETWORK":
+            aria_label = f"Send message to {person}"
+            attempts = [
+                EIS.my_network_connection_message_button.format(search=q + aria_label + q),
+                EIS.my_network_connection_message_button.format(search=xpathConcat(aria_label, q))
+            ]
+
+        else:
+            raise Exception("Invalid search location 'where'")
+
         target_account = None
-        for textSearch in [quotation + person + quotation, "concat(\"" + "\", \"".join(list(person)) + "\")"]:
-            necessary_wait(1)
-            xpath_str = EIS.connection_message_select.format(concat=textSearch)
+        for xpath_str in attempts:
+            necessary_wait(2)
             try:
                 target_account = WebDriverWait(self.browser, 3) \
                     .until(EC.element_to_be_clickable((By.XPATH, xpath_str)))
@@ -337,24 +370,31 @@ class LinkedInController(Controller):
                 break
 
         if not target_account:
-            self.error(f"Unable to find connection: {person}. Moving on.")
             return False
 
-        self.info(f"scrolling through results to {person}")
+        self.debug(f"scrolling through results to {person}")
         ActionChains(self.browser).move_to_element(target_account).perform()
         necessary_wait(1)
         self.highlightElement(target_account)
-        self.info("Clicking on connection to open messaging box")
+        self.debug("Clicking on connection to open messaging box")
         target_account.click()
         return True
+
 
     @log_exceptions
     @authentication_required
     def openConversationWith(self, person: str):
         """Searches messages for the name entered, and gets the first person from the list"""
         self.maximizeConnectionPopup()
-        self.searchForConnectionInPopup(person)
-        return self.selectConnectionFromPopup(person)
+
+        for location in ["POPUP", "MY_NETWORK"]:
+            self.searchForConnection(person, where=location)
+            conversationOpened = self.selectConnection(person, where=location)
+            if conversationOpened:
+                return True
+
+        self.error(f"Unable to find connection: {person}.")
+        return False
 
     @log_exceptions
     @authentication_required
@@ -362,12 +402,12 @@ class LinkedInController(Controller):
         """Closes all open chat windows"""
         # I was having trouble iterating over all chat windows and closing them because when one closes, the others
         # become detached or something. Refreshing is a more robust way of closing the windows.
-        self.info("Clearing all open message dialogs to avoid mis-identification")
+        self.debug("Clearing all open message dialogs to avoid mis-identification")
 
         while True:
             try:
                 target_close_btn = WebDriverWait(self.browser, 1) \
-                    .until(EC.element_to_be_clickable((By.XPATH, EIS.connection_messaging_popup_close)))
+                    .until(EC.element_to_be_clickable((By.XPATH, EIS.popup_connection_messaging_popup_close)))
                 target_close_btn.click()
             except:
                 break
@@ -384,7 +424,7 @@ class LinkedInController(Controller):
         """Sends a message to the person."""
         person = connection.name
 
-        msg_details = f"""Sending message:
+        msg_details = f"""Preparing to send message:
 
                 To: {person}
                 From: {self._profile_name}
@@ -402,28 +442,28 @@ class LinkedInController(Controller):
         if not foundInList:
             return False
 
-        self.info("Finding the message box")
+        self.debug("Finding the message box")
         msg_box = self.browser.find_element_by_class_name(EIS.message_editor)
         self.highlightElement(msg_box)
-        self.info(f"Typing the message: {message}")
+        self.debug(f"Typing the message: {message}")
         send_keys_at_irregular_speed(msg_box, message, 1, 3, 0, .25)
-        self.info("Finding the submit button")
+        self.debug("Finding the submit button")
         msg_send = self.browser.find_element_by_class_name(EIS.message_send)
         self.highlightElement(msg_send)
-        self.info("Sending the message")
+        self.debug("Sending the message")
         msg_send.click()
 
         necessary_wait(2) # Wait for the message to be sent
 
-        self.info("Verifying the message was sent")
+        self.debug("Verifying the message was sent")
         now = datetime.now()
         msg, timestamp = self.getLastMessageWithConnection(person, assumeConversationIsOpened=True)
         if not msg or not equalTo(msg, message, normalize_whitespace=True) or timestamp - now > timedelta(minutes=1):
-            self.critical(f"The last message was '{msg}' and it was sent at {timestamp}")
+            self.debug(f"The last message was '{msg}' and it was sent at {timestamp}")
             raise MessageNotSentException(f"The message '{message}' was not sent to {person}")
-        self.info("The message was sent successfully")
 
-        self.info("Updating database")
+        self.info("Message Sent!")
+        self.debug("Updating database")
         msg = template.createMessageTo(connection)
         msg.recordAsDelivered()
         self.messageSent.emit(connection.id, msg.id)
@@ -520,7 +560,7 @@ class LinkedInController(Controller):
         :rtype: list of tuples where each element is (datetime, name, msg)
         """
 
-        self.info(f"Fetching conversation history with {person}")
+        self.debug(f"Fetching conversation history with {person}")
         if not assumeConversationIsOpened:
             self.closeAllChatWindows()
             self.openConversationWith(person)
@@ -531,7 +571,7 @@ class LinkedInController(Controller):
             scroll_areas = self.browser.find_elements_by_class_name(EIS.message_scroll_box)
             if scroll_areas:
                 scroll_area = scroll_areas[0]
-                self.info(f"Loading previous messages with {person}...")
+                self.debug(f"Loading previous messages with {person}...")
                 self.browser.execute_script("arguments[0].scrollTop = 0;", scroll_area)
                 necessary_wait(1)
                 currentHTML = scroll_area.get_attribute("innerHTML")
@@ -573,7 +613,7 @@ class LinkedInController(Controller):
 
         self.browser.implicitly_wait(Controller.IMPLICIT_WAIT)
 
-        self.info(f"{len(history)} messages with {person} found - returning {min(len(history), numMessages)}")
+        self.debug(f"{len(history)} messages with {person} found - returning {min(len(history), numMessages)}")
         wanted_history = history[-numMessages:]
         return wanted_history
 
@@ -584,7 +624,7 @@ class LinkedInController(Controller):
 
         accepted = []
 
-        self.info("Switching to network page")
+        self.debug("Switching to network page")
         self.browser.get('https://www.linkedin.com/mynetwork/')
 
         self.info('Getting connection requests')
@@ -595,7 +635,7 @@ class LinkedInController(Controller):
                 raise NoSuchElementException
 
         except NoSuchElementException:
-            self.info("No connections to accept, exiting with empty list.")
+            self.warning("No connections to accept, exiting with empty list.")
             return accepted
 
         for button in acceptButtons:
@@ -610,7 +650,7 @@ class LinkedInController(Controller):
             connectionName = html.unescape(tmp[len('Accept '):])
             firstName = connectionName.split(' ')[0]
 
-            self.info(f"Accepting {firstName} and adding to new connections list")
+            self.info(f"Accepting connection request from {firstName}")
             profLinkElement = self.browser.find_element_by_xpath(EIS.profile_link.format(connectionName = connectionName))
             profLink = profLinkElement.get_attribute('href')
             button.click()
@@ -640,13 +680,13 @@ class LinkedInController(Controller):
         connLink = self.browser.find_element_by_xpath(EIS.all_connections_link)
         connLink.click()
 
-        self.info('Waiting for page to load, getting URL')
+        self.debug('Waiting for page to load, getting URL')
         necessary_wait(2)
         baseURL = self.browser.current_url
         self.mainWindow = self.browser.window_handles[0]
 
         # Make new tab to handle the mutual connections stuff
-        self.info('Making new tab to handle mutual connections')
+        self.debug('Making new tab to handle mutual connections')
         self.browser.execute_script("window.open('');")
         self.mutualWindow = self.browser.window_handles[1]
 
@@ -747,7 +787,7 @@ class LinkedInController(Controller):
             try:
                 # Finding the button that appears when there are no results
                 self.browser.find_element_by_xpath(EIS.no_results_button)
-                self.info('End of connections\n')
+                self.debug('End of connections\n')
                 break
             except NoSuchElementException:
                 if num > oldNum:
@@ -760,7 +800,7 @@ class LinkedInController(Controller):
 
                 # Go to next page, and log it
                 page += 1
-                self.info(f'// Switching to page {page} of connections \\\\\n')
+                self.debug(f'// Switching to page {page} of connections \\\\\n')
                 self.browser.get(baseURL + f'&page={page}')
 
         self.connectionsScraped.emit()
@@ -786,7 +826,7 @@ class LinkedInController(Controller):
             # click last link
             mutualLink = connection.find_element_by_css_selector(EIS.connection_card_mutual_link).get_attribute('href')
 
-            self.info('Switching to 2nd tab')
+            self.debug('Switching to 2nd tab')
             self.browser.switch_to.window(self.mutualWindow)
             self.browser.get(mutualLink)
 
@@ -810,10 +850,10 @@ class LinkedInController(Controller):
                     break
                 except NoSuchElementException:
                     m_page += 1
-                    self.info(f'// Tab 2: Switching to page {m_page} of mutual connections \\\\')
+                    self.debug(f'// Tab 2: Switching to page {m_page} of mutual connections \\\\')
                     self.browser.get(m_baseURL + f'&page={m_page}')
 
-            self.info('Switching back to original tab')
+            self.debug('Switching back to original tab')
             self.browser.switch_to.window(self.mainWindow)
 
         elif sharedStr.find('are shared connections') > -1:  # 2, get both names
@@ -862,12 +902,12 @@ class LinkedInController(Controller):
         connLink = self.browser.find_element_by_xpath(EIS.all_connections_link)
         connLink.click()
 
-        self.info('Waiting for page to load')
+        self.debug('Waiting for page to load')
         necessary_wait(2)
         self.mainWindow = self.browser.window_handles[0]
 
         # Make new tab to handle the mutual connections stuff
-        self.info('Making new tab to handle mutual connections')
+        self.debug('Making new tab to handle mutual connections')
         self.browser.execute_script("window.open('');")
         self.mutualWindow = self.browser.window_handles[1]
 
@@ -883,7 +923,7 @@ class LinkedInController(Controller):
 
         for name, conn_id in known:
             progress += 1
-            self.info(f"({progress} of {total}) Searching for {name}")
+            self.debug(f"({progress} of {total}) Searching for {name}")
 
             random_uniform_wait(.6, 1)
 
@@ -937,7 +977,7 @@ class LinkedInController(Controller):
         acct = Session.query(LinkedInAccount).filter(LinkedInAccount.id == account_id)[0]
         dact = LinkedInAccountDailyActivity.getToday(account_id)
 
-        self.info('Going to search page')
+        self.debug('Going to search page')
         self.browser.get('https://www.linkedin.com/in/me/')
 
         # Find connection page link, click on it
@@ -955,7 +995,7 @@ class LinkedInController(Controller):
         page = 1
         num = 0
         lim = criteria['Request Limit']
-        self.info(f'// On page 1 of results \\\\\n')
+        self.debug(f'// On page 1 of results \\\\\n')
 
         while True:
 
@@ -970,7 +1010,7 @@ class LinkedInController(Controller):
             for connection in conns:
                 # First check the limits (against the entered amount and against the daily limit)
                 if num == lim or acct.getTodaysRemainingActions() <= 0:  # lte just in case it somehow dips below
-                    self.info('Reached the local connection request limit')
+                    self.critical('Reached the local connection request limit')
                     return
 
                 # Wait a bit
@@ -989,7 +1029,7 @@ class LinkedInController(Controller):
                     pass
                 else:
                     if fromHTML(button.text) == 'Connect':
-                        self.info(f'Requesting {name} to connect')
+                        self.info(f'Requesting to connect with {name}')
 
                         self.browser.execute_script("arguments[0].click();", button)
 
@@ -1015,7 +1055,7 @@ class LinkedInController(Controller):
             except NoSuchElementException:
                 # Go to next page, and log it
                 page += 1
-                self.info(f'// Switching to page {page} of results \\\\\n')
+                self.debug(f'// Switching to page {page} of results \\\\\n')
                 self.browser.get(baseURL + f'&page={page}')
 
     @log_exceptions
@@ -1025,7 +1065,7 @@ class LinkedInController(Controller):
         Sets the search criteria on the connections page
         """
 
-        self.info('--- Entering all criteria ---')
+        self.debug('--- Entering all criteria ---')
 
         # click the all filters button
         self.browser.find_element_by_xpath(EIS.all_filters_button).click()
@@ -1040,7 +1080,7 @@ class LinkedInController(Controller):
 
         if criteria['2nd Connections']:
             # select second connections
-            self.info('Choosing 2nd connections')
+            self.debug('Choosing 2nd connections')
             box = self.browser.find_element_by_id(EIS.second_connections_box)
             self.browser.execute_script("arguments[0].click();", box)
 
@@ -1055,7 +1095,7 @@ class LinkedInController(Controller):
             random_uniform_wait(.4, .7)
 
             # write the location
-            self.info(f'Entering location: {loc}')
+            self.debug(f'Entering location: {loc}')
             send_keys_at_irregular_speed(locationBox, loc, 1, 3, 0, .25)
 
             random_uniform_wait(.3, .5)
@@ -1078,7 +1118,7 @@ class LinkedInController(Controller):
                 random_uniform_wait(.4, .7)
 
                 # write the company name
-                self.info(f'Entering company name: {comp}')
+                self.debug(f'Entering company name: {comp}')
                 send_keys_at_irregular_speed(compBox, comp, 1, 3, 0, .25)
 
                 random_uniform_wait(1, 1.5)
@@ -1093,21 +1133,20 @@ class LinkedInController(Controller):
         # Enter first name
         if firstName := criteria['First Name']:
             random_uniform_wait(.4, .9)
-            self.info(f'Entering first name: {firstName}')
+            self.debug(f'Entering first name: {firstName}')
             box = self.browser.find_element_by_id(EIS.firstname_box)
             send_keys_at_irregular_speed(box, firstName, 1, 3, 0, .25)
 
         # Enter last name
         if lastName := criteria['Last Name']:
             random_uniform_wait(.4, .9)
-            self.info(f'Entering last name: {lastName}')
+            self.debug(f'Entering last name: {lastName}')
             box = self.browser.find_element_by_id(EIS.lastname_box)
             send_keys_at_irregular_speed(box, lastName, 1, 3, 0, .25)
 
         # Apply the filters
         random_uniform_wait(1, 2)
         self.browser.find_element_by_xpath(EIS.apply_all_filters_button).click()
-        self.info('')
 
 
 # --- QRunnables and Tasks ---------------------------------------------------------------------------------------------
