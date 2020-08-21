@@ -51,6 +51,10 @@ class LinkedInAccount(Base):
         activityToday.activity_limit = newLimit
         Session.commit()
 
+    def getTodaysRemainingActions(self):
+        activityToday = LinkedInAccountDailyActivity.getToday(self.id)
+        return activityToday.activity_limit - activityToday.message_count - activityToday.connection_request_count
+
     def getDailyActivityLimit(self):
         """Get the linkedin account's daily activity limit"""
         return LinkedInAccountDailyActivity.getToday(self.id).activity_limit
@@ -87,6 +91,8 @@ class LinkedInAccountDailyActivity(Base):
         If it exists already, just return the record that exists.
         If not, create and return a new record with the limit automatically increased.
         """
+        Session.commit()  # updates everything
+
         account = Session.query(LinkedInAccount).filter(
             LinkedInAccount.id == account_id
         ).one_or_none()

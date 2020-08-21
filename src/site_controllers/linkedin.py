@@ -27,51 +27,65 @@ from common.beacon import Beacon
 from common.threading import Task as ncTask
 
 from database.general import Session
-from database.linkedin import LinkedInMessage, LinkedInConnection, LinkedInMessageTemplate
+from database.linkedin import (LinkedInMessage, LinkedInConnection, LinkedInMessageTemplate,
+                               LinkedInAccountDailyActivity, LinkedInAccount)
 
 
 #########################################################
 # Element Identification Strings
 #########################################################
 class EIS:
-    login_header                             = "header__content__heading"
-    login_email_input                        = "username"
-    login_password_input                     = "password"
-    login_submit_button                      = "button[type=submit]"
 
-    captcha_challenge                        = "captcha-challenge"
-    pin_verification_input                   = "input__email_verification_pin"
+    login_header                             = "header__content__heading"  # class
+    login_email_input                        = "username"  # id
+    login_password_input                     = "password"  # id
+    login_submit_button                      = "button[type=submit]"  # css selector
 
-    general_search_bar                       = '//input[@placeholder="Search"]'
+    captcha_challenge                        = "captcha-challenge"  # id
+    pin_verification_input                   = "input__email_verification_pin"  # id
 
-    connection_bar                           = "msg-overlay-bubble-header"
-    connection_bar_maximize                  = "overlay.maximize_connection_list_bar"
-    connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"
-    connection_message_select                = "//h4[text()={concat}]/../.."
-    connection_messaging_popup_close         = '//header/section/button/li-icon[@type="cancel-icon"]/..'
+    general_search_bar                       = '//input[@placeholder="Search"]'  # xpath
 
-    message_scroll_box                       = "msg-s-message-list"
-    message_editor                           = "msg-form__contenteditable"
-    message_send                             = "msg-form__send-button"
-    message_item                             = "msg-s-message-list__event"
-    message_date                             = "msg-s-message-list__time-heading"
-    message_time                             = "msg-s-message-group__timestamp"
-    message_author                           = "msg-s-message-group__name"
-    message_body                             = "msg-s-event-listitem__body"
+    connection_bar                           = "msg-overlay-bubble-header"  # class
+    connection_bar_maximize                  = "overlay.maximize_connection_list_bar"  # data-control-name css selector
+    connection_search                        = "msg-overlay-list-bubble-search__search-typeahead-input"  # id
+    connection_message_select                = "//h4[text()={concat}]/../.."  # xpath (must be formatted)
+    connection_messaging_popup_close         = '//header/section/button/li-icon[@type="cancel-icon"]/..'  # xpath
 
-    profile_link                             = '//span[text()="{connectionName}"]./..'
+    message_scroll_box                       = "msg-s-message-list"  # class
+    message_editor                           = "msg-form__contenteditable"  # class
+    message_send                             = "msg-form__send-button"  # class
+    message_item                             = "msg-s-message-list__event"  # class
+    message_date                             = "msg-s-message-list__time-heading"  # class
+    message_time                             = "msg-s-message-group__timestamp"  # class
+    message_author                           = "msg-s-message-group__name"  # class
+    message_body                             = "msg-s-event-listitem__body"  # class
+
+    profile_link                             = '//span[text()="{connectionName}"]./..'  # xpath
     connection_request_accept_button         = "//button[@class='invitation-card__action-btn artdeco-button" \
-                                               "artdeco-button--2 artdeco-button--secondary ember-view']"
+                                               "artdeco-button--2 artdeco-button--secondary ember-view']"  # xpath
 
-    profile_picture                          = '//div[@data-control-name="identity_profile_photo"]/..'
-    all_connections_link                     = '//a[@data-control-name="topcard_view_all_connections"]'
-    connection_card_info_class               = 'search-result__info'
-    connection_card_profile_link             = '[data-control-name="search_srp_result"]'
-    connection_card_position                 = "subline-level-1"
-    connection_card_location                 = "subline-level-2"
+    profile_picture                          = '//div[@data-control-name="identity_profile_photo"]/..'  # xpath
+    all_connections_link                     = '//a[@data-control-name="topcard_view_all_connections"]'  # xpath
+    connection_card                          = 'search-result__wrapper'  # class
+    connection_card_info_class               = 'search-result__info'  # class
+    connection_card_profile_link             = '[data-control-name="search_srp_result"]'  # css selector
+    connection_card_position                 = "subline-level-1"  # class
+    connection_card_location                 = "subline-level-2"  # class
     connection_card_mutual_text              = 'search-result__social-proof-count'
-    connection_card_mutual_link              = '[data-control-name="view_mutual_connections"]'
-    no_results_button                        = '//button[@data-test="no-results-cta"]'
+    connection_card_mutual_link              = '[data-control-name="view_mutual_connections"]'  # css selector
+    no_results_button                        = '//button[@data-test="no-results-cta"]'  # xpath
+    connect_button                           = 'button[data-control-name="srp_profile_actions"]'  # css selector
+    confirm_request_button                   = '//button[@aria-label="Send now"]'
+
+    all_filters_button                       = '//button[@data-control-name="all_filters"]'  # xpath
+    apply_all_filters_button                 = '//button[@data-control-name="all_filters_apply"]'  # xpath
+    first_connections_box                    = 'sf-network-F'  # id
+    second_connections_box                   = 'sf-network-S'  # id
+    location_box                             = '//input[@placeholder="Add a country/region"]'  # xpath
+    current_company_box                      = '//input[@placeholder="Add a current company"]'  # xpath
+    firstname_box                            = 'search-advanced-firstName'  # id
+    lastname_box                             = 'search-advanced-lastName'  # id
 
 
 class LinkedInException(ControllerException):
@@ -86,6 +100,7 @@ class LinkedInController(Controller):
 
     Beacon.connectionsScraped = Signal()
     Beacon.messageSent = Signal(int, int)  # connection id, message id
+    Beacon.requestSent = Signal()
 
     CRITICAL_LOGIN_INFO = ("email", "password")
 
@@ -833,6 +848,8 @@ class LinkedInController(Controller):
 
         return link, position, location
 
+    @log_exceptions
+    @authentication_required
     def refreshAll(self, known):
         """
         Updates information about all connections stored in the known list
@@ -908,6 +925,192 @@ class LinkedInController(Controller):
 
         Session.commit()
         self.info('Done.')
+
+    @log_exceptions
+    @authentication_required
+    def requestNewConnections(self, account_id, criteria):
+        """
+        Requests new connections using the specified criteria
+        """
+
+        # Get the account and daily activity
+        acct = Session.query(LinkedInAccount).filter(LinkedInAccount.id == account_id)[0]
+        dact = LinkedInAccountDailyActivity.getToday(account_id)
+
+        self.info('Going to search page')
+        self.browser.get('https://www.linkedin.com/in/me/')
+
+        # Find connection page link, click on it
+        connLink = self.browser.find_element_by_xpath(EIS.all_connections_link)
+        connLink.click()
+
+        necessary_wait(2)
+
+        # Enter and apply the search criteria
+        self.setSearchCriteria(criteria)
+
+        necessary_wait(1)
+        baseURL = self.browser.current_url
+
+        page = 1
+        num = 0
+        lim = criteria['Request Limit']
+        self.info(f'// On page 1 of results \\\\\n')
+
+        while True:
+
+            # Zoom out the css enough for all 10 listed connections to be on page
+            self.browser.execute_script("document.body.style.zoom='20%'")
+            necessary_wait(.5)  # Have to wait for script to execute
+
+            # Get all connection cards
+            conns = self.browser.find_elements_by_class_name(EIS.connection_card)
+
+            # Iterate through them
+            for connection in conns:
+                # First check the limits (against the entered amount and against the daily limit)
+                if num == lim or acct.getTodaysRemainingActions() <= 0:  # lte just in case it somehow dips below
+                    self.info('Reached the local connection request limit')
+                    return
+
+                # Wait a bit
+                random_uniform_wait(1, 2)
+
+                # TODO: Determine what info we want to keep about requested connections.
+                #  Keeping none other than number for the moment
+                # Get the name for this connection
+                name = fromHTML(connection.find_element_by_class_name("name").get_attribute('innerHTML'))
+
+                try:
+                    button = connection.find_element_by_css_selector(EIS.connect_button)
+                    print(button.text)
+                except NoSuchElementException:
+                    # Some connections have no button or a 'Follow' button instead of a connect button
+                    pass
+                else:
+                    if fromHTML(button.text) == 'Connect':
+                        self.info(f'Requesting {name} to connect')
+
+                        self.browser.execute_script("arguments[0].click();", button)
+
+                        random_uniform_wait(1, 2)
+
+                        try:
+                            confirm = self.browser.find_element_by_xpath(EIS.confirm_request_button)
+                            self.browser.execute_script("arguments[0].click();", confirm)
+                        except NoSuchElementException:
+                            # Didn't have confirmation dialog
+                            pass
+
+                        num += 1
+                        dact.connection_request_count += 1
+                        Session.commit()
+                        self.requestSent.emit()
+
+            try:
+                # Finding the button that appears when there are no results
+                self.browser.find_element_by_xpath(EIS.no_results_button)
+                self.info(f'End of results, requested {num} connections.\n')
+                break
+            except NoSuchElementException:
+                # Go to next page, and log it
+                page += 1
+                self.info(f'// Switching to page {page} of results \\\\\n')
+                self.browser.get(baseURL + f'&page={page}')
+
+    @log_exceptions
+    @authentication_required
+    def setSearchCriteria(self, criteria):
+        """
+        Sets the search criteria on the connections page
+        """
+
+        self.info('--- Entering all criteria ---')
+
+        # click the all filters button
+        self.browser.find_element_by_xpath(EIS.all_filters_button).click()
+
+        random_uniform_wait(1, 2)
+
+        # unselect first connections
+        box = self.browser.find_element_by_id(EIS.first_connections_box)
+        self.browser.execute_script("arguments[0].click();", box)
+
+        random_uniform_wait(.5, .9)
+
+        if criteria['2nd Connections']:
+            # select second connections
+            self.info('Choosing 2nd connections')
+            box = self.browser.find_element_by_id(EIS.second_connections_box)
+            self.browser.execute_script("arguments[0].click();", box)
+
+        if criteria['3rd Connections']:
+            # The 3rd connections box is disabled so this can be implemented later if we have a client who wants this
+            pass
+
+        # Enter all locations
+        locationBox = self.browser.find_element_by_xpath(EIS.location_box)
+
+        for loc in criteria['Locations']:
+            random_uniform_wait(.4, .7)
+
+            # write the location
+            self.info(f'Entering location: {loc}')
+            send_keys_at_irregular_speed(locationBox, loc, 1, 3, 0, .25)
+
+            random_uniform_wait(.3, .5)
+
+            # select the first entry
+            locationBox.send_keys(Keys.DOWN)
+            random_uniform_wait(.1, .2)
+            locationBox.send_keys(Keys.RETURN)
+            random_uniform_wait(.3, .5)
+            locationBox.clear()
+
+        # Enter all current companies
+        try:
+            compBox = self.browser.find_element_by_xpath(EIS.current_company_box)
+        except NoSuchElementException:
+            # Some profiles don't have this option
+            pass
+        else:
+            for comp in criteria['Companies']:
+                random_uniform_wait(.4, .7)
+
+                # write the company name
+                self.info(f'Entering company name: {comp}')
+                send_keys_at_irregular_speed(compBox, comp, 1, 3, 0, .25)
+
+                random_uniform_wait(1, 1.5)
+
+                # select the first entry
+                locationBox.send_keys(Keys.DOWN)
+                random_uniform_wait(.1, .2)
+                locationBox.send_keys(Keys.RETURN)
+                random_uniform_wait(.3, .5)
+                locationBox.clear()
+
+        # Enter first name
+        if firstName := criteria['First Name']:
+            random_uniform_wait(.4, .9)
+            self.info(f'Entering first name: {firstName}')
+            box = self.browser.find_element_by_id(EIS.firstname_box)
+            send_keys_at_irregular_speed(box, firstName, 1, 3, 0, .25)
+
+        # Enter last name
+        if lastName := criteria['Last Name']:
+            random_uniform_wait(.4, .9)
+            self.info(f'Entering last name: {lastName}')
+            box = self.browser.find_element_by_id(EIS.lastname_box)
+            send_keys_at_irregular_speed(box, lastName, 1, 3, 0, .25)
+
+        # Apply the filters
+        random_uniform_wait(1, 2)
+        self.browser.find_element_by_xpath(EIS.apply_all_filters_button).click()
+        self.info('')
+
+
+# --- QRunnables and Tasks ---------------------------------------------------------------------------------------------
 
 
 class LinkedInMessenger(Task):
@@ -1025,15 +1228,16 @@ class LinkedInConnectionRequestAccepter(Task):
 
 class LinkedInConnectionRequestSender(Task):
 
-    def __init__(self, controller, options, setup_func=None, teardown_func=None):
+    def __init__(self, controller, account_id, criteria, setup_func=None, teardown_func=None):
         super().__init__(controller, setup = setup_func, teardown = teardown_func)
-        self.options: dict = options
+        self.criteria: dict = criteria
+        self.id = account_id
 
     def run(self):
         self.setup()
-        opts = self.options
+
         self.controller.start()
 
-        # TODO: call function to send connection requests
+        self.controller.requestNewConnections(self.id, self.criteria)
 
         self.teardown()

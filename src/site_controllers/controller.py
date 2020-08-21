@@ -104,7 +104,7 @@ class Controller(AbstractBaseClass):
 
     def stop(self):
         """Stops the controller by closing the browser"""
-        if not self.isStopping:
+        if not self.isStopping and self.browser:
             self.isStopping = True
             self.browser.quit()
 

@@ -1,6 +1,6 @@
 import logging
 
-from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout
+from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QApplication
 
 from gui.ui.ui_mainwindow import Ui_MainWindow
 from gui.instancetabwidget import InstanceTabWidget
