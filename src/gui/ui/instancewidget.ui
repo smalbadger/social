@@ -38,7 +38,7 @@
       </sizepolicy>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>3</number>
      </property>
      <property name="iconSize">
       <size>
@@ -731,7 +731,7 @@
          <item>
           <widget class="QGroupBox" name="groupBox">
            <property name="title">
-            <string>Messaging Speed Controls</string>
+            <string>Message Throttling</string>
            </property>
            <layout class="QFormLayout" name="formLayout">
             <item row="0" column="0">
