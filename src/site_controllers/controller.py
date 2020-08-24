@@ -143,23 +143,37 @@ class Controller(AbstractBaseClass):
         :return: True if the browser is running and False otherwise.
         :rtype: bool
         """
-        if not self.browser or not self.browser.service or not self.browser.service.process:
-            return False
-
+        ################################################################################################################
+        # Option 1: Simple and seems to work.
+        ################################################################################################################
         try:
-            driver_process = psutil.Process(self.browser.service.process.pid)
-            if driver_process.is_running():
-                children_processes = driver_process.children()
-                if children_processes:
-                    child_process = children_processes[0]
-                    if child_process.is_running():
-                        return True
-                    else:
-                        child_process.kill()
+            _ = self.browser.title
+            return True
+        except:
             return False
 
-        except:  # If process no longer exists
-            return False
+        ################################################################################################################
+        # Option 2: Might be crashing the program when the browser is manually closed, but maybe something else is going
+        #           on.
+        ################################################################################################################
+        # if not self.browser or not self.browser.service or not self.browser.service.process:
+        #     return False
+        #
+        #
+        # try:
+        #     driver_process = psutil.Process(self.browser.service.process.pid)
+        #     if driver_process.is_running():
+        #         children_processes = driver_process.children()
+        #         if children_processes:
+        #             child_process = children_processes[0]
+        #             if child_process.is_running():
+        #                 return True
+        #             else:
+        #                 child_process.kill()
+        #     return False
+        #
+        # except:  # If process no longer exists
+        #     return False
 
     @property
     def browser(self) -> Remote:

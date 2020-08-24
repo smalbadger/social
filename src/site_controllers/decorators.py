@@ -1,13 +1,13 @@
+import os
 from functools import wraps
 import time
-from subprocess import check_call
+from subprocess import check_output
 import common.authenticate as inst
-import logging
 from ping3 import ping
 
 
 def ensure_browser_is_running(func):
-    """Makes the browser is started before a function is called"""
+    """Makes sure the browser is started before a function is called"""
     @wraps(func)
     def check(*args, **kwargs):
         controller = args[0]
@@ -16,6 +16,17 @@ def ensure_browser_is_running(func):
             controller.start()
 
         return func(*args, **kwargs)
+
+    return check
+
+def only_if_browser_is_running(func):
+    """Only runs the function if the browser is running"""
+    @wraps(func)
+    def check(*args, **kwargs):
+        controller = args[0]
+
+        if controller.isRunning:
+            return func(*args, **kwargs)
 
     return check
 
@@ -84,10 +95,15 @@ def connection_required(func, url="google.com", timeout=10, retries=3):
             if n < retries-1:
                 controller.info("Attempting to connect")
 
-            check_call(['restartwireless.bat'])
-            time.sleep(3)
-            controller.browser.refresh()
+            name = os.environ.get('Social_Network_Name')
 
+            if name:
+                response = check_output(['netsh', 'wlan', 'connect', name])
+                print(response)
+                time.sleep(3)
+                controller.browser.refresh()
+            else:
+                print("Missing Network Environment Variables!")
 
         if not live:
             exit(200)
@@ -95,3 +111,4 @@ def connection_required(func, url="google.com", timeout=10, retries=3):
         return func(*args, **kwargs)
 
     return wrapper
+

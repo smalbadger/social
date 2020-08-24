@@ -146,12 +146,14 @@ class LinkedInController(Controller):
         """Gets the name of the logger that this controller is using"""
         return self._loggerName
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     def auth_check(self):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
 
+    @only_if_browser_is_running
     @connection_required
     @finish_executing
     @log_exceptions
@@ -287,6 +289,7 @@ class LinkedInController(Controller):
         if not self.auth_check():
             raise AuthenticationException("For some reason, we couldn't leave the login page.")
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -299,6 +302,7 @@ class LinkedInController(Controller):
                 self.debug("maximizing the connection list")
                 possibility.click()
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -330,6 +334,7 @@ class LinkedInController(Controller):
         send_keys_at_irregular_speed(searchbox, person, 1, 3, 0, .25)
         searchbox.send_keys(Keys.RETURN)
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -385,6 +390,7 @@ class LinkedInController(Controller):
         target_account.click()
         return True
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -401,6 +407,7 @@ class LinkedInController(Controller):
         self.error(f"Unable to find connection: {person}.")
         return False
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -423,6 +430,7 @@ class LinkedInController(Controller):
         self.minMessagingDelay = minimum
         self.maxMessagingDelay = maximum
 
+    @only_if_browser_is_running
     @connection_required
     @finish_executing
     @log_exceptions
@@ -478,14 +486,17 @@ class LinkedInController(Controller):
         Session.commit()
         return True
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
     def messageAll(self, connections: list, usingTemplate, checkPastMessages=True):
         """Messages all connections with the template usingTemplate (a query object)"""
-        # TODO: Check for past messages sent by this bot
 
         for connection in connections:  # each connection is a query object
+
+            if not self.isRunning:
+                return
 
             if connection.account.dailyActivityLimitReached():
                 self.critical("Daily limit reached. No more messages will be sent on this account")
@@ -526,6 +537,7 @@ class LinkedInController(Controller):
                     self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
                     random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -556,6 +568,7 @@ class LinkedInController(Controller):
 
         return msg, datetime
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -627,6 +640,7 @@ class LinkedInController(Controller):
         wanted_history = history[-numMessages:]
         return wanted_history
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -669,6 +683,7 @@ class LinkedInController(Controller):
 
         return accepted
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -712,6 +727,7 @@ class LinkedInController(Controller):
 
         return connections
 
+    @only_if_browser_is_running
     @connection_required
     @finish_executing
     @log_exceptions
@@ -819,6 +835,7 @@ class LinkedInController(Controller):
         self.connectionsScraped.emit()
         self.info(f'** Scraped {num} connections and their information. **\n')
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -879,6 +896,7 @@ class LinkedInController(Controller):
         self.info(f'Found {len(names)} mutual connection(s)')
         return names
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -903,6 +921,7 @@ class LinkedInController(Controller):
 
         return link, position, location
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -982,6 +1001,7 @@ class LinkedInController(Controller):
         Session.commit()
         self.info('Done.')
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required
@@ -1075,6 +1095,7 @@ class LinkedInController(Controller):
                 self.debug(f'// Switching to page {page} of results \\\\\n')
                 self.browser.get(baseURL + f'&page={page}')
 
+    @only_if_browser_is_running
     @connection_required
     @log_exceptions
     @authentication_required

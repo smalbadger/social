@@ -80,7 +80,9 @@ class MessagePreviewDialog(QDialog):
         self.show()
 
         if self.allMessagesAreInvalid():
+            self.ui.buttonBox.button(QDialogButtonBox.Yes).setEnabled(False)
             QMessageBox.critical(self.window(), "Invalid Messages", "This message is undeliverable to all selected connections.")
+
 
         elif self.allMessagesHaveBeenSent():
             QMessageBox.critical(self.window(), "Already Sent", "This message has already been sent to each targeted connection.")
@@ -92,8 +94,6 @@ class MessagePreviewDialog(QDialog):
                                 f"because some placeholders could not be properly replaced. The message will not be"
                                 f"sent to the connections where the message is invalid.")
 
-        if not self.containsValidConnectionMessage():
-            self.ui.buttonBox.button(QDialogButtonBox.Yes).setEnabled(False)
 
     def populateMessagePreview(self):
 
