@@ -94,7 +94,6 @@ class MessagePreviewDialog(QDialog):
                                 f"because some placeholders could not be properly replaced. The message will not be"
                                 f"sent to the connections where the message is invalid.")
 
-
     def populateMessagePreview(self):
 
         message = ""

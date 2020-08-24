@@ -654,6 +654,12 @@ class InstanceWidget(QWidget):
 
             self.fetchValues()
 
+        else:
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(True)
+            self.ui.sendConnectionRequestsBtn.setEnabled(True)
+
     def scrapeConnectionsInBulk(self, checked):
         """Synchronizes account using options given in GUI"""
 
