@@ -146,12 +146,14 @@ class LinkedInController(Controller):
         """Gets the name of the logger that this controller is using"""
         return self._loggerName
 
+    @connection_required
     @log_exceptions
     def auth_check(self):
         # TODO: Improve this check
         return "Login" not in self.browser.title and "Sign in" not in self.browser.title
 
-    @finish_executing  # TODO: Here for testing, remove later
+    @connection_required
+    @finish_executing
     @log_exceptions
     def login(self, manual=False):
         """
@@ -285,6 +287,7 @@ class LinkedInController(Controller):
         if not self.auth_check():
             raise AuthenticationException("For some reason, we couldn't leave the login page.")
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def maximizeConnectionPopup(self):
@@ -296,6 +299,7 @@ class LinkedInController(Controller):
                 self.debug("maximizing the connection list")
                 possibility.click()
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def searchForConnection(self, person: str, where:str="POPUP"):
@@ -326,6 +330,7 @@ class LinkedInController(Controller):
         send_keys_at_irregular_speed(searchbox, person, 1, 3, 0, .25)
         searchbox.send_keys(Keys.RETURN)
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def selectConnection(self, person: str, where:str= "POPUP"):
@@ -380,7 +385,7 @@ class LinkedInController(Controller):
         target_account.click()
         return True
 
-
+    @connection_required
     @log_exceptions
     @authentication_required
     def openConversationWith(self, person: str):
@@ -396,6 +401,7 @@ class LinkedInController(Controller):
         self.error(f"Unable to find connection: {person}.")
         return False
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def closeAllChatWindows(self):
@@ -417,6 +423,7 @@ class LinkedInController(Controller):
         self.minMessagingDelay = minimum
         self.maxMessagingDelay = maximum
 
+    @connection_required
     @finish_executing
     @log_exceptions
     @authentication_required
@@ -471,6 +478,7 @@ class LinkedInController(Controller):
         Session.commit()
         return True
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def messageAll(self, connections: list, usingTemplate, checkPastMessages=True):
@@ -518,6 +526,7 @@ class LinkedInController(Controller):
                     self.debug(f"WAITING BOUNDS: {self.minMessagingDelay} {self.maxMessagingDelay}")
                     random_uniform_wait(self.minMessagingDelay, self.maxMessagingDelay, self)
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def getLastMessageWithConnection(self, person, assumeConversationIsOpened=False):
@@ -547,6 +556,7 @@ class LinkedInController(Controller):
 
         return msg, datetime
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def getConversationHistory(self, person: str, numMessages = 1_000_000, assumeConversationIsOpened=False):
@@ -617,6 +627,7 @@ class LinkedInController(Controller):
         wanted_history = history[-numMessages:]
         return wanted_history
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def acceptAllConnections(self) -> list:
@@ -658,6 +669,7 @@ class LinkedInController(Controller):
 
         return accepted
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def getNewConnections(self, account_id, known: list = None, getMutualInfoFor: list = None,
@@ -700,6 +712,7 @@ class LinkedInController(Controller):
 
         return connections
 
+    @connection_required
     @finish_executing
     @log_exceptions
     @authentication_required
@@ -806,6 +819,7 @@ class LinkedInController(Controller):
         self.connectionsScraped.emit()
         self.info(f'** Scraped {num} connections and their information. **\n')
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def getMutualConnectionsWith(self, connection):
@@ -865,6 +879,7 @@ class LinkedInController(Controller):
         self.info(f'Found {len(names)} mutual connection(s)')
         return names
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def getConnectionInfo(self, connection, pos=True, loc=True):
@@ -888,6 +903,7 @@ class LinkedInController(Controller):
 
         return link, position, location
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def refreshAll(self, known):
@@ -966,6 +982,7 @@ class LinkedInController(Controller):
         Session.commit()
         self.info('Done.')
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def requestNewConnections(self, account_id, criteria):
@@ -1058,6 +1075,7 @@ class LinkedInController(Controller):
                 self.debug(f'// Switching to page {page} of results \\\\\n')
                 self.browser.get(baseURL + f'&page={page}')
 
+    @connection_required
     @log_exceptions
     @authentication_required
     def setSearchCriteria(self, criteria):

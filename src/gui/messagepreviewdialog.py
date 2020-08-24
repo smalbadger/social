@@ -11,6 +11,7 @@ from gui.templateeditwidget import TemplateEditWidget
 APPROVED = 1
 UNAPPROVED = 2
 INVALID = 3
+ALREADY_SENT = 4
 
 
 class MessagePreviewDialog(QDialog):
@@ -24,6 +25,8 @@ class MessagePreviewDialog(QDialog):
         connections = [conn.id for conn in targetedConnections]
         self.targetedConnections = Session.query(LinkedInConnection)\
             .filter(LinkedInConnection.id.in_(connections))\
+            .limit(100)\
+            .from_self()\
             .order_by(LinkedInConnection.name)
         self.messageStatuses = {connection: None for connection in self.targetedConnections}
         self.template = Session.query(LinkedInMessageTemplate).get(template.id)
@@ -38,7 +41,9 @@ class MessagePreviewDialog(QDialog):
 
         firstInvalidMessage = None
         firstMessage = None
+        self.targetedConnectionsExist = False
         for connection in self.targetedConnections:
+            self.targetedConnectionsExist = True
             item = QListWidgetItem()
             item.setText(connection.name)
             item.setData(Qt.UserRole, connection)
@@ -46,18 +51,24 @@ class MessagePreviewDialog(QDialog):
             if not firstMessage:
                 firstMessage = item
 
-            if self.template.isValid(connection):
-                self.messageStatuses[connection] = UNAPPROVED
-                item.setIcon(QIcon(":/icon/resources/icons/warning.png"))
-            else:
+            if self.template.id in [message.template_id for message in connection.messages]:
+                self.messageStatuses[connection] = ALREADY_SENT
+                item.setIcon(QIcon(":/icon/resources/icons/disclaimer.png"))
+
+            elif not self.template.isValid(connection):
                 self.messageStatuses[connection] = INVALID
                 item.setIcon(QIcon(":/icon/resources/icons/error.png"))
 
                 if firstInvalidMessage is None:
                     firstInvalidMessage = item
 
+            else:
+                self.messageStatuses[connection] = UNAPPROVED
+                item.setIcon(QIcon(":/icon/resources/icons/warning.png"))
+
             self.ui.targetedConnectionsList.addItem(item)
 
+        # select the first message that is invalid to show the operator what might be wrong.
         if firstInvalidMessage:
             selectedItem = firstInvalidMessage
         else:
@@ -69,8 +80,10 @@ class MessagePreviewDialog(QDialog):
         self.show()
 
         if self.allMessagesAreInvalid():
-            self.ui.buttonBox.button(QDialogButtonBox.Yes).setEnabled(False)
             QMessageBox.critical(self.window(), "Invalid Messages", "This message is undeliverable to all selected connections.")
+
+        elif self.allMessagesHaveBeenSent():
+            QMessageBox.critical(self.window(), "Already Sent", "This message has already been sent to each targeted connection.")
 
         elif self.containsInvalidMessages():
             numInvalidMessages = self.invalidCount()
@@ -79,10 +92,29 @@ class MessagePreviewDialog(QDialog):
                                 f"because some placeholders could not be properly replaced. The message will not be"
                                 f"sent to the connections where the message is invalid.")
 
+        if not self.containsValidConnectionMessage():
+            self.ui.buttonBox.button(QDialogButtonBox.Yes).setEnabled(False)
+
     def populateMessagePreview(self):
-        connection = self.ui.targetedConnectionsList.currentItem().data(Qt.UserRole)
-        message = self.template.fill(connection)
-        self.ui.messagePreviewEdit.setText(message.replace(r"\n", "\n"))
+
+        message = ""
+        prefix = ""
+        suffix = ""
+
+        if not self.targetedConnectionsExist:
+            pass
+        else:
+            connection = self.ui.targetedConnectionsList.currentItem().data(Qt.UserRole)
+            message = self.template.fill(connection)
+
+            if self.messageStatuses[connection] == ALREADY_SENT:
+                prefix = "ALREADY SENT:"
+            elif self.messageStatuses[connection] == INVALID:
+                prefix = "INVALID:"
+
+        if prefix:
+            prefix = f'<span style="color: cyan"><strong>{prefix}</strong></span><br><br>'
+        self.ui.messagePreviewEdit.setText(f"{prefix}{message}{suffix}")
 
     def onChange(self, currentItem, previousItem):
 
@@ -118,3 +150,15 @@ class MessagePreviewDialog(QDialog):
             if status != INVALID:
                 return False
         return True
+
+    def allMessagesHaveBeenSent(self):
+        for status in self.messageStatuses.values():
+            if status != ALREADY_SENT:
+                return False
+        return True
+
+    def containsValidConnectionMessage(self):
+        for status in self.messageStatuses.values():
+            if status == APPROVED or status == UNAPPROVED:
+                return True
+        return False

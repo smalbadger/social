@@ -9,6 +9,7 @@ from database.credentials import username, password, host, port
 
 engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/social',
                        pool_recycle=3600,
+                       pool_size=0,
                        connect_args={'connect_timeout': 10})
 Session = scoped_session(sessionmaker(bind=engine))
 
