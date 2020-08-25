@@ -321,11 +321,7 @@ class InstanceWidget(QWidget):
                 startStopButton.setChecked(False)
                 return
 
-            # Only get connections that haven't already been sent this message.
-            already_sent = [message.recipient_connection_id for message in Session.query(LinkedInMessage).filter(LinkedInMessage.template_id == template.id)]
-            connections = Session.query(LinkedInConnection)\
-                .filter(LinkedInConnection.account_id == self.account.id)\
-                .filter(LinkedInConnection.id.notin_(already_sent))
+            connections = [self.allConnections[name] for name in self.selectedConnections]
 
             # Show a preview of the message and ask if the operator would like to proceed
             preview = MessagePreviewDialog(self, connections, template)
@@ -657,6 +653,12 @@ class InstanceWidget(QWidget):
             prog.exec_()
 
             self.fetchValues()
+
+        else:
+            self.ui.scrapeIndividualConnectionsBtn.setEnabled(True)
+            self.ui.scrapeBulkConnectionsBtn.setEnabled(True)
+            self.ui.acceptConnectionRequestsBtn.setEnabled(True)
+            self.ui.sendConnectionRequestsBtn.setEnabled(True)
 
     def scrapeConnectionsInBulk(self, checked):
         """Synchronizes account using options given in GUI"""

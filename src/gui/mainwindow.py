@@ -101,6 +101,8 @@ class SocialView(QMainWindow):
             if inst.syncController:
                 inst.syncController.stop()
 
+
+
     #############################
     # Database stuff
     #############################

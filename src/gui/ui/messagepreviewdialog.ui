@@ -30,7 +30,7 @@
        <item>
         <widget class="QLabel" name="label_2">
          <property name="text">
-          <string>Targeted Connections</string>
+          <string>Targeted Connections (up to 100)</string>
          </property>
         </widget>
        </item>
