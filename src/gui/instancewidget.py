@@ -31,7 +31,7 @@ class InstanceWidget(QWidget):
 
     # --- Initialization Methods ---------------------------------------------------------------------------------------
 
-    def __init__(self, client: Client, cConstructor):
+    def __init__(self, client: Client, cConstructor, selectedConnectionNames):
         QWidget.__init__(self)
 
         self.ui = Ui_mainWidget()
@@ -63,12 +63,15 @@ class InstanceWidget(QWidget):
         self.controllerConstructor = cConstructor
         self.messagingController = None
         self.messenger = None
-        self.selectedConnections = []
         self.allConnections = {}
         self.syncController = None
         self.synchronizer = None
         self.messagingDelayLowerBound = 5
         self.messagingDelayUpperBound = 3000
+
+        # set the selected connections
+        self.selectedConnections = selectedConnectionNames
+        self.ui.selectedConnectionsList.addItems(self.selectedConnections)
 
         # Loggers and handlers
         self.lw = LogWidget(self.ui.instanceLogTextEdit)

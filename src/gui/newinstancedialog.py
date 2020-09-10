@@ -145,7 +145,7 @@ class NewInstanceDialog(QDialog):
             self.ui.errorLabel.show()
             return
 
-        newInst = InstanceWidget(client, platform)
+        newInst = InstanceWidget(client, platform, [])
         self.newInstanceCreated.emit(newInst)
 
         QDialog.accept(self)

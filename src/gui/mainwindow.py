@@ -1,4 +1,6 @@
 import logging
+import os
+import json
 
 from PySide2.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QApplication
 
@@ -9,6 +11,8 @@ from gui.instancewidget import InstanceWidget
 from gui.logwidget import LogWidget
 
 from database.general import Session, Client
+
+from site_controllers.linkedin import LinkedInController
 
 
 class SocialView(QMainWindow):
@@ -46,6 +50,21 @@ class SocialView(QMainWindow):
 
         # Connect signals
         self.ui.newInstanceButton.clicked.connect(self.openNID)
+
+        recover_file = "recover.json"
+        if os.path.exists(recover_file):
+            with open(recover_file) as rf:
+                recover_contents = recover_file.read()
+
+                for instance in json.loads(recover_contents):
+
+                    client = Session.query(Client).get(instance['client_id'])
+                    selected_connections = instance['selected connections']
+                    constructor = LinkedInController
+                    newInstance = InstanceWidget(client, constructor, selected_connections)
+                    self.addInstance(newInstance)
+
+
 
     def openNID(self, clients: list):
         """
