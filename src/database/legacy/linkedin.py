@@ -89,11 +89,10 @@ def migrateOldDatabase():
 
 def migrateAccount(name):
 
+    # get client if it exists already. Else create a new client.
     client = newSession.query(Client).filter(Client.name == name).one_or_none()
-
     if client:
         client_linkedin = client.linkedin_account
-
     else:
         client = Client(name=name, email="", phone="", tester=False)
         client_linkedin = LinkedInAccount(email="", profile_name=client.name, password=b"")
@@ -102,19 +101,25 @@ def migrateAccount(name):
         newSession.add(client_linkedin)
 
     client_template_CRCs = list({c.MSG_CRC for c in legacySession.query(Contacts).filter(Contacts.Account == name).all()})
+    print(client_template_CRCs)
     messages = legacySession.query(Messages).filter(Messages.MSG_CRC.in_(client_template_CRCs)).filter(Messages.ID >= 25).all()
 
     for message in messages:
-
         template = newSession.query(LinkedInMessageTemplate)\
             .filter(LinkedInMessageTemplate.crc == message.MSG_CRC)\
+            .filter(LinkedInMessageTemplate.account == client.linkedin_account)\
+            .filter(LinkedInMessageTemplate.deleted == False)\
             .one_or_none()
 
+        if template:
+            print("Template already found:", template.message_template)
+
         if not template:
-            print(message.MSG)
-            newTemplate = LinkedInMessageTemplate(name=message.MSG.split()[0], message_template=message.MSG, crc=message.MSG_CRC, date_created=message.Date_Created)
-            newTemplate.account = client_linkedin
-            newSession.add(newTemplate)
+            msg = message.MSG.replace('[First Name]', '{FIRST_NAME}')
+            print("Creating template:", msg)
+            template = LinkedInMessageTemplate(name=message.MSG.split()[0], message_template=msg, crc=message.MSG_CRC, date_created=message.Date_Created)
+            template.account = client_linkedin
+            newSession.add(template)
 
     newSession.commit()
 
