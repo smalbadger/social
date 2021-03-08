@@ -50,7 +50,7 @@ if __name__ == "__main__":
     if not sys.executable.endswith("python.exe"):
         updateTimer = QTimer(view)
         updateTimer.timeout.connect(updateSocial)
-        updateTimer.start(60_000) # Every 1 minute
+        updateTimer.start(60_000)  # Every 1 minute
 
         initialUpdateTimer = QTimer(view)
         initialUpdateTimer.timeout.connect(updateSocial)
