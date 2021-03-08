@@ -79,6 +79,9 @@ class SocialView(QMainWindow):
 
         self.selectInstance(newTab)
 
+        # TODO: Remove when/if we re-enable more than one bot per social instance
+        self.ui.newInstanceButton.setEnabled(False)
+
     def selectInstance(self, instanceTab):
         """Opens an instance by selecting an existing tab."""
 
