@@ -52,6 +52,10 @@ class SocialView(QMainWindow):
         Opens a new instance dialog, populating it with clients list
         """
 
+        # TODO: Remove when/if we re-enable more than one bot per social instance
+        if self.instances:
+            return
+
         nid = NewInstanceDialog(parent=self)
         nid.setModal(True)
         nid.newInstanceCreated.connect(self.addInstance)

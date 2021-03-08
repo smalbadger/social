@@ -45,27 +45,37 @@ def getChromeDriver():
             # Get standard driver for the general version
             genVsn = version[:2]
 
-            if int(genVsn) is 84:
+            if int(genVsn) == 89:
+                version = '89.0.4389.23'
+            elif int(genVsn) == 88:
+                version = '88.0.4324.96'
+            elif int(genVsn) == 87:
+                version = '87.0.4280.88'
+            elif int(genVsn) == 86:
+                version = '86.0.4240.22'
+            elif int(genVsn) == 85:
+                version = '85.0.4183.87'
+            elif int(genVsn) == 84:
                 version = '84.0.4147.30'
-            elif int(genVsn) is 83:
+            elif int(genVsn) == 83:
                 version = '83.0.4103.39'
-            elif int(genVsn) is 81:
+            elif int(genVsn) == 81:
                 version = '81.0.4044.138'
-            elif int(genVsn) is 80:
+            elif int(genVsn) == 80:
                 version = '80.0.3987.106'
-            elif int(genVsn) is 79:
+            elif int(genVsn) == 79:
                 version = '79.0.3945.36'
-            elif int(genVsn) is 78:
+            elif int(genVsn) == 78:
                 version = '78.0.3904.105'
-            elif int(genVsn) is 77:
+            elif int(genVsn) == 77:
                 version = '77.0.3865.40'
-            elif int(genVsn) is 76:
+            elif int(genVsn) == 76:
                 version = '76.0.3809.126'
-            elif int(genVsn) is 75:
+            elif int(genVsn) == 75:
                 version = '75.0.3770.140'
-            elif int(genVsn) is 74:
+            elif int(genVsn) == 74:
                 version = '74.0.3729.6'
-            elif int(genVsn) is 73:
+            elif int(genVsn) == 73:
                 version = '73.0.3683.68'
             else:
                 version = '2.46'
