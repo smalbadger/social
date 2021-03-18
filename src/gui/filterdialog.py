@@ -1,11 +1,11 @@
 from PySide2.QtWidgets import QDialog, QDialogButtonBox, QProgressDialog
 from PySide2.QtCore import Signal, QThreadPool
-from database.general import Session
-from database.linkedin import LinkedInConnection
-from common.threading import Task
+# from database.general import Session
+# from database.linkedin import LinkedInConnection
+# from common.threading import Task
 
 from gui.ui.ui_filterdialog import Ui_Dialog
-from gui.mapdialog import MapDialog
+# from gui.mapdialog import MapDialog
 
 
 class FilterDialog(QDialog):
@@ -36,31 +36,31 @@ class FilterDialog(QDialog):
 
         slot()
 
-        self.ui.addLFButton.clicked.connect(self.newMapDialog)
+        # self.ui.addLFButton.clicked.connect(self.newMapDialog)
         self.ui.locationsList.itemClicked.connect(lambda: self.ui.deleteLFButton.setEnabled(True))
         # self.ui.locationsList.itemClicked.connect(lambda: self.ui.deleteLFButton.setEnabled(True))
         self.ui.deleteLFButton.clicked.connect(self.removeCurrentLocEntry)
 
-    def newMapDialog(self):
-
-        prog = QProgressDialog('Opening map, please wait...', 'Hide', 0, 0, parent=self.window())
-        prog.setModal(True)
-        prog.setWindowTitle('Loading...')
-        prog.show()
-
-        def openDialog(locations):
-            md = MapDialog(self, [item[0] for item in list(locations) if item[0]])
-            md.foundLocations.connect(self.addLocEntry)
-            prog.close()
-            md.exec_()
-
-        task = Task(lambda: Session.query(LinkedInConnection.location)
-                    .filter(LinkedInConnection.account_id == self.account.id))
-
-        task.finished.connect(openDialog)
-        QThreadPool.globalInstance().start(task)
-
-        prog.exec_()
+    # def newMapDialog(self):
+    #
+    #     prog = QProgressDialog('Opening map, please wait...', 'Hide', 0, 0, parent=self.window())
+    #     prog.setModal(True)
+    #     prog.setWindowTitle('Loading...')
+    #     prog.show()
+    #
+    #     def openDialog(locations):
+    #         md = MapDialog(self, [item[0] for item in list(locations) if item[0]])
+    #         md.foundLocations.connect(self.addLocEntry)
+    #         prog.close()
+    #         md.exec_()
+    #
+    #     task = Task(lambda: Session.query(LinkedInConnection.location)
+    #                 .filter(LinkedInConnection.account_id == self.account.id))
+    #
+    #     task.finished.connect(openDialog)
+    #     QThreadPool.globalInstance().start(task)
+    #
+    #     prog.exec_()
 
     def addLocEntry(self, info):
         name = info['name']

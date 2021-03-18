@@ -202,11 +202,19 @@ class InstanceWidget(QWidget):
         Connects all UI signals to functions
         """
 
-        self.ui.acceptConnectionRequestsBtn.clicked.connect(self.acceptConnectionRequests)
+        # TODO: Remove when re-enabling functionality, and uncomment lines further below
+        self.ui.filterConnectionsButton.setEnabled(False)
+        self.ui.uploadConnectionsCSVBtn.setEnabled(False)
+        self.ui.scrapeBulkConnectionsBtn.setEnabled(False)
+        self.ui.sendConnectionRequestsBtn.setEnabled(False)
+        self.ui.acceptConnectionRequestsBtn.setEnabled(False)
+        self.ui.scrapeIndividualConnectionsBtn.setEnabled(False)
+
+        # self.ui.acceptConnectionRequestsBtn.clicked.connect(self.acceptConnectionRequests)
         self.ui.autoMessageButton.toggled.connect(self.autoMessage)
         self.ui.allConnectionsList.itemClicked.connect(self.addConnectionToSelected)
         self.ui.selectedConnectionsList.itemClicked.connect(self.removeConnectionFromSelected)
-        self.ui.scrapeBulkConnectionsBtn.toggled.connect(self.scrapeConnectionsInBulk)
+        # self.ui.scrapeBulkConnectionsBtn.toggled.connect(self.scrapeConnectionsInBulk)
         self.ui.selectAllBox.toggled.connect(self.selectAllConnections)
         self.ui.saveTemplateButton.clicked.connect(self.saveCurrentTemplate)
         self.ui.newTemplateButton.clicked.connect(self.createNewTemplate)
@@ -216,10 +224,10 @@ class InstanceWidget(QWidget):
         self.ui.allConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
-        self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
-        self.ui.uploadConnectionsCSVBtn.clicked.connect(self.parseConnectionsCSV)
-        self.ui.scrapeIndividualConnectionsBtn.toggled.connect(self.scrapeConnectionsIndividually)
-        self.ui.sendConnectionRequestsBtn.toggled.connect(self.sendConnectionRequests)
+        # self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
+        # self.ui.uploadConnectionsCSVBtn.clicked.connect(self.parseConnectionsCSV)
+        # self.ui.scrapeIndividualConnectionsBtn.toggled.connect(self.scrapeConnectionsIndividually)
+        # self.ui.sendConnectionRequestsBtn.toggled.connect(self.sendConnectionRequests)
 
         # Wanted to connect to the focusOut signal, but that doesn't exist, so this is the next best thing.
         def onDailyLimitUpdated(*args):

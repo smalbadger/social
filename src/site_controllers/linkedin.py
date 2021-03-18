@@ -1208,7 +1208,13 @@ class LinkedInMessenger(Task):
         self.controller.start()
         self.controller.messageAll(connections, usingTemplate=msgTemplate)
 
-        self.teardown()
+        try:
+            self.teardown()
+        except RuntimeError as e:
+            if str(e).__contains__("Internal C++ object (Signals) already deleted."):
+                return
+            else:
+                raise
 
 
 class UploadConnectionCSV(QRunnable):
