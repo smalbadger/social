@@ -30,7 +30,6 @@ if __name__ == "__main__":
         needed_reqs = set(f.readlines())
 
     # -- Determine which requirements we have, need to get rid of, or need to install. ---------------------------------
-    # TODO: Find way to filter unnecessary packages from pip freeze
     unnecessary_packages = [p for p in cur_reqs - needed_reqs if p not in requirements_from_source]
     have_packages = cur_reqs.intersection(needed_reqs)
     needed_packages = list(needed_reqs - cur_reqs)
@@ -44,11 +43,13 @@ if __name__ == "__main__":
     print()
 
     # -- Install necessary packages ------------------------------------------------------------------------------------
+    print(needed_packages)
     for package in needed_packages:
         if package := package.strip():
-            print(f'Installing {package}...', end=' ')
-            check_call([sys.executable, '-m', 'pip', 'install', package])
-            print('Done.')
+            if package.split('=')[0] not in requirements_from_source:
+                print(f'Installing {package}...', end=' ')
+                check_call([sys.executable, '-m', 'pip', 'install', package])
+                print('Done.')
     print()
 
     # -- Clone/Pull any dependencies which are not hosted on PyPi) -----------------------------------------------------

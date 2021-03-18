@@ -204,7 +204,7 @@ class InstanceWidget(QWidget):
 
         # TODO: Remove when re-enabling functionality, and uncomment lines further below
         self.ui.filterConnectionsButton.setEnabled(False)
-        self.ui.uploadConnectionsCSVBtn.setEnabled(False)
+        # self.ui.uploadConnectionsCSVBtn.setEnabled(False)
         self.ui.scrapeBulkConnectionsBtn.setEnabled(False)
         self.ui.sendConnectionRequestsBtn.setEnabled(False)
         self.ui.acceptConnectionRequestsBtn.setEnabled(False)
@@ -225,7 +225,7 @@ class InstanceWidget(QWidget):
         self.ui.selectedConnectionsList.itemClicked.connect(self.updateStatusOfMessengerButton)
         self.ui.selectAllBox.toggled.connect(self.updateStatusOfMessengerButton)
         # self.ui.filterConnectionsButton.clicked.connect(self.openFilterDialog)
-        # self.ui.uploadConnectionsCSVBtn.clicked.connect(self.parseConnectionsCSV)
+        self.ui.uploadConnectionsCSVBtn.clicked.connect(self.parseConnectionsCSV)
         # self.ui.scrapeIndividualConnectionsBtn.toggled.connect(self.scrapeConnectionsIndividually)
         # self.ui.sendConnectionRequestsBtn.toggled.connect(self.sendConnectionRequests)
 

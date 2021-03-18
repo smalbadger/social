@@ -7,7 +7,7 @@ ui_folder = os.path.abspath("../src/gui/ui/")
 
 if __name__ == "__main__":
     python = sys.executable
-    uic = python[:-len('python.exe')] + os.path.join('Library', 'bin', 'pyside2-uic')
+    uic = os.path.join(os.path.dirname(python), 'pyside2-uic.exe')
 
     print("Removing existing compiled UI files...")
     for file in os.listdir(ui_folder):

@@ -1,5 +1,6 @@
 if __name__ == "__main__":
-    import os
+    import sys
+    from subprocess import check_call
 
     scripts = [
         "01_normalize_packages.py",
@@ -11,6 +12,6 @@ if __name__ == "__main__":
 
     for script in scripts:
         if script.endswith(".py"):
-            os.system("python {}".format(script))
+            check_call([sys.executable, script])
         else:
-            os.system(script)
+            check_call(script)

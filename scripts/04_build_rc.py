@@ -13,7 +13,7 @@ if __name__ == "__main__":
         os.makedirs(d)
 
     python = sys.executable
-    rcc = python[:-len('python.exe')] + os.path.join('Library', 'bin', 'pyside2-rcc.exe')
+    rcc = os.path.join(os.path.dirname(python), 'pyside2-rcc.exe')
 
     with open(out, 'w') as fout:
         proc = subprocess.Popen([rcc, qrc], stdout=fout)
