@@ -14,7 +14,7 @@ pygit2==1.5.0
 PyMySQL==1.0.2
 PySide2==5.15.2
 python-dateutil==2.8.1
-pywin32==300
+pywin32==301
 PyYAML==5.4.1
 qtmodern==0.2.1
 requests==2.25.1
