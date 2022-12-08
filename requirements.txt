@@ -1,6 +1,6 @@
 BeneDict==0.3.2
 cached-property==1.5.2
-certifi==2020.12.5
+certifi==2022.12.7
 cffi==1.14.5
 chardet==4.0.0
 fake-useragent==0.1.11
